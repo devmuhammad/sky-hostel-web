@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CardContainer, EmptyState } from "@/shared/components/ui";
 import { Button } from "@/shared/components/ui/button";
@@ -31,8 +30,6 @@ export default function RegistrationSuccess() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const searchParams = useSearchParams();
-
   // Ensure component is mounted before accessing search params
   useEffect(() => {
     setMounted(true);
@@ -42,6 +39,8 @@ export default function RegistrationSuccess() {
     if (!mounted) return;
 
     const fetchStudentData = async () => {
+      // Only use URLSearchParams after mounting
+      const searchParams = new URLSearchParams(window.location.search);
       const email = searchParams.get("email");
       const phone = searchParams.get("phone");
 
@@ -73,7 +72,7 @@ export default function RegistrationSuccess() {
     };
 
     fetchStudentData();
-  }, [mounted, searchParams]);
+  }, [mounted]);
 
   const handlePrint = () => {
     window.print();

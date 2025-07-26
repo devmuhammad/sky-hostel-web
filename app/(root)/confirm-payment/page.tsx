@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/shared/components/ui/button";
 
@@ -21,8 +20,6 @@ export default function ConfirmPaymentPage() {
   });
   const [isChecking, setIsChecking] = useState(false);
 
-  const searchParams = useSearchParams();
-
   // Ensure component is mounted before accessing search params
   useEffect(() => {
     setMounted(true);
@@ -31,6 +28,8 @@ export default function ConfirmPaymentPage() {
   useEffect(() => {
     if (!mounted) return;
 
+    // Only import and use useSearchParams after mounting
+    const searchParams = new URLSearchParams(window.location.search);
     const reference = searchParams.get("ref");
     const status = searchParams.get("status");
     const email = searchParams.get("email");
@@ -48,7 +47,7 @@ export default function ConfirmPaymentPage() {
     } else {
       setPaymentStatus("failed");
     }
-  }, [mounted, searchParams]);
+  }, [mounted]);
 
   const handleManualCheck = async () => {
     if (!checkForm.email && !checkForm.phone) {

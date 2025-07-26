@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
 import PaymentVerification from "@/features/registration/components/PaymentVerification";
 import RegistrationForm from "@/features/registration/components/RegistrationForm";
 import { PAYMENT_CONFIG } from "@/shared/config/constants";
@@ -12,7 +11,6 @@ export const dynamic = "force-dynamic";
 export default function RegistrationPage() {
   const [mounted, setMounted] = useState(false);
   const [paymentData, setPaymentData] = useState<any>(null);
-  const searchParams = useSearchParams();
 
   // Ensure component is mounted before accessing search params
   useEffect(() => {
@@ -22,6 +20,8 @@ export default function RegistrationPage() {
   useEffect(() => {
     if (!mounted) return;
 
+    // Only use URLSearchParams after mounting
+    const searchParams = new URLSearchParams(window.location.search);
     const email = searchParams.get("email");
     const phone = searchParams.get("phone");
     const verified = searchParams.get("verified");
@@ -34,7 +34,7 @@ export default function RegistrationPage() {
         isFullyPaid: true,
       });
     }
-  }, [mounted, searchParams]);
+  }, [mounted]);
 
   // Show loading state until mounted
   if (!mounted) {
