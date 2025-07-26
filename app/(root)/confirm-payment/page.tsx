@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
-
-// Force dynamic rendering for this page
-export const dynamic = "force-dynamic";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/shared/components/ui/button";
 
-function ConfirmPaymentContent() {
-  const searchParams = useSearchParams();
+// Force dynamic rendering for this page
+export const dynamic = "force-dynamic";
+
+export default function ConfirmPaymentPage() {
+  const [mounted, setMounted] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<
     "loading" | "success" | "pending" | "failed"
   >("loading");
@@ -21,7 +21,16 @@ function ConfirmPaymentContent() {
   });
   const [isChecking, setIsChecking] = useState(false);
 
+  const searchParams = useSearchParams();
+
+  // Ensure component is mounted before accessing search params
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
     const reference = searchParams.get("ref");
     const status = searchParams.get("status");
     const email = searchParams.get("email");
@@ -39,7 +48,7 @@ function ConfirmPaymentContent() {
     } else {
       setPaymentStatus("failed");
     }
-  }, [searchParams]);
+  }, [mounted, searchParams]);
 
   const handleManualCheck = async () => {
     if (!checkForm.email && !checkForm.phone) {
@@ -78,12 +87,13 @@ function ConfirmPaymentContent() {
     }
   };
 
-  if (paymentStatus === "loading") {
+  // Show loading state until mounted
+  if (!mounted || paymentStatus === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Processing payment...</p>
+          <p className="text-gray-600">Loading payment confirmation...</p>
         </div>
       </div>
     );
@@ -314,22 +324,5 @@ function ConfirmPaymentContent() {
         )}
       </div>
     </div>
-  );
-}
-
-export default function ConfirmPaymentPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading payment confirmation...</p>
-          </div>
-        </div>
-      }
-    >
-      <ConfirmPaymentContent />
-    </Suspense>
   );
 }
