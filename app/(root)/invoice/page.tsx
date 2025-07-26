@@ -6,9 +6,15 @@ export const dynamic = "force-dynamic";
 import DynamicForm from "@/shared/components/forms/DynamicForm";
 import { PaymentSchema, PaymentFormData } from "@/shared/utils/validation";
 import { PAYMENT_CONFIG } from "@/shared/config/constants";
-import React from "react";
+import React, { useEffect } from "react";
 
-const page = () => {
+const Page = () => {
+  // Log environment on invoice page load
+  useEffect(() => {
+    console.log("=== INVOICE PAGE ENVIRONMENT CHECK ===");
+    console.log("NEXT_PUBLIC_APP_URL:", process.env.NEXT_PUBLIC_APP_URL);
+    console.log("Payment amount:", PAYMENT_CONFIG.amount);
+  }, []);
   const handlePaymentSubmit = async (data: PaymentFormData) => {
     try {
       const response = await fetch("/api/payments", {
@@ -76,4 +82,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default Page;
