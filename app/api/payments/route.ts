@@ -34,8 +34,9 @@ async function handlePOST(request: NextRequest) {
     const reference = `SKY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     try {
-      // Log environment and URLs for debugging
-      const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL}/confirm-payment?ref=${reference}&email=${encodeURIComponent(data.email)}&phone=${encodeURIComponent(data.phone)}`;
+      // Direct redirect to registration after payment (simplified flow)
+      // User goes: Payment -> Registration (skipping confirm-payment page)
+      const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL}/registration?ref=${reference}&email=${encodeURIComponent(data.email)}&phone=${encodeURIComponent(data.phone)}&verified=true`;
       console.log("=== PAYMENT DEBUG INFO ===");
       console.log("NEXT_PUBLIC_APP_URL:", process.env.NEXT_PUBLIC_APP_URL);
       console.log("Return URL being sent to Paycashless:", returnUrl);

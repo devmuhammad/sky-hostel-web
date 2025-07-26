@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/shared/components/ui/button";
+import { productionLogger } from "@/shared/utils/production-logger";
 
 // Force dynamic rendering for this page
 export const dynamic = "force-dynamic";
@@ -35,14 +36,14 @@ export default function ConfirmPaymentPage() {
     const email = searchParams.get("email");
     const phone = searchParams.get("phone");
 
-    // Debug logging
-    console.log("=== CONFIRM PAYMENT PAGE LOADED ===");
-    console.log("Timestamp:", new Date().toISOString());
-    console.log("Reference:", reference);
-    console.log("Status:", status);
-    console.log("Email:", email);
-    console.log("Phone:", phone);
-    console.log("Full URL:", window.location.href);
+    // Debug logging (development only)
+    productionLogger.log("=== CONFIRM PAYMENT PAGE LOADED ===");
+    productionLogger.log("Timestamp:", new Date().toISOString());
+    productionLogger.log("Reference:", reference);
+    productionLogger.log("Status:", status);
+    productionLogger.log("Email:", email);
+    productionLogger.log("Phone:", phone);
+    productionLogger.log("Full URL:", window.location.href);
 
     if (status === "success") {
       setPaymentStatus("success");
@@ -88,7 +89,7 @@ export default function ConfirmPaymentPage() {
         alert(result.message || "Payment not found");
       }
     } catch (error) {
-      console.error("Error checking payment:", error);
+      productionLogger.error("Error checking payment:", error);
       alert("Error checking payment status");
     } finally {
       setIsChecking(false);

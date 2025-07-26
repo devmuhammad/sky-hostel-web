@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CardContainer, EmptyState } from "@/shared/components/ui";
 import { Button } from "@/shared/components/ui/button";
+import { productionLogger } from "@/shared/utils/production-logger";
 
 // Force dynamic rendering for this page
 export const dynamic = "force-dynamic";
@@ -64,7 +65,7 @@ export default function RegistrationSuccess() {
           setError(result.message || "Student data not found");
         }
       } catch (error) {
-        console.error("Error fetching student data:", error);
+        productionLogger.error("Error fetching student data:", error);
         setError("Failed to load registration information");
       } finally {
         setIsLoading(false);
@@ -310,7 +311,7 @@ export default function RegistrationSuccess() {
             </li>
             <li className="flex items-start">
               <span className="text-blue-500 mr-2">•</span>
-              For any questions, contact us at support@skystudenhostel.com
+              For any questions, contact us at support@skystudenthostel.com
             </li>
             <li className="flex items-start">
               <span className="text-blue-500 mr-2">•</span>

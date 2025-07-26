@@ -6,14 +6,18 @@ export const dynamic = "force-dynamic";
 import DynamicForm from "@/shared/components/forms/DynamicForm";
 import { PaymentSchema, PaymentFormData } from "@/shared/utils/validation";
 import { PAYMENT_CONFIG } from "@/shared/config/constants";
+import { productionLogger } from "@/shared/utils/production-logger";
 import React, { useEffect } from "react";
 
 const Page = () => {
-  // Log environment on invoice page load
+  // Log environment on invoice page load (development only)
   useEffect(() => {
-    console.log("=== INVOICE PAGE ENVIRONMENT CHECK ===");
-    console.log("NEXT_PUBLIC_APP_URL:", process.env.NEXT_PUBLIC_APP_URL);
-    console.log("Payment amount:", PAYMENT_CONFIG.amount);
+    productionLogger.log("=== INVOICE PAGE ENVIRONMENT CHECK ===");
+    productionLogger.log(
+      "NEXT_PUBLIC_APP_URL:",
+      process.env.NEXT_PUBLIC_APP_URL
+    );
+    productionLogger.log("Payment amount:", PAYMENT_CONFIG.amount);
   }, []);
   const handlePaymentSubmit = async (data: PaymentFormData) => {
     try {
@@ -40,7 +44,7 @@ const Page = () => {
         };
       }
     } catch (error) {
-      console.error("Payment error:", error);
+      productionLogger.error("Payment error:", error);
       return {
         success: false,
         error: { message: "An error occurred during payment processing" },

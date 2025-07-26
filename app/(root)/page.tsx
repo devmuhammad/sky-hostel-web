@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { BedDouble, Building2, Users } from "lucide-react";
+import { productionLogger } from "@/shared/utils/production-logger";
 
 // Feature Card Component
 interface FeatureCardProps {
@@ -100,14 +101,17 @@ const RoomSelectionBar: React.FC<RoomSelectionBarProps> = ({
 
 // Main Landing Page Component
 const Page = () => {
-  // Log environment variables on page load
+  // Log environment variables on page load (development only)
   useEffect(() => {
-    console.log("=== ENVIRONMENT CHECK ON SITE LOAD ===");
-    console.log("Timestamp:", new Date().toISOString());
-    console.log("NEXT_PUBLIC_APP_URL:", process.env.NEXT_PUBLIC_APP_URL);
-    console.log("Window location origin:", window.location.origin);
-    console.log("Window location href:", window.location.href);
-    console.log("Environment:", process.env.NODE_ENV);
+    productionLogger.log("=== ENVIRONMENT CHECK ON SITE LOAD ===");
+    productionLogger.log("Timestamp:", new Date().toISOString());
+    productionLogger.log(
+      "NEXT_PUBLIC_APP_URL:",
+      process.env.NEXT_PUBLIC_APP_URL
+    );
+    productionLogger.log("Window location origin:", window.location.origin);
+    productionLogger.log("Window location href:", window.location.href);
+    productionLogger.log("Environment:", process.env.NODE_ENV);
   }, []);
 
   // Features data

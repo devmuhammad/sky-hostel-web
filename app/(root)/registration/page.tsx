@@ -25,11 +25,13 @@ export default function RegistrationPage() {
     const email = searchParams.get("email");
     const phone = searchParams.get("phone");
     const verified = searchParams.get("verified");
+    const ref = searchParams.get("ref");
 
     if (verified === "true" && (email || phone)) {
       setPaymentData({
         email: email,
         phone: phone,
+        reference: ref,
         totalPaid: PAYMENT_CONFIG.amount,
         isFullyPaid: true,
       });
@@ -56,6 +58,38 @@ export default function RegistrationPage() {
       <h1 className="text-3xl font-bold text-center mb-8">
         Student Registration
       </h1>
+
+      {/* Show success message when coming from payment */}
+      {paymentData && (
+        <div className="max-w-md mx-auto mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
+              <svg
+                className="w-5 h-5 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-green-800 font-semibold">
+                Payment Successful!
+              </h3>
+              <p className="text-green-700 text-sm">
+                Complete your registration below
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!paymentData ? (
         <PaymentVerification onVerified={setPaymentData} />
       ) : (
