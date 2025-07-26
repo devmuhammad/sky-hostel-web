@@ -5,27 +5,40 @@ import { PaycashlessWebhookPayload } from "@/shared/types/payment";
 
 export async function POST(request: NextRequest) {
   try {
-    const payload: PaycashlessWebhookPayload = await request.json();
+    const payload = await request.json();
 
     // Debug logging
     console.log("=== PAYCASHLESS WEBHOOK RECEIVED ===");
     console.log("Timestamp:", new Date().toISOString());
     console.log("Payload:", JSON.stringify(payload, null, 2));
-    console.log("Status:", payload.status);
-    console.log("Reference:", payload.invoice_id || payload.reference);
 
-    // Validate webhook payload
-    if (!validatePaycashlessWebhook(payload)) {
-      console.error("Invalid webhook payload:", payload);
+    // Handle the nested webhook structure
+    const webhookData = payload.data || payload; // Support both formats
+    const eventType = payload.event;
+
+    console.log("Event:", eventType);
+    console.log("Status:", webhookData.status);
+    console.log("Reference:", webhookData.reference);
+    console.log("Invoice ID:", webhookData.id);
+
+    // Basic validation - ensure we have required fields
+    if (!webhookData.status || !webhookData.reference) {
+      console.error(
+        "Invalid webhook payload - missing required fields:",
+        payload
+      );
       return NextResponse.json(
-        { success: false, error: "Invalid payload" },
+        {
+          success: false,
+          error: "Invalid payload - missing status or reference",
+        },
         { status: 400 }
       );
     }
 
     // Update payment status in database
-    // Handle both invoice_id and reference field from webhook
-    const invoiceReference = payload.invoice_id || payload.reference;
+    // Use the reference from the nested data structure
+    const invoiceReference = webhookData.reference;
 
     const { data: existingPayment, error: fetchError } = await supabaseAdmin
       .from("payments")
@@ -41,13 +54,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update payment status
+    // Update payment status using the nested data
     const newStatus =
-      payload.status === "paid"
+      webhookData.status === "paid"
         ? "completed"
-        : payload.status === "partially_paid"
+        : webhookData.status === "partially_paid"
           ? "pending" // Keep as pending until fully paid
-          : payload.status === "cancelled"
+          : webhookData.status === "cancelled"
             ? "failed"
             : "pending";
 
@@ -55,7 +68,8 @@ export async function POST(request: NextRequest) {
       .from("payments")
       .update({
         status: newStatus,
-        paid_at: payload.status === "paid" ? new Date().toISOString() : null,
+        paid_at:
+          webhookData.status === "paid" ? new Date().toISOString() : null,
       })
       .eq("invoice_id", invoiceReference);
 
@@ -75,7 +89,8 @@ export async function POST(request: NextRequest) {
       metadata: {
         old_status: existingPayment.status,
         new_status: newStatus,
-        transaction_id: payload.transaction_id,
+        event_type: eventType,
+        invoice_id: webhookData.id,
         webhook_payload: payload,
       },
     });
