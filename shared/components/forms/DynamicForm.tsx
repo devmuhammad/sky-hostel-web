@@ -27,7 +27,7 @@ import {
 import { useToast } from "@/shared/hooks/useToast";
 
 interface DynamicFormProps {
-  schema: z.ZodTypeAny;
+  schema: any;
   defaultValues: Record<string, any>;
   onSubmit: (data: any) => Promise<ActionResponse>;
   formType?: "INVOICE" | "PAYMENT" | "REGISTRATION";
@@ -42,8 +42,9 @@ const DynamicForm = ({
   const router = useRouter();
   const toast = useToast();
 
+  // @ts-ignore - Version compatibility issue between zod and @hookform/resolvers
   const form = useForm({
-    resolver: zodResolver(schema) as any,
+    resolver: zodResolver(schema as any),
     defaultValues,
   });
 
