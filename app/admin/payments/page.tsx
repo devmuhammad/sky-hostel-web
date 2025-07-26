@@ -1,5 +1,8 @@
 "use client";
 
+// Force dynamic rendering for this page
+export const dynamic = "force-dynamic";
+
 import { Suspense, useState, useEffect } from "react";
 import Header from "@/features/dashboard/components/Header";
 import { createClientSupabaseClient } from "@/shared/config/auth";

@@ -3,14 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import {
-  CardContainer,
-  StatsCard,
-  EmptyState,
-  LoadingSkeleton,
-} from "@/shared/components/ui";
+import { CardContainer, EmptyState } from "@/shared/components/ui";
 import { Button } from "@/shared/components/ui/button";
-import { useToast } from "@/shared/hooks";
 
 // Force dynamic rendering for this page
 export const dynamic = "force-dynamic";
@@ -36,8 +30,8 @@ export default function RegistrationSuccess() {
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const searchParams = useSearchParams();
-  const { showToast } = useToast();
 
   // Ensure component is mounted before accessing search params
   useEffect(() => {
@@ -167,26 +161,32 @@ export default function RegistrationSuccess() {
 
         {/* Student Information Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <StatsCard
-            label="Registration ID"
-            value={studentData.id || "N/A"}
-            icon="🆔"
-          />
-          <StatsCard
-            label="Room Assignment"
-            value={studentData.room?.room_number || "Pending"}
-            icon="🏠"
-          />
-          <StatsCard
-            label="Payment Status"
-            value={
-              studentData.payment_status === "completed" ? "Paid" : "Pending"
-            }
-            icon="💳"
-            color={
-              studentData.payment_status === "completed" ? "green" : "yellow"
-            }
-          />
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-sm font-medium text-gray-500">
+              Registration ID
+            </h3>
+            <p className="text-2xl font-bold text-gray-900">
+              {studentData.id || "N/A"}
+            </p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-sm font-medium text-gray-500">
+              Room Assignment
+            </h3>
+            <p className="text-2xl font-bold text-gray-900">
+              {studentData.room?.room_number || "Pending"}
+            </p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-sm font-medium text-gray-500">
+              Payment Status
+            </h3>
+            <p
+              className={`text-2xl font-bold ${studentData.payment_status === "completed" ? "text-green-600" : "text-yellow-600"}`}
+            >
+              {studentData.payment_status === "completed" ? "Paid" : "Pending"}
+            </p>
+          </div>
         </div>
 
         {/* Detailed Information */}
