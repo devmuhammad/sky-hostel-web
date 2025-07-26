@@ -98,7 +98,7 @@ export default function ConfirmPaymentPage() {
   // Show loading state until mounted
   if (!mounted || paymentStatus === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 pt-20">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading payment confirmation...</p>
@@ -108,7 +108,7 @@ export default function ConfirmPaymentPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 pt-20">
       <div className="max-w-md w-full">
         {paymentStatus === "success" && (
           <div className="bg-white rounded-2xl shadow-xl p-8 text-center">

@@ -20,8 +20,8 @@ CREATE TABLE students (
   -- Personal Information
   first_name VARCHAR(100) NOT NULL,
   last_name VARCHAR(100) NOT NULL,
-  email VARCHAR(255) NOT NULL,
-  phone VARCHAR(20) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,  -- Unique: One registration per email
+  phone VARCHAR(20) UNIQUE NOT NULL,   -- Unique: One registration per phone
   date_of_birth DATE NOT NULL,
   address TEXT NOT NULL,
   state_of_origin VARCHAR(100) NOT NULL,

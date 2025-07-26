@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ToastProvider } from "@/shared/components/ui/toast-provider";
+import Header from "@/shared/components/layout/Header";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sky Student Hostel",
-  description: "Student accommodation management system",
+  title: "Sky Hostel",
+  description:
+    "Stay, explore, and make memories. The Ultimate Hostel Experience Awaits",
 };
 
 export default function RootLayout({
@@ -25,10 +28,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <Script
+          src="https://remitademo.net/payment/v1/remita-pay-inline.bundle.js"
+          strategy="afterInteractive"
+        />
+      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
       >
-        {children}
+        <Header />
+        <main>{children}</main>
         <ToastProvider />
       </body>
     </html>

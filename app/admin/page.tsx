@@ -6,7 +6,6 @@ import { CardContainer } from "@/shared/components/ui/card-container";
 import { StatusBadge } from "@/shared/components/ui/status-badge";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import { StatsLoadingSkeleton } from "@/shared/components/ui/loading-skeleton";
-import { Button } from "@/shared/components/ui/button";
 import { createServerSupabaseClient } from "@/shared/config/auth";
 
 async function getDashboardStats() {

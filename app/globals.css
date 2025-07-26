@@ -18,6 +18,15 @@
   --accent-foreground: 222.2 47.4% 11.2%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
+
+  /* Sky Hostel Brand Colors */
+  --sky-blue: #3b82f6;
+  --sky-dark-blue: #1e40af;
+
+  /* Original Design Colors */
+  --light-blue: #f0f8ff;
+  --dark-blue: #1e3a8a;
+  --green: #16a34a;
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
   --ring: 222.2 84% 4.9%;
@@ -72,6 +81,23 @@
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
+}
+
+/* Custom color classes for original design */
+.bg-light-blue {
+  background-color: var(--light-blue);
+}
+
+.text-dark-blue {
+  color: var(--dark-blue);
+}
+
+.text-green {
+  color: var(--green);
+}
+
+.bg-green {
+  background-color: var(--green);
 }
 
 @layer base {

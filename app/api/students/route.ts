@@ -97,6 +97,48 @@ async function handlePOST(request: NextRequest) {
         );
       }
 
+      // Check if email already exists
+      const { data: existingEmail, error: emailError } = await supabaseAdmin
+        .from("students")
+        .select("id")
+        .eq("email", data.email)
+        .single();
+
+      if (emailError && emailError.code !== "PGRST116") {
+        throw new Error("Error checking existing email");
+      }
+
+      if (existingEmail) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: { message: "Email address already registered" },
+          },
+          { status: 400 }
+        );
+      }
+
+      // Check if phone already exists
+      const { data: existingPhone, error: phoneError } = await supabaseAdmin
+        .from("students")
+        .select("id")
+        .eq("phone", data.phone)
+        .single();
+
+      if (phoneError && phoneError.code !== "PGRST116") {
+        throw new Error("Error checking existing phone");
+      }
+
+      if (existingPhone) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: { message: "Phone number already registered" },
+          },
+          { status: 400 }
+        );
+      }
+
       // Verify the bedspace is still available
       const { data: roomData, error: roomError } = await supabaseAdmin
         .from("rooms")
@@ -205,8 +247,29 @@ async function handlePOST(request: NextRequest) {
       console.error("Registration error:", error);
       throw error;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Student registration error:", error);
+
+    // Handle database constraint violations
+    if (error?.code === "23505") {
+      // PostgreSQL unique constraint violation
+      let message = "Registration failed - duplicate data found";
+
+      // Check which constraint was violated
+      if (error.constraint?.includes("email")) {
+        message = "Email address already registered";
+      } else if (error.constraint?.includes("phone")) {
+        message = "Phone number already registered";
+      } else if (error.constraint?.includes("matric")) {
+        message = "Matric number already registered";
+      }
+
+      return NextResponse.json(
+        { success: false, error: { message } },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { success: false, error: { message: "Registration failed" } },
       { status: 500 }
