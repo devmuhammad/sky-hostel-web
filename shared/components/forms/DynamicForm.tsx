@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm, FieldValues, DefaultValues, Path } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
@@ -26,28 +26,28 @@ import {
 } from "@/shared/utils/validation";
 import { useToast } from "@/shared/hooks/useToast";
 
-interface DynamicFormProps<T extends Record<string, any>> {
-  schema: z.ZodSchema<T>;
-  defaultValues: T;
-  onSubmit: (data: T) => Promise<ActionResponse>;
+interface DynamicFormProps {
+  schema: z.ZodTypeAny;
+  defaultValues: Record<string, any>;
+  onSubmit: (data: any) => Promise<ActionResponse>;
   formType?: "INVOICE" | "PAYMENT" | "REGISTRATION";
 }
 
-const DynamicForm = <T extends Record<string, any>>({
+const DynamicForm = ({
   schema,
   defaultValues,
   onSubmit,
   formType,
-}: DynamicFormProps<T>) => {
+}: DynamicFormProps) => {
   const router = useRouter();
   const toast = useToast();
 
-  const form = useForm<T>({
-    resolver: zodResolver(schema),
+  const form = useForm({
+    resolver: zodResolver(schema) as any,
     defaultValues,
   });
 
-  const handleSubmit = async (data: T) => {
+  const handleSubmit = async (data: any) => {
     const loadingToastId = toast.loading(getLoadingText());
 
     try {
@@ -96,61 +96,62 @@ const DynamicForm = <T extends Record<string, any>>({
   };
 
   const getLoadingText = () => {
-    if (formType === "INVOICE") return "Getting invoice...";
+    if (formType === "INVOICE") return "Generating invoice...";
     if (formType === "PAYMENT") return "Processing payment...";
-    return "Assigning bedspace...";
+    return "Submitting registration...";
   };
 
+  // Get form fields from schema
+  const schemaShape = (schema as any)._def?.shape || {};
+  const formFields = Object.keys(schemaShape);
+
   return (
-    <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(handleSubmit)}
-        className="mt-10 space-y-6"
-      >
-        {Object.keys(defaultValues).map((fieldName) => (
-          <FormField
-            key={fieldName}
-            control={form.control}
-            name={fieldName as Path<T>}
-            render={({ field }) => (
-              <FormItem className="flex w-full flex-col gap-2.5">
-                <FormLabel className="paragraph-medium text-primary-500">
-                  {getFieldLabel(fieldName)}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    type={getInputType(fieldName)}
-                    {...getInputProps(fieldName, field)}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        ))}
+    <div className="w-full max-w-md mx-auto">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          {formFields.map((fieldName) => (
+            <FormField
+              key={fieldName}
+              control={form.control as any}
+              name={fieldName}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{getFieldLabel(fieldName)}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type={getInputType(fieldName)}
+                      placeholder={`Enter your ${getFieldLabel(fieldName).toLowerCase()}`}
+                      {...field}
+                      {...getInputProps(fieldName, field)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ))}
 
-        <Button
-          disabled={form.formState.isSubmitting}
-          className="primary-gradient paragraph-medium min-h-12 w-full rounded-2 px-4 py-3 font-inter !text-light-900"
-        >
-          {form.formState.isSubmitting ? getLoadingText() : getButtonText()}
-        </Button>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={form.formState.isSubmitting}
+          >
+            {form.formState.isSubmitting ? getLoadingText() : getButtonText()}
+          </Button>
 
-        {formType === "INVOICE" || formType === "PAYMENT" ? (
-          <p className="">
-            Already made a payment?{" "}
-            <Link
-              href="/confirm-payment"
-              className="paragraph-semibold primary-text-gradient"
-            >
-              Confirm Payment
-            </Link>
-          </p>
-        ) : (
-          ""
-        )}
-      </form>
-    </Form>
+          {formType === "REGISTRATION" && (
+            <div className="text-center">
+              <Link
+                href="/"
+                className="text-sm text-gray-600 hover:text-gray-800 underline"
+              >
+                Back to Home
+              </Link>
+            </div>
+          )}
+        </form>
+      </Form>
+    </div>
   );
 };
 
