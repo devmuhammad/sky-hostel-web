@@ -3,10 +3,10 @@ import { createServerSupabaseClient } from "@/shared/config/auth";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const studentId = params.id;
+    const { id: studentId } = await params;
 
     if (!studentId) {
       return NextResponse.json(
