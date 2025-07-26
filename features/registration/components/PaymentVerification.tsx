@@ -121,6 +121,24 @@ export default function PaymentVerification({
         proceeding with registration.
       </p>
 
+      {/* Help for users who haven't paid yet */}
+      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <h3 className="font-semibold text-blue-800 mb-2">
+          Haven&apos;t made payment yet?
+        </h3>
+        <p className="text-sm text-blue-700 mb-3">
+          You need to pay the accommodation fee of{" "}
+          {PAYMENT_CONFIG.formatAmount()}
+          before you can register.
+        </p>
+        <Button
+          onClick={() => (window.location.href = "/invoice")}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          Make Payment Now
+        </Button>
+      </div>
+
       {partialPaymentInfo && (
         <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <h3 className="font-semibold text-yellow-800 mb-2">

@@ -140,16 +140,14 @@ const DynamicForm = ({
             {form.formState.isSubmitting ? getLoadingText() : getButtonText()}
           </Button>
 
-          {formType === "REGISTRATION" && (
-            <div className="text-center">
-              <Link
-                href="/"
-                className="text-sm text-gray-600 hover:text-gray-800 underline"
-              >
-                Back to Home
-              </Link>
-            </div>
-          )}
+          <div className="text-center">
+            <Link
+              href="/"
+              className="text-sm text-gray-600 hover:text-gray-800 underline"
+            >
+              Back to Home
+            </Link>
+          </div>
         </form>
       </Form>
     </div>
