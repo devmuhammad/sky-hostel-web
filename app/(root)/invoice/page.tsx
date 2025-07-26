@@ -1,5 +1,8 @@
 "use client";
 
+// Force dynamic rendering for this page
+export const dynamic = "force-dynamic";
+
 import DynamicForm from "@/shared/components/forms/DynamicForm";
 import { PaymentSchema, PaymentFormData } from "@/shared/utils/validation";
 import { PAYMENT_CONFIG } from "@/shared/config/constants";

@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+
+// Force dynamic rendering for this page
+export const dynamic = "force-dynamic";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -31,7 +34,7 @@ interface StudentData {
   created_at: string;
 }
 
-export default function RegistrationSuccess() {
+function RegistrationSuccessContent() {
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -338,5 +341,26 @@ export default function RegistrationSuccess() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegistrationSuccess() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 py-8">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">
+                Loading registration confirmation...
+              </p>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <RegistrationSuccessContent />
+    </Suspense>
   );
 }
