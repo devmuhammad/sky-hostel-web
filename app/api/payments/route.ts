@@ -34,6 +34,13 @@ async function handlePOST(request: NextRequest) {
     const reference = `SKY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     try {
+      // Log environment and URLs for debugging
+      const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL}/confirm-payment?ref=${reference}&email=${encodeURIComponent(data.email)}&phone=${encodeURIComponent(data.phone)}`;
+      console.log("=== PAYMENT DEBUG INFO ===");
+      console.log("NEXT_PUBLIC_APP_URL:", process.env.NEXT_PUBLIC_APP_URL);
+      console.log("Return URL being sent to Paycashless:", returnUrl);
+      console.log("Reference:", reference);
+
       // Create invoice with Paycashless
       const invoiceResult = await createPaycashlessInvoice({
         reference,
@@ -43,7 +50,7 @@ async function handlePOST(request: NextRequest) {
         name: `${data.firstName} ${data.lastName}`,
         description: `Sky Student Hostel Payment - ${data.firstName} ${data.lastName}`,
         callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/paycashless`,
-        returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/confirm-payment?ref=${reference}&email=${encodeURIComponent(data.email)}&phone=${encodeURIComponent(data.phone)}`,
+        returnUrl: returnUrl,
         metadata: {
           phone: data.phone,
           firstName: data.firstName,

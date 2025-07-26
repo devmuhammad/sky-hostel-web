@@ -7,6 +7,13 @@ export async function POST(request: NextRequest) {
   try {
     const payload: PaycashlessWebhookPayload = await request.json();
 
+    // Debug logging
+    console.log("=== PAYCASHLESS WEBHOOK RECEIVED ===");
+    console.log("Timestamp:", new Date().toISOString());
+    console.log("Payload:", JSON.stringify(payload, null, 2));
+    console.log("Status:", payload.status);
+    console.log("Reference:", payload.invoice_id || payload.reference);
+
     // Validate webhook payload
     if (!validatePaycashlessWebhook(payload)) {
       console.error("Invalid webhook payload:", payload);

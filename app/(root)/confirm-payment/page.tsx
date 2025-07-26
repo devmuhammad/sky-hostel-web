@@ -35,6 +35,15 @@ export default function ConfirmPaymentPage() {
     const email = searchParams.get("email");
     const phone = searchParams.get("phone");
 
+    // Debug logging
+    console.log("=== CONFIRM PAYMENT PAGE LOADED ===");
+    console.log("Timestamp:", new Date().toISOString());
+    console.log("Reference:", reference);
+    console.log("Status:", status);
+    console.log("Email:", email);
+    console.log("Phone:", phone);
+    console.log("Full URL:", window.location.href);
+
     if (status === "success") {
       setPaymentStatus("success");
       setPaymentDetails({ reference, email, phone });
