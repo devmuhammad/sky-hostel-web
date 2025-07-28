@@ -104,13 +104,6 @@ export function PassportPhotoUpload({
     }
   };
 
-  const handleSkip = () => {
-    toast.info("Photo upload skipped", {
-      description: "You can upload your photo later",
-    });
-    onContinue();
-  };
-
   return (
     <div className="max-w-2xl mx-auto">
       <CardContainer title="Passport Photo Upload">
@@ -132,7 +125,7 @@ export function PassportPhotoUpload({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Passport Photo
+                Select Passport Photo *
               </label>
               <input
                 ref={fileInputRef}
@@ -203,12 +196,6 @@ export function PassportPhotoUpload({
             {uploadedPhotoUrl && (
               <Button onClick={onContinue} className="flex-1">
                 Continue to Room Selection
-              </Button>
-            )}
-
-            {!uploadedPhotoUrl && (
-              <Button onClick={handleSkip} variant="outline" className="flex-1">
-                Skip for Now
               </Button>
             )}
           </div>

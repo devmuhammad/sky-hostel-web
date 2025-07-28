@@ -255,11 +255,6 @@ export default function RegistrationForm({
       <div key={fieldName} className={config.fullWidth ? "md:col-span-2" : ""}>
         <Label htmlFor={fieldName} className="mb-2">
           {getFieldLabel(fieldName)} *
-          {isDisabled && (
-            <span className="ml-2 text-sm text-green-600 font-normal">
-              (Payment Verified)
-            </span>
-          )}
           {isPreFilled && (
             <span className="ml-2 text-sm text-blue-600 font-normal">
               (Pre-filled from payment)
@@ -295,13 +290,6 @@ export default function RegistrationForm({
         )}
 
         {error && <p className="text-red-500 text-sm mt-1">{error.message}</p>}
-
-        {isDisabled && (
-          <p className="text-green-600 text-sm mt-1">
-            ✓ {fieldName === "email" ? "Email" : "Phone"} verified from payment:{" "}
-            {paymentData[fieldName === "email" ? "email" : "phone"]}
-          </p>
-        )}
 
         {isPreFilled && (
           <p className="text-blue-600 text-sm mt-1">
