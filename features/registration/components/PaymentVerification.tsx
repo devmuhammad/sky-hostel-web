@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -44,6 +44,12 @@ type VerificationData = z.infer<typeof VerificationSchema>;
 
 interface PaymentVerificationProps {
   onVerified: (data: any) => void;
+  preFilledData?: {
+    email?: string;
+    phone?: string;
+    firstName?: string;
+    lastName?: string;
+  };
 }
 
 function usePaymentVerification() {
@@ -59,6 +65,7 @@ function usePaymentVerification() {
 
 export default function PaymentVerification({
   onVerified,
+  preFilledData,
 }: PaymentVerificationProps) {
   const { error, execute, isLoading } = usePaymentVerification();
   const [partialPaymentInfo, setPartialPaymentInfo] = useState<any>(null);
@@ -67,10 +74,17 @@ export default function PaymentVerification({
   const form = useForm<VerificationData>({
     resolver: zodResolver(VerificationSchema),
     defaultValues: {
-      email: "",
-      phone: "",
+      email: preFilledData?.email || "",
+      phone: preFilledData?.phone || "",
     },
   });
+
+  // Update form values when preFilledData changes
+  useEffect(() => {
+    if (preFilledData?.email) {
+      form.setValue("email", preFilledData.email);
+    }
+  }, [preFilledData, form]);
 
   const onSubmit = async (data: VerificationData) => {
     const loadingToastId = toast.loading("Verifying payment...", {
@@ -90,7 +104,12 @@ export default function PaymentVerification({
       toast.success("Payment verified successfully!", {
         description: "You can now proceed with your registration",
       });
-      onVerified(result.data);
+      // Pass along the name data from pre-filled data
+      onVerified({
+        ...result.data,
+        firstName: preFilledData?.firstName,
+        lastName: preFilledData?.lastName,
+      });
     } else if (
       result.error?.message &&
       result.error.message.includes("Payment incomplete")
@@ -114,102 +133,124 @@ export default function PaymentVerification({
   };
 
   return (
-    <div className="max-w-md mx-auto">
-      <h2 className="text-2xl font-bold mb-4">Verify Payment</h2>
-      <p className="text-gray-600 mb-6">
-        Please provide your email or phone number to verify your payment before
-        proceeding with registration.
-      </p>
+    <div className="max-w-2xl mx-auto">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">
+          Payment Verification Required
+        </h2>
 
-      {/* Help for users who haven't paid yet */}
-      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h3 className="font-semibold text-blue-800 mb-2">
-          Haven&apos;t made payment yet?
-        </h3>
-        <p className="text-sm text-blue-700 mb-3">
-          You need to pay the accommodation fee of{" "}
-          {PAYMENT_CONFIG.formatAmount()}
-          before you can register.
-        </p>
-        <Button
-          onClick={() => (window.location.href = "/invoice")}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          Make Payment Now
-        </Button>
-      </div>
-
-      {partialPaymentInfo && (
-        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <h3 className="font-semibold text-yellow-800 mb-2">
-            Partial Payment Detected
-          </h3>
-          <p className="text-sm text-yellow-700">
-            You have made a partial payment. Please complete your payment of{" "}
-            {PAYMENT_CONFIG.formatAmount()} to proceed with registration.
-          </p>
-          <div className="mt-3">
-            <Button
-              onClick={() => (window.location.href = "/invoice")}
-              className="bg-yellow-600 hover:bg-yellow-700 text-white"
-            >
-              Complete Payment
-            </Button>
+        {preFilledData?.email || preFilledData?.phone ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <p className="text-blue-800 text-sm">
+              <strong>Payment Information Pre-filled:</strong> Your payment
+              details have been pre-filled. Please click &quot;Verify
+              Payment&quot; to confirm your payment status before proceeding
+              with registration.
+            </p>
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="text-gray-600 mb-6">
+            Please verify your payment to proceed with registration
+          </p>
+        )}
 
-      <ErrorAlert error={error} />
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email Address</FormLabel>
-                <FormControl>
-                  <Input
-                    type="email"
-                    placeholder="Enter your email address"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="text-center text-sm text-gray-500">OR</div>
-
-          <FormField
-            control={form.control}
-            name="phone"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Phone Number</FormLabel>
-                <FormControl>
-                  <Input
-                    type="tel"
-                    placeholder="Enter your phone number"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <LoadingButton
-            type="submit"
-            isLoading={isLoading}
-            loadingText="Verifying..."
-            className="w-full"
+        {/* Help for users who haven't paid yet */}
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h3 className="font-semibold text-blue-800 mb-2">
+            Haven&apos;t made payment yet?
+          </h3>
+          <p className="text-sm text-blue-700 mb-3">
+            You need to pay the accommodation fee of{" "}
+            {PAYMENT_CONFIG.formatAmount()}
+            before you can register.
+          </p>
+          <Button
+            onClick={() => (window.location.href = "/invoice")}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            Verify Payment
-          </LoadingButton>
-        </form>
-      </Form>
+            Make Payment Now
+          </Button>
+        </div>
+
+        {partialPaymentInfo && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <h3 className="font-semibold text-yellow-800 mb-2">
+              Partial Payment Detected
+            </h3>
+            <p className="text-sm text-yellow-700">
+              You have made a partial payment. Please complete your payment of{" "}
+              {PAYMENT_CONFIG.formatAmount()} to proceed with registration.
+            </p>
+            <div className="mt-3">
+              <Button
+                onClick={() => (window.location.href = "/invoice")}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white"
+              >
+                Complete Payment
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <ErrorAlert error={error} />
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email Address</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="email"
+                      placeholder="Enter your email address"
+                      disabled={!!preFilledData?.email}
+                      className={preFilledData?.email ? "bg-gray-100" : ""}
+                    />
+                  </FormControl>
+                  {preFilledData?.email && (
+                    <p className="text-sm text-blue-600">
+                      Email pre-filled from payment - cannot be changed
+                    </p>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="text-center text-sm text-gray-500">OR</div>
+
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone Number</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="tel"
+                      placeholder="Enter your phone number"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <LoadingButton
+              type="submit"
+              isLoading={isLoading}
+              loadingText="Verifying..."
+              className="w-full"
+            >
+              Verify Payment
+            </LoadingButton>
+          </form>
+        </Form>
+      </div>
     </div>
   );
 }

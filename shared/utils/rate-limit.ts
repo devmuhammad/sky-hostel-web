@@ -169,11 +169,6 @@ export function withRateLimit<T extends any[]>(
             headers: {
               "Content-Type": "application/json",
               "Retry-After": result.retryAfter.toString(),
-              "X-RateLimit-Limit": rateLimiter.check.toString(),
-              "X-RateLimit-Remaining": "0",
-              "X-RateLimit-Reset": new Date(
-                Date.now() + result.retryAfter * 1000
-              ).toISOString(),
             },
           }
         );

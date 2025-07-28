@@ -78,29 +78,18 @@ export async function createPaycashlessInvoice(
 
   const requestBody = {
     reference: data.reference,
-    description: data.description || "Sky Student Hostel Payment",
-    currency: "NGN",
-    customer: {
-      email: data.email,
-      name: data.name,
-      address: "Sky Student Hostel, University Campus Area",
-    },
-    items: [
-      {
-        name: "Hostel Accommodation Fee",
-        description: "Annual accommodation fee for Sky Student Hostel",
-        price: PAYMENT_CONFIG.amountInKobo, // Amount in kobo
-        quantity: 1,
-      },
-    ],
-    daysUntilDue: 7,
-    acceptPartialPayments: true,
-    sendEmail: true,
-    autoFinalize: true,
-    maxInstallments: 3,
+    description: data.description,
+    currency: data.currency,
+    customer: data.customer,
+    items: data.items,
+    daysUntilDue: data.daysUntilDue,
+    acceptPartialPayments: data.acceptPartialPayments ?? false,
+    sendEmail: data.sendEmail ?? false,
+    autoFinalize: data.autoFinalize ?? true,
     callbackUrl: data.callbackUrl,
     returnUrl: data.returnUrl,
-    metadata: data.metadata || {},
+    maxInstallments: data.maxInstallments ?? 1,
+    metadata: data.metadata,
   };
 
   const signature = generateRequestSignature(
@@ -109,13 +98,8 @@ export async function createPaycashlessInvoice(
     timestamp
   );
 
-  // Log the request details for debugging
-  console.log("=== Paycashless Invoice Request ===");
-  console.log("API URL:", `${PAYCASHLESS_API_URL}${requestPath}`);
-  console.log("Request Body:", JSON.stringify(requestBody, null, 2));
-
   try {
-    const response = await fetch(`${PAYCASHLESS_API_URL}${requestPath}`, {
+    const response = await fetch(`${PAYCASHLESS_API_URL}/v1/invoices`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -126,22 +110,24 @@ export async function createPaycashlessInvoice(
       body: JSON.stringify(requestBody),
     });
 
-    console.log("=== Paycashless Invoice Response ===");
-    console.log("Status:", response.status);
+    const result = await response.json();
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.log("Error Response:", JSON.stringify(errorData, null, 2));
-      throw new Error(
-        `Paycashless API error: ${response.status} - ${errorData.error?.message || "Unknown error"}`
-      );
-    }
-
-    const result = await response.json();
-    console.log("Success Response:", JSON.stringify(result, null, 2));
-
-    if (!result.hostedInvoiceUrl) {
-      throw new Error("No payment URL received from Paycashless");
+      console.error("Paycashless API error:", result);
+      return {
+        success: false,
+        data: {
+          id: "",
+          reference: "",
+          paymentUrl: "",
+          amount: 0,
+          currency: "",
+          status: "",
+          dueDate: "",
+          number: "",
+        },
+        message: result.message || "Failed to create invoice",
+      };
     }
 
     return {
@@ -150,7 +136,7 @@ export async function createPaycashlessInvoice(
         id: result.id,
         reference: result.reference,
         paymentUrl: result.hostedInvoiceUrl,
-        amount: result.amountDue / 100, // Convert back from kobo
+        amount: result.amountDue,
         currency: result.currency,
         status: result.status,
         dueDate: result.dueDate,
@@ -159,8 +145,22 @@ export async function createPaycashlessInvoice(
       message: "Invoice created successfully",
     };
   } catch (error) {
-    console.error("Paycashless invoice error:", error);
-    throw error;
+    console.error("Paycashless invoice creation error:", error);
+    return {
+      success: false,
+      data: {
+        id: "",
+        reference: "",
+        paymentUrl: "",
+        amount: 0,
+        currency: "",
+        status: "",
+        dueDate: "",
+        number: "",
+      },
+      message:
+        error instanceof Error ? error.message : "Failed to create invoice",
+    };
   }
 }
 
@@ -210,17 +210,38 @@ export async function verifyPaycashlessPayment(
     // Calculate totals from local payments (webhooks keep these accurate)
     let totalPaid = 0;
     const completedPayments = localPayments
-      .filter((payment) => payment.status === "completed")
+      .filter(
+        (payment) =>
+          payment.status === "completed" ||
+          (payment.status === "pending" && payment.amount_paid > 0)
+      )
       .map((payment) => {
-        totalPaid += payment.amount_paid;
+        // Use the stored amount_paid, but if it's 0 or null, use the configured amount
+        const paymentAmount =
+          payment.amount_paid > 0 ? payment.amount_paid : PAYMENT_CONFIG.amount;
+        totalPaid += paymentAmount;
         return {
           id: payment.id,
           reference: payment.invoice_id,
-          amount: payment.amount_paid,
+          amount: paymentAmount,
           status: payment.status,
           paidAt: payment.paid_at,
         };
       });
+
+    // Check for pending payments that might need webhook confirmation
+    const pendingPayments = localPayments.filter(
+      (payment) => payment.status === "pending" && payment.amount_paid === 0
+    );
+    if (pendingPayments.length > 0) {
+      console.log(
+        "Found pending payments that may need webhook confirmation:",
+        pendingPayments
+      );
+      console.log(
+        "Payment is still pending - webhook may not have updated yet"
+      );
+    }
 
     const remainingAmount = Math.max(0, PAYMENT_CONFIG.amount - totalPaid);
     const isFullyPaid = totalPaid >= PAYMENT_CONFIG.amount;

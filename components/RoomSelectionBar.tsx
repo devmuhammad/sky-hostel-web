@@ -21,7 +21,9 @@ const RoomSelectionBar: React.FC<RoomSelectionBarProps> = ({
               <label className="block text-xs text-gray-500 mb-1">
                 Room type
               </label>
-              <div className="text-sm font-medium text-gray-900">Room of 4</div>
+              <div className="text-sm font-medium text-gray-900">
+                Room of 4 & 6
+              </div>
             </div>
           </div>
         </div>

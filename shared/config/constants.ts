@@ -25,6 +25,6 @@ export const PAYMENT_CONFIG = {
 export const APP_CONFIG = {
   name: "Sky Student Hostel",
   supportEmail: "support@skyhostel.com",
-  maxInstallments: 3,
+  maxInstallments: 2,
   invoiceDueDays: 7,
 };

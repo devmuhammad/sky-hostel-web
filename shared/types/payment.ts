@@ -23,13 +23,26 @@ export interface PaycashlessCheckoutResponse {
 
 export interface PaycashlessInvoiceRequest {
   reference: string;
-  amount: number;
-  email: string;
-  phone: string;
-  name: string;
-  description?: string;
+  description: string;
+  currency: "NGN" | "USD";
+  customer: {
+    email: string;
+    name: string;
+    address?: string;
+  };
+  items: Array<{
+    name: string;
+    quantity: number;
+    description: string;
+    price: number; // Amount in kobo (smallest currency unit)
+  }>;
+  daysUntilDue: number;
+  acceptPartialPayments?: boolean;
+  sendEmail?: boolean;
+  autoFinalize?: boolean;
   callbackUrl?: string;
   returnUrl?: string;
+  maxInstallments?: number;
   metadata?: Record<string, any>;
 }
 
@@ -38,11 +51,26 @@ export interface PaycashlessInvoiceResponse {
   data: {
     id: string;
     reference: string;
-    amount: number;
+    status: "draft" | "open" | "paid" | "partially_paid" | "cancelled";
+    customerId: string;
+    description: string;
     currency: string;
-    status: string;
     dueDate: string;
+    liveMode: boolean;
     number: string;
+    amountDue: number;
+    amountPaid: number;
+    totalInclusiveTaxAmount: number;
+    totalExclusiveTaxAmount: number;
+    taxRateIds: string[];
+    items: Array<{
+      name: string;
+      quantity: number;
+      description: string;
+      price: number;
+    }>;
+    hostedInvoiceUrl: string;
+    maxInstallments?: number;
   };
   message: string;
 }

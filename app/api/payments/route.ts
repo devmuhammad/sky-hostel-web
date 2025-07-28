@@ -36,20 +36,35 @@ async function handlePOST(request: NextRequest) {
     try {
       // Direct redirect to registration after payment (simplified flow)
       // User goes: Payment -> Registration (skipping confirm-payment page)
-      const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL}/registration?ref=${reference}&email=${encodeURIComponent(data.email)}&phone=${encodeURIComponent(data.phone)}&verified=true`;
-      console.log("=== PAYMENT DEBUG INFO ===");
-      console.log("NEXT_PUBLIC_APP_URL:", process.env.NEXT_PUBLIC_APP_URL);
-      console.log("Return URL being sent to Paycashless:", returnUrl);
-      console.log("Reference:", reference);
+      const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL}/registration?email=${encodeURIComponent(
+        data.email
+      )}&phone=${encodeURIComponent(data.phone)}&firstName=${encodeURIComponent(
+        data.firstName
+      )}&lastName=${encodeURIComponent(data.lastName)}`;
 
       // Create invoice with Paycashless
       const invoiceResult = await createPaycashlessInvoice({
         reference,
-        amount: amount,
-        email: data.email,
-        phone: data.phone,
-        name: `${data.firstName} ${data.lastName}`,
         description: `Sky Student Hostel Payment - ${data.firstName} ${data.lastName}`,
+        currency: "NGN",
+        customer: {
+          email: data.email,
+          name: `${data.firstName} ${data.lastName}`,
+          address: "Sky Student Hostel, University Campus Area",
+        },
+        items: [
+          {
+            name: "Hostel Accommodation Fee",
+            description: "Annual accommodation fee for Sky Student Hostel",
+            price: PAYMENT_CONFIG.amountInKobo, // Amount in kobo
+            quantity: 1,
+          },
+        ],
+        daysUntilDue: 7,
+        acceptPartialPayments: true,
+        sendEmail: true,
+        autoFinalize: true,
+        maxInstallments: 2,
         callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/paycashless`,
         returnUrl: returnUrl,
         metadata: {

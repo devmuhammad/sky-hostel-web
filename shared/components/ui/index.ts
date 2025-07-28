@@ -43,3 +43,10 @@ export {
   UpdateConfirmation,
   ResetConfirmation,
 } from "./confirmation-dialogs";
+
+// Consent and Rules Components
+export { ConsentCheckboxes } from "./consent-checkboxes";
+export { HostelRulesConsent } from "./hostel-rules-consent";
+
+// Room Selection Components
+export { RoomSelectionWizard } from "./room-selection-wizard";

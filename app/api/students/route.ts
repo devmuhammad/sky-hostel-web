@@ -139,7 +139,7 @@ async function handlePOST(request: NextRequest) {
         );
       }
 
-      // Verify the bedspace is still available
+      // Verify bedspace is still available
       const { data: roomData, error: roomError } = await supabaseAdmin
         .from("rooms")
         .select("available_beds")
@@ -147,16 +147,35 @@ async function handlePOST(request: NextRequest) {
         .single();
 
       if (roomError || !roomData) {
-        throw new Error("Room not found");
+        return NextResponse.json(
+          { success: false, error: "Room not found" },
+          { status: 404 }
+        );
       }
 
+      // Check if bedspace is still available
       if (!roomData.available_beds.includes(data.bedspace_label)) {
         return NextResponse.json(
-          {
-            success: false,
-            error: { message: "Bedspace no longer available" },
-          },
-          { status: 400 }
+          { success: false, error: "Bedspace no longer available" },
+          { status: 409 }
+        );
+      }
+
+      // Remove bedspace from available beds
+      const updatedBeds = roomData.available_beds.filter(
+        (bed: string) => bed !== data.bedspace_label
+      );
+
+      // Update room availability
+      const { error: updateRoomError } = await supabaseAdmin
+        .from("rooms")
+        .update({ available_beds: updatedBeds })
+        .eq("id", data.room_id);
+
+      if (updateRoomError) {
+        return NextResponse.json(
+          { success: false, error: "Failed to update room availability" },
+          { status: 500 }
         );
       }
 
@@ -206,20 +225,6 @@ async function handlePOST(request: NextRequest) {
       if (studentError) {
         console.error("Student creation error:", studentError);
         throw new Error("Failed to create student record");
-      }
-
-      // Update room availability (remove the selected bedspace)
-      const updatedBeds = roomData.available_beds.filter(
-        (bed: string) => bed !== data.bedspace_label
-      );
-
-      const { error: updateRoomError } = await supabaseAdmin
-        .from("rooms")
-        .update({ available_beds: updatedBeds })
-        .eq("id", data.room_id);
-
-      if (updateRoomError) {
-        throw new Error("Failed to update room availability");
       }
 
       // Log the registration activity
@@ -278,4 +283,134 @@ async function handlePOST(request: NextRequest) {
 }
 
 // Apply rate limiting to the POST handler
-export const POST = withRateLimit(rateLimiters.registration, handlePOST);
+export const POST = handlePOST;
+
+// GET handler for fetching student data
+async function handleGET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const email = searchParams.get("email");
+    const phone = searchParams.get("phone");
+    const studentId = searchParams.get("student_id");
+
+    if (!email && !phone && !studentId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { message: "Email, phone, or student_id is required" },
+        },
+        { status: 400 }
+      );
+    }
+
+    const supabaseAdmin = await createServerSupabaseClient();
+
+    let query = supabaseAdmin.from("students").select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        matric_number,
+        course,
+        level,
+        faculty,
+        department,
+        block,
+        room,
+        bedspace_label,
+        payment_id,
+        passport_photo_url,
+        created_at,
+        payments(
+          amount_paid,
+          status,
+          paid_at
+        )
+      `);
+
+    if (studentId) {
+      query = query.eq("id", studentId);
+    } else if (email) {
+      query = query.eq("email", email);
+    } else if (phone) {
+      query = query.eq("phone", phone);
+    }
+
+    const { data: students, error } = await query;
+
+    if (error) {
+      console.error("Database error:", error);
+      return NextResponse.json(
+        { success: false, error: { message: "Failed to fetch student data" } },
+        { status: 500 }
+      );
+    }
+
+    if (!students || students.length === 0) {
+      return NextResponse.json(
+        { success: false, error: { message: "Student not found" } },
+        { status: 404 }
+      );
+    }
+
+    const student = students[0];
+
+    // Handle both array and object responses from the join
+    let payment = null;
+    if (Array.isArray(student.payments)) {
+      payment = student.payments[0];
+    } else if (student.payments && typeof student.payments === "object") {
+      payment = student.payments;
+    }
+
+    // If no payment found in the join, try to fetch it directly using payment_id
+    let finalPayment = payment;
+    if (!payment && student.payment_id) {
+      const { data: directPayment, error: paymentError } = await supabaseAdmin
+        .from("payments")
+        .select("amount_paid, status, paid_at")
+        .eq("id", student.payment_id)
+        .single();
+
+      if (directPayment && !paymentError) {
+        finalPayment = directPayment;
+      }
+    }
+
+    // Format the response
+    const studentData = {
+      id: student.id,
+      name: `${student.first_name} ${student.last_name}`,
+      email: student.email,
+      phone: student.phone,
+      matric_number: student.matric_number,
+      course: student.course,
+      level: student.level,
+      faculty: student.faculty,
+      department: student.department,
+      room: {
+        room_number: `${student.block}${student.room}`,
+        room_name: `${student.block}${student.room}`,
+        bedspace: student.bedspace_label,
+      },
+      amount_paid: finalPayment?.amount_paid || 0,
+      payment_status: finalPayment?.status || "pending",
+      registration_date: student.created_at,
+      passport_photo_url: student.passport_photo_url,
+    };
+
+    return NextResponse.json({
+      success: true,
+      student: studentData,
+    });
+  } catch (error) {
+    console.error("Student fetch error:", error);
+    return NextResponse.json(
+      { success: false, error: { message: "Internal server error" } },
+      { status: 500 }
+    );
+  }
+}
+
+export const GET = handleGET;

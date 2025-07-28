@@ -23,6 +23,7 @@ interface StudentData {
   payment_status?: string;
   registration_date?: string;
   check_in_date?: string;
+  passport_photo_url?: string;
 }
 
 export default function RegistrationSuccess() {
@@ -42,10 +43,11 @@ export default function RegistrationSuccess() {
     const fetchStudentData = async () => {
       // Only use URLSearchParams after mounting
       const searchParams = new URLSearchParams(window.location.search);
+      const studentId = searchParams.get("student_id");
       const email = searchParams.get("email");
       const phone = searchParams.get("phone");
 
-      if (!email && !phone) {
+      if (!studentId && !email && !phone) {
         setError("Missing registration information");
         setIsLoading(false);
         return;
@@ -53,8 +55,13 @@ export default function RegistrationSuccess() {
 
       try {
         const params = new URLSearchParams();
-        if (email) params.append("email", email);
-        if (phone) params.append("phone", phone);
+        if (studentId) {
+          params.append("student_id", studentId);
+        } else if (email) {
+          params.append("email", email);
+        } else if (phone) {
+          params.append("phone", phone);
+        }
 
         const response = await fetch(`/api/students?${params.toString()}`);
         const result = await response.json();
@@ -160,7 +167,7 @@ export default function RegistrationSuccess() {
         </div>
 
         {/* Student Information Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-sm font-medium text-gray-500">
               Registration ID
@@ -187,6 +194,20 @@ export default function RegistrationSuccess() {
               {studentData.payment_status === "completed" ? "Paid" : "Pending"}
             </p>
           </div>
+          {studentData.passport_photo_url && (
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-sm font-medium text-gray-500 mb-3">
+                Passport Photo
+              </h3>
+              <div className="flex justify-center">
+                <img
+                  src={studentData.passport_photo_url}
+                  alt="Passport photo"
+                  className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Detailed Information */}
@@ -194,20 +215,58 @@ export default function RegistrationSuccess() {
           {/* Personal Information */}
           <CardContainer title="Personal Information">
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Full Name
-                </label>
-                <p className="mt-1 text-sm text-gray-900">{studentData.name}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Email Address
-                </label>
-                <p className="mt-1 text-sm text-gray-900">
-                  {studentData.email}
-                </p>
-              </div>
+              {studentData.passport_photo_url && (
+                <div className="flex items-center space-x-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Passport Photo
+                    </label>
+                    <img
+                      src={studentData.passport_photo_url}
+                      alt="Passport photo"
+                      className="w-24 h-24 rounded-lg object-cover border-2 border-gray-200"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Full Name
+                      </label>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {studentData.name}
+                      </p>
+                    </div>
+                    <div className="mt-3">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Email Address
+                      </label>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {studentData.email}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {!studentData.passport_photo_url && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Full Name
+                    </label>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {studentData.name}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Email Address
+                    </label>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {studentData.email}
+                    </p>
+                  </div>
+                </>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Phone Number
@@ -311,7 +370,7 @@ export default function RegistrationSuccess() {
             </li>
             <li className="flex items-start">
               <span className="text-blue-500 mr-2">•</span>
-              For any questions, contact us at support@skystudenthostel.com
+              For any questions, contact us at mahrikinvltd@gmail.com
             </li>
             <li className="flex items-start">
               <span className="text-blue-500 mr-2">•</span>

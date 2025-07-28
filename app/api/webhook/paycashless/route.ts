@@ -3,67 +3,82 @@ import { validatePaycashlessWebhook } from "@/shared/utils/paycashless";
 import { supabaseAdmin } from "@/shared/config/supabase";
 import { PaycashlessWebhookPayload } from "@/shared/types/payment";
 
+export async function GET() {
+  return NextResponse.json({
+    message: "Webhook endpoint is accessible",
+    timestamp: new Date().toISOString(),
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const payload = await request.json();
 
-    // Debug logging
-    console.log("=== PAYCASHLESS WEBHOOK RECEIVED ===");
-    console.log("Timestamp:", new Date().toISOString());
-    console.log("Payload:", JSON.stringify(payload, null, 2));
+    const webhookData = payload.data || payload;
+    const eventType = payload.event || "payment.updated";
 
-    // Handle the nested webhook structure
-    const webhookData = payload.data || payload; // Support both formats
-    const eventType = payload.event;
+    // Validate webhook signature (if needed)
+    // const signature = request.headers.get("x-paycashless-signature");
+    // if (!validateSignature(payload, signature)) {
+    //   return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    // }
 
-    console.log("Event:", eventType);
-    console.log("Status:", webhookData.status);
-    console.log("Reference:", webhookData.reference);
-    console.log("Invoice ID:", webhookData.id);
+    // Find existing payment by reference
+    const possibleReferences = [
+      webhookData.reference,
+      webhookData.id,
+      webhookData.invoice_id,
+      webhookData.invoiceId,
+    ].filter(Boolean);
 
-    // Basic validation - ensure we have required fields
-    if (!webhookData.status || !webhookData.reference) {
-      console.error(
-        "Invalid webhook payload - missing required fields:",
-        payload
-      );
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid payload - missing status or reference",
-        },
-        { status: 400 }
-      );
+    let existingPayment = null;
+    let reference = null;
+
+    // First try to find by invoice_id (most reliable)
+    for (const ref of possibleReferences) {
+      const { data: payment, error } = await supabaseAdmin
+        .from("payments")
+        .select("*")
+        .eq("invoice_id", ref)
+        .single();
+
+      if (payment && !error) {
+        existingPayment = payment;
+        reference = ref;
+        break;
+      }
     }
 
-    // Update payment status in database
-    // Use the reference from the nested data structure
-    const invoiceReference = webhookData.reference;
+    // If no payment found by reference, try by customer email
+    if (!existingPayment && webhookData.customer?.email) {
+      const { data: payments, error } = await supabaseAdmin
+        .from("payments")
+        .select("*")
+        .eq("email", webhookData.customer.email)
+        .order("created_at", { ascending: false })
+        .limit(1);
 
-    const { data: existingPayment, error: fetchError } = await supabaseAdmin
-      .from("payments")
-      .select("*")
-      .eq("invoice_id", invoiceReference)
-      .single();
-
-    if (fetchError || !existingPayment) {
-      console.error("Payment not found:", invoiceReference, fetchError);
-      return NextResponse.json(
-        { success: false, error: "Payment not found" },
-        { status: 404 }
-      );
+      if (payments && payments.length > 0) {
+        existingPayment = payments[0];
+        reference = existingPayment.invoice_id;
+      }
     }
 
-    // Update payment status using the nested data
-    const newStatus =
-      webhookData.status === "paid"
-        ? "completed"
-        : webhookData.status === "partially_paid"
-          ? "pending" // Keep as pending until fully paid
-          : webhookData.status === "cancelled"
-            ? "failed"
-            : "pending";
+    if (!existingPayment) {
+      return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+    }
 
+    // Map webhook status to our status
+    let newStatus = "pending";
+    if (webhookData.status === "paid") {
+      newStatus = "completed";
+    } else if (webhookData.status === "partially_paid") {
+      newStatus = "partially_paid";
+    } else if (webhookData.status === "cancelled") {
+      newStatus = "cancelled";
+    }
+
+    // Update payment status
     const { error: updateError } = await supabaseAdmin
       .from("payments")
       .update({
@@ -71,37 +86,19 @@ export async function POST(request: NextRequest) {
         paid_at:
           webhookData.status === "paid" ? new Date().toISOString() : null,
       })
-      .eq("invoice_id", invoiceReference);
+      .eq("id", existingPayment.id);
 
     if (updateError) {
-      console.error("Failed to update payment:", updateError);
       return NextResponse.json(
-        { success: false, error: "Failed to update payment" },
+        { error: "Failed to update payment" },
         { status: 500 }
       );
     }
 
-    // Log the activity
-    await supabaseAdmin.from("activity_logs").insert({
-      action: "payment_status_updated",
-      resource_type: "payment",
-      resource_id: existingPayment.id,
-      metadata: {
-        old_status: existingPayment.status,
-        new_status: newStatus,
-        event_type: eventType,
-        invoice_id: webhookData.id,
-        webhook_payload: payload,
-      },
-    });
-
-    console.log(`Payment ${invoiceReference} updated to ${newStatus}`);
-
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Webhook processing error:", error);
     return NextResponse.json(
-      { success: false, error: "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

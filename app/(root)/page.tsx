@@ -56,7 +56,32 @@ const Page = () => {
         <RoomSelectionBar className="absolute bottom-[1%] lg:bottom-[10%] left-0 right-0 max-w-6xl mx-auto" />
       </section>
 
-      {/* Spacing for the absolutely positioned bar */}
+      {/* Call to Action Section */}
+      <section className="bg-gray-900 text-white py-16 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl lg:text-4xl font-bold mb-4">
+            Ready to Make Sky Hostel Your Home?
+          </h2>
+          <p className="text-xl mb-8 text-gray-300">
+            Join hundreds of students who have chosen Sky Hostel for their
+            accommodation needs.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/registration">
+              <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors">
+                Start Registration
+              </button>
+            </Link>
+            <Link href="/check-payment">
+              <button className="border border-white text-white hover:bg-white hover:text-gray-900 font-semibold py-3 px-8 rounded-lg transition-colors">
+                Check Payment Status
+              </button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <div className="h-16"></div>
 
       {/* Why Choose SKY Section */}
@@ -138,32 +163,6 @@ const Page = () => {
         </div>
       </section>
 
-      {/* Call to Action Section */}
-      <section className="bg-gray-900 text-white py-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl lg:text-4xl font-bold mb-4">
-            Ready to Make Sky Hostel Your Home?
-          </h2>
-          <p className="text-xl mb-8 text-gray-300">
-            Join hundreds of students who have chosen Sky Hostel for their
-            accommodation needs.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/registration">
-              <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors">
-                Start Registration
-              </button>
-            </Link>
-            <Link href="/check-payment">
-              <button className="border border-white text-white hover:bg-white hover:text-gray-900 font-semibold py-3 px-8 rounded-lg transition-colors">
-                Check Payment Status
-              </button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
       {/* Footer */}
       <footer className="bg-gray-100 py-8 px-4">
         <div className="max-w-6xl mx-auto">
@@ -203,8 +202,8 @@ const Page = () => {
               <h4 className="font-semibold mb-3 text-gray-900">Contact</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 <li>University Campus Area</li>
-                <li>+234 (0) 813 017 0731</li>
-                <li>support@skyhostel.com</li>
+                <li>+234 707 581 8778</li>
+                <li>mahrikinvltd@gmail.com</li>
               </ul>
             </div>
 
