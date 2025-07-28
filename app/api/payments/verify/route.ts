@@ -19,6 +19,17 @@ export async function POST(request: NextRequest) {
 
     const verificationResult = await verifyPaycashlessPayment(email, phone);
 
+    console.log("Payment verify API - verificationResult:", verificationResult);
+
+    // If verification failed, structure the error properly
+    if (!verificationResult.success && verificationResult.error) {
+      console.log("Payment verify API - Error case:", verificationResult.error);
+      return NextResponse.json({
+        success: false,
+        error: { message: verificationResult.error },
+      });
+    }
+
     return NextResponse.json(verificationResult);
   } catch (error) {
     return NextResponse.json(
