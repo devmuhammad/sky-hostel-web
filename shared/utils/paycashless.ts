@@ -173,6 +173,7 @@ export async function verifyPaycashlessPayment(
     totalPaid: number;
     remainingAmount: number;
     isFullyPaid: boolean;
+    payment_id?: string;
     payments: Array<{
       id: string;
       reference: string;
@@ -202,6 +203,7 @@ export async function verifyPaycashlessPayment(
           totalPaid: 0,
           remainingAmount: PAYMENT_CONFIG.amount,
           isFullyPaid: false,
+          payment_id: undefined,
           payments: [],
         },
       };
@@ -209,6 +211,7 @@ export async function verifyPaycashlessPayment(
 
     // Calculate totals from local payments (webhooks keep these accurate)
     let totalPaid = 0;
+    let payment_id: string | undefined;
     const completedPayments = localPayments
       .filter(
         (payment) =>
@@ -220,6 +223,12 @@ export async function verifyPaycashlessPayment(
         const paymentAmount =
           payment.amount_paid > 0 ? payment.amount_paid : PAYMENT_CONFIG.amount;
         totalPaid += paymentAmount;
+
+        // Use the first completed payment's ID as the payment_id
+        if (!payment_id) {
+          payment_id = payment.id;
+        }
+
         return {
           id: payment.id,
           reference: payment.invoice_id,
@@ -252,6 +261,7 @@ export async function verifyPaycashlessPayment(
         totalPaid,
         remainingAmount,
         isFullyPaid,
+        payment_id,
         payments: completedPayments,
       },
     };

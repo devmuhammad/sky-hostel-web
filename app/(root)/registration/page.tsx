@@ -183,6 +183,7 @@ export default function RegistrationPage() {
         (!paymentData || !paymentData.payment_id ? (
           <PaymentVerification
             onVerified={(data) => {
+              console.log("RegistrationPage - Payment verified, data:", data);
               setPaymentData(data);
               setCurrentStep("photo");
             }}
@@ -247,10 +248,17 @@ export default function RegistrationPage() {
       )}
 
       {currentStep === "registration" && paymentData && (
-        <RegistrationForm
-          paymentData={paymentData}
-          passportPhotoUrl={passportPhotoUrl}
-        />
+        <>
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `console.log('RegistrationForm - paymentData:', ${JSON.stringify(paymentData)});`,
+            }}
+          />
+          <RegistrationForm
+            paymentData={paymentData}
+            passportPhotoUrl={passportPhotoUrl}
+          />
+        </>
       )}
     </div>
   );

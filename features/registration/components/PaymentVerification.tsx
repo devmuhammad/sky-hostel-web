@@ -112,6 +112,7 @@ export default function PaymentVerification({
         phone: preFilledData?.phone || data.phone || "",
         firstName: preFilledData?.firstName || "",
         lastName: preFilledData?.lastName || "",
+        payment_id: result.data?.payment_id,
       };
       console.log("PaymentVerification - preFilledData:", preFilledData);
       console.log("PaymentVerification - form data:", data);
