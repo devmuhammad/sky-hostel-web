@@ -17,6 +17,13 @@ export default function RegistrationPage() {
   >("payment");
   const [passportPhotoUrl, setPassportPhotoUrl] = useState<string | null>(null);
 
+  // Debug: Log paymentData changes
+  useEffect(() => {
+    if (paymentData) {
+      console.log("PaymentData updated:", paymentData);
+    }
+  }, [paymentData]);
+
   // Ensure component is mounted before accessing search params
   useEffect(() => {
     setMounted(true);
@@ -206,15 +213,36 @@ export default function RegistrationPage() {
           </div>
         ))}
 
+      {/* Debug: Log URL parameters */}
+      {currentStep === "payment" && (
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `console.log('URL Parameters:', window.location.search); console.log('Email from URL:', new URLSearchParams(window.location.search).get("email")); console.log('Phone from URL:', new URLSearchParams(window.location.search).get("phone"));`,
+          }}
+        />
+      )}
+
       {currentStep === "photo" && paymentData && (
         <PassportPhotoUpload
-          email={paymentData.email}
-          phone={paymentData.phone}
+          email={
+            paymentData.email ||
+            new URLSearchParams(window.location.search).get("email") ||
+            ""
+          }
           onPhotoUploaded={(photoUrl) => {
             setPassportPhotoUrl(photoUrl);
           }}
           onBack={() => setCurrentStep("payment")}
           onContinue={() => setCurrentStep("registration")}
+        />
+      )}
+
+      {/* Debug: Log paymentData */}
+      {currentStep === "photo" && (
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `console.log('PaymentData:', ${JSON.stringify(paymentData)});`,
+          }}
         />
       )}
 

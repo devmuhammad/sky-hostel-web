@@ -6,7 +6,6 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const email = formData.get("email") as string;
-    const phone = formData.get("phone") as string;
 
     if (!file) {
       return NextResponse.json(
@@ -15,9 +14,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!email || !phone) {
+    if (!email) {
       return NextResponse.json(
-        { success: false, error: "Email and phone are required" },
+        { success: false, error: "Email is required" },
         { status: 400 }
       );
     }

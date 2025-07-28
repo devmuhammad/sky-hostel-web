@@ -10,7 +10,6 @@ interface PassportPhotoUploadProps {
   onBack: () => void;
   onContinue: () => void;
   email: string;
-  phone: string;
 }
 
 export function PassportPhotoUpload({
@@ -18,7 +17,6 @@ export function PassportPhotoUpload({
   onBack,
   onContinue,
   email,
-  phone,
 }: PassportPhotoUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string | null>(null);
@@ -65,6 +63,13 @@ export function PassportPhotoUpload({
       return;
     }
 
+    if (!email) {
+      toast.error("Email is required", {
+        description: "Please provide your email address",
+      });
+      return;
+    }
+
     setIsUploading(true);
 
     try {
@@ -72,7 +77,6 @@ export function PassportPhotoUpload({
       const formData = new FormData();
       formData.append("file", file);
       formData.append("email", email);
-      formData.append("phone", phone);
 
       // Upload via API endpoint
       const response = await fetch("/api/upload/passport-photo", {

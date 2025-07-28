@@ -104,14 +104,21 @@ export default function PaymentVerification({
       toast.success("Payment verified successfully!", {
         description: "You can now proceed with your registration",
       });
-      // Pass along all the pre-filled data
-      onVerified({
+
+      // Debug: Log what we're passing
+      const verifiedData = {
         ...result.data,
-        email: preFilledData?.email,
-        phone: preFilledData?.phone,
-        firstName: preFilledData?.firstName,
-        lastName: preFilledData?.lastName,
-      });
+        email: preFilledData?.email || data.email || "",
+        phone: preFilledData?.phone || data.phone || "",
+        firstName: preFilledData?.firstName || "",
+        lastName: preFilledData?.lastName || "",
+      };
+      console.log("PaymentVerification - preFilledData:", preFilledData);
+      console.log("PaymentVerification - form data:", data);
+      console.log("PaymentVerification - verifiedData:", verifiedData);
+
+      // Pass along all the pre-filled data
+      onVerified(verifiedData);
     } else if (
       result.error?.message &&
       result.error.message.includes("Payment incomplete")
