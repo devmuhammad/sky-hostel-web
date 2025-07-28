@@ -180,10 +180,16 @@ export default function RegistrationPage() {
               setCurrentStep("photo");
             }}
             preFilledData={{
-              email: paymentData?.email,
-              phone: paymentData?.phone,
-              firstName: paymentData?.firstName,
-              lastName: paymentData?.lastName,
+              email:
+                new URLSearchParams(window.location.search).get("email") || "",
+              phone:
+                new URLSearchParams(window.location.search).get("phone") || "",
+              firstName:
+                new URLSearchParams(window.location.search).get("firstName") ||
+                "",
+              lastName:
+                new URLSearchParams(window.location.search).get("lastName") ||
+                "",
             }}
           />
         ) : (

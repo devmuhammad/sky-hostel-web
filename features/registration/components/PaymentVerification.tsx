@@ -104,9 +104,11 @@ export default function PaymentVerification({
       toast.success("Payment verified successfully!", {
         description: "You can now proceed with your registration",
       });
-      // Pass along the name data from pre-filled data
+      // Pass along all the pre-filled data
       onVerified({
         ...result.data,
+        email: preFilledData?.email,
+        phone: preFilledData?.phone,
         firstName: preFilledData?.firstName,
         lastName: preFilledData?.lastName,
       });
