@@ -106,11 +106,11 @@ export default function RegistrationPage() {
         </div>
       )}
 
-      {/* Show warning when coming from direct URL without payment_id */}
-      {paymentData && !paymentData.payment_id && (
-        <div className="max-w-md mx-auto mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mr-3">
+      {/* Payment Verification Warning */}
+      {currentStep === "payment" && !paymentData && (
+        <div className="max-w-2xl mx-auto mb-6">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
+            <div className="flex-shrink-0">
               <svg
                 className="w-5 h-5 text-yellow-600"
                 fill="none"
@@ -124,14 +124,6 @@ export default function RegistrationPage() {
                   d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
                 />
               </svg>
-            </div>
-            <div>
-              <h3 className="text-yellow-800 font-semibold">
-                Payment Verification Required
-              </h3>
-              <p className="text-yellow-700 text-sm">
-                Please verify your payment to proceed with registration
-              </p>
             </div>
           </div>
         </div>
