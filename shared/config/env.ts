@@ -16,6 +16,9 @@ const envSchema = z.object({
   PAYCASHLESS_API_SECRET: z.string().optional(),
   PAYCASHLESS_API_URL: z.string().url().optional(),
 
+  // Resend (optional in development)
+  RESEND_API_KEY: z.string().optional(),
+
   // App (with development fallback)
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
 
@@ -36,6 +39,7 @@ function validateEnv() {
         "PAYCASHLESS_API_KEY",
         "PAYCASHLESS_API_SECRET",
         "NEXT_PUBLIC_APP_URL",
+        "RESEND_API_KEY",
       ];
 
       const missing = productionRequired.filter((key) => !process.env[key]);

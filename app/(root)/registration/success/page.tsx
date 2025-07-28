@@ -167,15 +167,7 @@ export default function RegistrationSuccess() {
         </div>
 
         {/* Student Information Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-500">
-              Registration ID
-            </h3>
-            <p className="text-2xl font-bold text-gray-900">
-              {studentData.id || "N/A"}
-            </p>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-sm font-medium text-gray-500">
               Room Assignment

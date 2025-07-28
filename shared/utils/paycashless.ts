@@ -185,6 +185,25 @@ export async function verifyPaycashlessPayment(
   error?: string;
 }> {
   try {
+    // First, check if a student with this email already exists
+    const { data: existingStudent, error: studentError } = await supabaseAdmin
+      .from("students")
+      .select("id, email, first_name, last_name")
+      .eq("email", email)
+      .single();
+
+    if (studentError && studentError.code !== "PGRST116") {
+      // PGRST116 is "not found" error, which is expected if no student exists
+      throw new Error("Failed to check existing student");
+    }
+
+    if (existingStudent) {
+      return {
+        success: false,
+        error: `A student with email ${email} is already registered. Please contact support if you need assistance.`,
+      };
+    }
+
     // First, get all payments from our database for this user
     const { data: localPayments, error: dbError } = await supabaseAdmin
       .from("payments")

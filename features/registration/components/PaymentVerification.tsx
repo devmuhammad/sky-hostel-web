@@ -134,6 +134,53 @@ export default function PaymentVerification({
         isFullyPaid: false,
         payments: [],
       });
+    } else if (
+      result.error?.message &&
+      result.error.message.includes("already registered")
+    ) {
+      toast.error("Already Registered", {
+        description: result.error.message,
+      });
+      // Show a special message for already registered users
+      return (
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg
+                  className="w-8 h-8 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                Already Registered
+              </h2>
+              <p className="text-gray-600 mb-6">{result.error.message}</p>
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500">
+                  If you believe this is an error or need assistance, please
+                  contact support.
+                </p>
+                <Button
+                  onClick={() => (window.location.href = "/")}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Return to Home
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
     } else {
       toast.error("Payment verification failed", {
         description:
