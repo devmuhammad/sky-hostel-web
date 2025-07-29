@@ -264,7 +264,7 @@ export const RegistrationConfirmationEmail = ({
               </Text>
               <Text style={supportContact}>📞 Phone: +234 707 581 8778</Text>
               <Text style={supportContact}>
-                🌐 Website: https://skyhostel.com
+                🌐 Website: https://skyhostel.ng
               </Text>
             </Section>
           </Section>

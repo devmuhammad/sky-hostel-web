@@ -82,8 +82,6 @@ const Page = () => {
         </div>
       </section>
 
-      <div className="h-16"></div>
-
       {/* Why Choose SKY Section */}
       {/* <section className="p-4 bg-green rounded-lg shadow-sm mb-12 flex items-center gap-5 lg:gap-10 justify-center flex-wrap lg:flex-nowrap max-w-[55%] lg:max-w-[70%] mx-auto">
         <h2 className="text-2xl font-bold text-white text-center">

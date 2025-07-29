@@ -10,7 +10,6 @@ interface RoomType {
   capacity: number;
   price: number;
   color: string;
-  floor: string;
 }
 
 interface Room {
@@ -48,7 +47,6 @@ const ROOM_TYPES: RoomType[] = [
     capacity: 4,
     price: 219000,
     color: "bg-green-500",
-    floor: "Top Floor",
   },
   {
     id: "room-6",
@@ -56,7 +54,6 @@ const ROOM_TYPES: RoomType[] = [
     capacity: 6,
     price: 219000,
     color: "bg-blue-500",
-    floor: "Bottom Floor",
   },
 ];
 
@@ -72,6 +69,7 @@ export function RoomSelectionWizard({
   const [selectedBedspace, setSelectedBedspace] = useState<Bedspace | null>(
     null
   );
+  const [selectedBlock, setSelectedBlock] = useState<string>("all");
 
   // Fetch real room data from database with auto-refresh
   const { rooms: databaseRooms, loading, error, refetch } = useRoomsData();
@@ -286,16 +284,50 @@ export function RoomSelectionWizard({
       (room) => room.bed_type === bedTypeFilter
     );
 
+    // Get unique blocks for the selected room type
+    const availableBlocks = [
+      ...new Set(filteredRooms.map((room) => room.block)),
+    ].sort();
+
+    // Filter rooms by selected block
+    const blockFilteredRooms =
+      selectedBlock === "all"
+        ? filteredRooms
+        : filteredRooms.filter((room) => room.block === selectedBlock);
+
     return (
       <div className="max-w-4xl mx-auto p-6">
         <h2 className="text-2xl font-bold mb-2">ROOM SELECTION</h2>
         <p className="text-gray-600 mb-6">Please select your preferred room</p>
 
+        {/* Block Filter */}
+        <div className="mb-6">
+          <label
+            htmlFor="block-filter"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Filter by Block
+          </label>
+          <select
+            id="block-filter"
+            value={selectedBlock}
+            onChange={(e) => setSelectedBlock(e.target.value)}
+            className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="all">All Blocks</option>
+            {availableBlocks.map((block) => (
+              <option key={block} value={block}>
+                Block {block}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {ROOM_TYPES.map((roomType) => {
             // Filter rooms by bed type
             const bedTypeFilter = roomType.id === "room-4" ? "4_bed" : "6_bed";
-            const typeRooms = filteredRooms.filter(
+            const typeRooms = blockFilteredRooms.filter(
               (room) => room.bed_type === bedTypeFilter
             );
 
@@ -310,28 +342,36 @@ export function RoomSelectionWizard({
                     <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <h3 className="text-lg font-semibold">{roomType.name}</h3>
+                  <span className="ml-2 text-sm text-gray-500">
+                    ({typeRooms.length} rooms)
+                  </span>
                 </div>
-                <p className="text-sm text-gray-600 mb-4">{roomType.floor}</p>
 
-                <div className="grid grid-cols-5 gap-2">
-                  {typeRooms.map((room) => {
-                    const isAvailable = room.available_beds.length > 0;
-                    return (
-                      <button
-                        key={room.id}
-                        onClick={() => handleRoomSelect(room)}
-                        disabled={!isAvailable}
-                        className={`p-2 text-sm rounded border transition-colors ${
-                          isAvailable
-                            ? "bg-white border-blue-500 text-blue-600 hover:bg-blue-50"
-                            : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                        }`}
-                      >
-                        {room.name}
-                      </button>
-                    );
-                  })}
-                </div>
+                {typeRooms.length === 0 ? (
+                  <p className="text-gray-500 text-sm">
+                    No rooms available in selected block
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-5 gap-2 max-h-60 overflow-y-auto">
+                    {typeRooms.map((room) => {
+                      const isAvailable = room.available_beds.length > 0;
+                      return (
+                        <button
+                          key={room.id}
+                          onClick={() => handleRoomSelect(room)}
+                          disabled={!isAvailable}
+                          className={`p-2 text-sm rounded border transition-colors ${
+                            isAvailable
+                              ? "bg-white border-blue-500 text-blue-600 hover:bg-blue-50"
+                              : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                          }`}
+                        >
+                          {room.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
