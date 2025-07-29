@@ -19,7 +19,7 @@ const Page = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="flex flex-col md:flex-row items-center mb-12 bg-light-blue relative pt-24 md:pt-8 lg:pt-0 gap-10 lg:gap-0">
+      <section className="flex flex-col md:flex-row items-center  bg-light-blue relative pt-24 md:pt-8 lg:pt-0 gap-10 lg:gap-0">
         <div className="md:w-1/2">
           <div className="flex flex-col items-left max-w-2xl mx-auto text-left px-8">
             <h1 className="text-3xl lg:text-5xl font-semibold mb-4 text-dark-blue">
