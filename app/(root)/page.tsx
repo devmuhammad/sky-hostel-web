@@ -214,7 +214,7 @@ const Page = () => {
           </div>
 
           <div className="border-t mt-8 pt-6 text-center text-sm text-gray-600">
-            <p>&copy; 2024 Sky Student Hostel. All rights reserved.</p>
+            <p>&copy; 2025 Sky Student Hostel. All rights reserved.</p>
           </div>
         </div>
       </footer>
