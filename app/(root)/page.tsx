@@ -70,7 +70,7 @@ const Page = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/registration">
               <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors">
-                Start Registration
+                Make Payment
               </button>
             </Link>
             <Link href="/check-payment">
@@ -85,7 +85,7 @@ const Page = () => {
       <div className="h-16"></div>
 
       {/* Why Choose SKY Section */}
-      <section className="p-4 bg-green rounded-lg shadow-sm mb-12 flex items-center gap-5 lg:gap-10 justify-center flex-wrap lg:flex-nowrap max-w-[55%] lg:max-w-[70%] mx-auto">
+      {/* <section className="p-4 bg-green rounded-lg shadow-sm mb-12 flex items-center gap-5 lg:gap-10 justify-center flex-wrap lg:flex-nowrap max-w-[55%] lg:max-w-[70%] mx-auto">
         <h2 className="text-2xl font-bold text-white text-center">
           Why choose SKY?
         </h2>
@@ -97,17 +97,16 @@ const Page = () => {
             icon={feature.icon}
           />
         ))}
-      </section>
+      </section> */}
 
       {/* Testimonials Section */}
-      <section className="py-12 mb-12">
+      {/* <section className="py-12 mb-12">
         <div className="max-w-6xl mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-8 text-gray-900">
             What Students Say
           </h2>
 
           <div className="grid md:grid-cols-3 gap-6">
-            {/* Testimonial 1 */}
             <div className="bg-white p-6 rounded-2xl shadow-lg">
               <div className="flex items-center mb-4">
                 <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
@@ -126,7 +125,6 @@ const Page = () => {
               </p>
             </div>
 
-            {/* Testimonial 2 */}
             <div className="bg-white p-6 rounded-2xl shadow-lg">
               <div className="flex items-center mb-4">
                 <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-white font-bold">
@@ -143,7 +141,6 @@ const Page = () => {
               </p>
             </div>
 
-            {/* Testimonial 3 */}
             <div className="bg-white p-6 rounded-2xl shadow-lg">
               <div className="flex items-center mb-4">
                 <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold">
@@ -161,7 +158,7 @@ const Page = () => {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Footer */}
       <footer className="bg-gray-100 py-8 px-4">
@@ -211,8 +208,8 @@ const Page = () => {
               <h4 className="font-semibold mb-3 text-gray-900">Features</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 <li>24/7 Security</li>
-                <li>Free WiFi</li>
-                <li>Prime Location</li>
+                <li>Solar Electricity</li>
+                <li>Steady Water</li>
                 <li>24/7 Support</li>
               </ul>
             </div>

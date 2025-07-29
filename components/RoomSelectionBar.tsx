@@ -12,7 +12,7 @@ const RoomSelectionBar: React.FC<RoomSelectionBarProps> = ({
   return (
     <div className={`w-full bg-white rounded-2xl shadow-lg ${className}`}>
       <div className="w-full max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-stretch gap-3 justify-between">
-        <div className="w-full sm:w-1/3">
+        <div className="w-full ">
           <div className="flex items-center gap-2 p-3 bg-gray-50 border rounded-md h-full">
             <div className="bg-gray-100 p-2 rounded">
               <BedDouble size={18} className="text-gray-600" />
@@ -28,7 +28,7 @@ const RoomSelectionBar: React.FC<RoomSelectionBarProps> = ({
           </div>
         </div>
 
-        <div className="w-full sm:w-1/3">
+        <div className="w-full ">
           <div className="flex items-center gap-2 p-3 bg-gray-50 border rounded-md h-full">
             <div className="bg-gray-100 p-2 rounded">
               <Building2 size={18} className="text-gray-600" />
@@ -40,7 +40,7 @@ const RoomSelectionBar: React.FC<RoomSelectionBarProps> = ({
           </div>
         </div>
 
-        <div className="w-full sm:w-1/3">
+        <div className="w-full ">
           <div className="flex items-center gap-2 p-3 bg-gray-50 border rounded-md h-full">
             <div className="bg-gray-100 p-2 rounded">
               <Users size={18} className="text-gray-600" />
@@ -56,10 +56,10 @@ const RoomSelectionBar: React.FC<RoomSelectionBarProps> = ({
           </div>
         </div>
 
-        <div className="w-full sm:w-auto flex items-center">
-          <Link href="/invoice" className="w-full sm:w-auto">
-            <button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded transition-colors">
-              Make Payment
+        <div className="w-full  flex items-center">
+          <Link href="/invoice" className="w-full  h-full">
+            <button className="w-full  bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded transition-colors h-full">
+              Start Registration
             </button>
           </Link>
         </div>

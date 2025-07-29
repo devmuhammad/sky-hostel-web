@@ -124,6 +124,9 @@ const Page = () => {
       <h1 className="text-3xl font-bold text-center mb-8">
         SKY Hostel Application 2025/2026 Payment
       </h1>
+      <h2 className="text-4xl font-bold text-blue-900 text-center mb-8">
+        {PAYMENT_CONFIG.formatAmount()}
+      </h2>
       <div className="max-w-md mx-auto">
         {/* Hostel Space Availability Check */}
         {isCheckingSpace && (
@@ -160,20 +163,6 @@ const Page = () => {
             </p>
           </div>
         )}
-
-        {/* Display fixed amount */}
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h3 className="text-lg font-semibold text-blue-800 mb-2">
-            Payment Amount
-          </h3>
-          <p className="text-2xl font-bold text-blue-900">
-            {PAYMENT_CONFIG.formatAmount()}
-          </p>
-          <p className="text-sm text-blue-600 mt-1">Annual accommodation fee</p>
-          <p className="text-xs text-blue-500 mt-2">
-            ✓ Partial payments accepted
-          </p>
-        </div>
 
         {/* Consent Checkboxes */}
         <ConsentCheckboxes
