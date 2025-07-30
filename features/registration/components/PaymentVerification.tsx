@@ -215,8 +215,7 @@ export default function PaymentVerification({
               </h3>
               <p className="text-sm text-blue-700 mb-3">
                 You need to pay the accommodation fee of{" "}
-                {PAYMENT_CONFIG.formatAmount()}
-                before you can register.
+                {PAYMENT_CONFIG.formatAmount()} before you can register.
               </p>
               <Button
                 onClick={() => (window.location.href = "/invoice")}
