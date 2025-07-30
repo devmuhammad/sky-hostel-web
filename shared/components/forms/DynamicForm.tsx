@@ -54,9 +54,10 @@ const DynamicForm = ({
     try {
       const result = (await onSubmit(data)) as ActionResponse;
 
-      if (result?.success) {
-        toast.dismiss(loadingToastId);
+      // Always dismiss loading toast first
+      toast.dismiss(loadingToastId);
 
+      if (result?.success) {
         const successMessage =
           formType === "INVOICE" || formType === "PAYMENT"
             ? "Payment processed successfully"
@@ -76,12 +77,12 @@ const DynamicForm = ({
           }, 1500);
         }
       } else {
-        toast.dismiss(loadingToastId);
         toast.error("Operation failed", {
           description: result?.error?.message || "An unexpected error occurred",
         });
       }
     } catch (error) {
+      // Always dismiss loading toast on error too
       toast.dismiss(loadingToastId);
       toast.error("Operation failed", {
         description:
