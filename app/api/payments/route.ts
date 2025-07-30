@@ -60,7 +60,7 @@ async function handlePOST(request: NextRequest) {
             quantity: 1,
           },
         ],
-        daysUntilDue: 7,
+        daysUntilDue: 65,
         acceptPartialPayments: true,
         sendEmail: true,
         autoFinalize: true,
