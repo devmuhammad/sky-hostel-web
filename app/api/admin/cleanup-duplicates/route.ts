@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/shared/config/supabase";
-import { 
-  listPaycashlessInvoices, 
-  getPaycashlessInvoicePayments, 
-  cancelPaycashlessInvoice 
+import {
+  listPaycashlessInvoices,
+  getPaycashlessInvoicePayments,
+  cancelPaycashlessInvoice,
 } from "@/shared/utils/paycashless-admin";
 
 export async function POST(request: NextRequest) {
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
             (invoice) => invoice.reference === payment.invoice_id
           );
 
-          let paycashlessPayments = [];
+          let paycashlessPayments: any[] = [];
           if (paycashlessInvoice) {
             const paymentsResult = await getPaycashlessInvoicePayments(
               paycashlessInvoice.id
@@ -61,7 +61,10 @@ export async function POST(request: NextRequest) {
             paycashlessInvoice,
             paycashlessPayments,
             hasPayments: paycashlessPayments.length > 0,
-            totalPaid: paycashlessPayments.reduce((sum, p) => sum + p.amount, 0),
+            totalPaid: paycashlessPayments.reduce(
+              (sum, p) => sum + p.amount,
+              0
+            ),
           };
         })
       );
@@ -103,8 +106,8 @@ export async function POST(request: NextRequest) {
         (item: any) => item.hasPayments
       );
 
-      let paymentToKeep = null;
-      let paymentsToCancel = [];
+      let paymentToKeep: any = null;
+      let paymentsToCancel: any[] = [];
 
       if (completedPayments.length > 0) {
         // Keep the most recent completed payment
@@ -114,9 +117,11 @@ export async function POST(request: NextRequest) {
         );
       } else if (paymentsWithPaycashlessActivity.length > 0) {
         // Keep the payment with the most Paycashless activity
-        paymentToKeep = paymentsWithPaycashlessActivity.reduce((best, current) => {
-          return current.totalPaid > best.totalPaid ? current : best;
-        });
+        paymentToKeep = paymentsWithPaycashlessActivity.reduce(
+          (best, current) => {
+            return current.totalPaid > best.totalPaid ? current : best;
+          }
+        );
         paymentsToCancel = paymentAnalysis.filter(
           (item: any) => item.payment.id !== paymentToKeep.payment.id
         );
@@ -129,7 +134,10 @@ export async function POST(request: NextRequest) {
       // Cancel Paycashless invoices for payments to be removed
       const cancellationResults = await Promise.all(
         paymentsToCancel.map(async (item: any) => {
-          if (item.paycashlessInvoice && item.paycashlessInvoice.status === "open") {
+          if (
+            item.paycashlessInvoice &&
+            item.paycashlessInvoice.status === "open"
+          ) {
             const cancelResult = await cancelPaycashlessInvoice(
               item.paycashlessInvoice.id,
               "Duplicate payment cleanup - keeping payment with most activity"
@@ -143,7 +151,10 @@ export async function POST(request: NextRequest) {
           return {
             paymentId: item.payment.id,
             invoiceId: null,
-            cancelResult: { success: true, message: "No Paycashless invoice to cancel" },
+            cancelResult: {
+              success: true,
+              message: "No Paycashless invoice to cancel",
+            },
           };
         })
       );
@@ -190,14 +201,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json(
-      { error: "Invalid action" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error) {
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
     );
   }
-} 
+}
