@@ -37,18 +37,21 @@ export async function POST(request: NextRequest) {
 
       const paycashlessInvoices = paycashlessResult.data || [];
       const emailInvoices = paycashlessInvoices.filter(
-        (invoice) => invoice.customer.email === email
+        (invoice: any) => invoice.customer.email === email
       );
 
       // Analyze each payment
       const analysis = await Promise.all(
-        duplicatePayments.map(async (payment) => {
+        duplicatePayments.map(async (payment: any) => {
           // Find corresponding Paycashless invoice
           const paycashlessInvoice = emailInvoices.find(
-            (invoice) => invoice.reference === payment.invoice_id
+            (invoice: any) => invoice.reference === payment.invoice_id
           );
 
-          let paycashlessPayments: Array<{ amount: number; [key: string]: any }> = [];
+          let paycashlessPayments: Array<{
+            amount: number;
+            [key: string]: any;
+          }> = [];
           if (paycashlessInvoice) {
             const paymentsResult = await getPaycashlessInvoicePayments(
               paycashlessInvoice.id
@@ -62,7 +65,7 @@ export async function POST(request: NextRequest) {
             paycashlessPayments,
             hasPayments: paycashlessPayments.length > 0,
             totalPaid: paycashlessPayments.reduce(
-              (sum, p) => sum + p.amount,
+              (sum: number, p: { amount: number }) => sum + p.amount,
               0
             ),
           };
@@ -107,7 +110,8 @@ export async function POST(request: NextRequest) {
       );
 
       let paymentToKeep: any = null;
-      let paymentsToCancel: Array<{ payment: any; paycashlessInvoice?: any }> = [];
+      let paymentsToCancel: Array<{ payment: any; paycashlessInvoice?: any }> =
+        [];
 
       if (completedPayments.length > 0) {
         // Keep the most recent completed payment
@@ -118,7 +122,7 @@ export async function POST(request: NextRequest) {
       } else if (paymentsWithPaycashlessActivity.length > 0) {
         // Keep the payment with the most Paycashless activity
         paymentToKeep = paymentsWithPaycashlessActivity.reduce(
-          (best, current) => {
+          (best: any, current: any) => {
             return current.totalPaid > best.totalPaid ? current : best;
           }
         );
