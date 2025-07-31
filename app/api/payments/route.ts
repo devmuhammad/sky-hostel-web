@@ -31,17 +31,18 @@ async function handlePOST(request: NextRequest) {
     const supabaseAdmin = await createServerSupabaseClient();
 
     // Check if a payment already exists for this email
-    const { data: existingPayment, error: checkError } = await supabaseAdmin
+    const { data: existingPayments, error: checkError } = await supabaseAdmin
       .from("payments")
-      .select("id, status, created_at")
+      .select("id, status, created_at, invoice_id")
       .eq("email", data.email)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+      .order("created_at", { ascending: false });
 
-    if (existingPayment && !checkError) {
-      // Check if the existing payment is completed
-      if (existingPayment.status === "completed") {
+    if (existingPayments && existingPayments.length > 0 && !checkError) {
+      // Check if there's a completed payment
+      const completedPayment = existingPayments.find(
+        (p) => p.status === "completed"
+      );
+      if (completedPayment) {
         return NextResponse.json(
           {
             success: false,
@@ -53,11 +54,15 @@ async function handlePOST(request: NextRequest) {
         );
       }
 
-      // Check if there's a pending payment (within last 24 hours)
-      const paymentAge = Date.now() - new Date(existingPayment.created_at).getTime();
-      const hoursSincePayment = paymentAge / (1000 * 60 * 60);
+      // Check if there's a recent pending payment (within last 24 hours)
+      const recentPendingPayment = existingPayments.find((p) => {
+        if (p.status !== "pending") return false;
+        const paymentAge = Date.now() - new Date(p.created_at).getTime();
+        const hoursSincePayment = paymentAge / (1000 * 60 * 60);
+        return hoursSincePayment < 24;
+      });
 
-      if (existingPayment.status === "pending" && hoursSincePayment < 24) {
+      if (recentPendingPayment) {
         return NextResponse.json(
           {
             success: false,
@@ -68,6 +73,11 @@ async function handlePOST(request: NextRequest) {
           { status: 400 }
         );
       }
+
+      // If there are old pending payments, we can proceed but log it
+      console.log(
+        `Creating new payment for ${data.email} - ${existingPayments.length} existing payments found`
+      );
     }
 
     // Generate unique reference
