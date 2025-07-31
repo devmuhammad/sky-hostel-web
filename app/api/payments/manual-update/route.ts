@@ -3,7 +3,9 @@ import { supabaseAdmin } from "@/shared/config/supabase";
 
 export async function POST(request: NextRequest) {
   try {
-    const { action, email, invoice_id } = await request.json();
+    const body = await request.json();
+
+    const { action, email, invoice_id } = body;
 
     if (action === "mark_completed_by_email" && email) {
       const { data, error } = await supabaseAdmin
@@ -100,6 +102,44 @@ export async function POST(request: NextRequest) {
         success: true,
         message: `Updated ${data?.length || 0} pending payments to completed`,
         data,
+      });
+    }
+
+    if (action === "debug_payment" && invoice_id) {
+      // Debug: Find payment details
+      const { data: payment, error } = await supabaseAdmin
+        .from("payments")
+        .select("*")
+        .eq("invoice_id", invoice_id)
+        .single();
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Payment details for invoice ${invoice_id}`,
+        payment,
+      });
+    }
+
+    if (action === "list_pending_payments") {
+      // List all pending payments
+      const { data: payments, error } = await supabaseAdmin
+        .from("payments")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Found ${payments?.length || 0} pending payments`,
+        payments,
       });
     }
 

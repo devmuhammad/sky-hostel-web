@@ -42,6 +42,8 @@ async function handlePOST(request: NextRequest) {
         data.firstName
       )}&lastName=${encodeURIComponent(data.lastName)}`;
 
+      const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/paycashless`;
+
       // Create invoice with Paycashless
       const invoiceResult = await createPaycashlessInvoice({
         reference,
@@ -65,7 +67,7 @@ async function handlePOST(request: NextRequest) {
         sendEmail: true,
         autoFinalize: true,
         maxInstallments: 2,
-        callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/paycashless`,
+        callbackUrl: callbackUrl,
         returnUrl: returnUrl,
         metadata: {
           phone: data.phone,
