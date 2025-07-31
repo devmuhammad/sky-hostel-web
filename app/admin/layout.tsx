@@ -9,16 +9,18 @@ interface AdminLayoutProps {
 
 async function getSession() {
   const supabase = await createServerSupabaseClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   return session;
 }
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
   const session = await getSession();
-  
-  // If no session, redirect to login (except for login page itself)
+
+  // If no session, redirect to login
   if (!session) {
-    redirect("/admin/login");
+    redirect("/admin/(auth)/login");
   }
 
   return (

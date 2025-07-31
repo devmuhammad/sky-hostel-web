@@ -88,9 +88,11 @@ export async function listPaycashlessInvoices(params?: {
 
   try {
     const url = new URL(`${PAYCASHLESS_API_URL}/v1/invoices`);
-    if (params?.limit) url.searchParams.append("limit", params.limit.toString());
+    if (params?.limit)
+      url.searchParams.append("limit", params.limit.toString());
     if (params?.status) url.searchParams.append("status", params.status);
-    if (params?.reference) url.searchParams.append("reference", params.reference);
+    if (params?.reference)
+      url.searchParams.append("reference", params.reference);
 
     const response = await fetch(url.toString(), {
       method: "GET",
@@ -116,7 +118,8 @@ export async function listPaycashlessInvoices(params?: {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to fetch invoices",
+      error:
+        error instanceof Error ? error.message : "Failed to fetch invoices",
     };
   }
 }
@@ -166,7 +169,10 @@ export async function getPaycashlessInvoicePayments(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to fetch invoice payments",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch invoice payments",
     };
   }
 }
@@ -193,7 +199,11 @@ export async function cancelPaycashlessInvoice(
     cancellationReason: reason,
   };
 
-  const signature = generateRequestSignature(requestPath, requestBody, timestamp);
+  const signature = generateRequestSignature(
+    requestPath,
+    requestBody,
+    timestamp
+  );
 
   try {
     const response = await fetch(
@@ -226,7 +236,8 @@ export async function cancelPaycashlessInvoice(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to cancel invoice",
+      error:
+        error instanceof Error ? error.message : "Failed to cancel invoice",
     };
   }
-} 
+}
