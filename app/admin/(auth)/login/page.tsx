@@ -31,7 +31,10 @@ export default function AdminLogin() {
       if (error) {
         setError(error.message);
       } else if (data.user) {
-        router.push("/admin");
+        // Get the redirect URL from query params or default to admin
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectTo = urlParams.get("redirectedFrom") || "/admin";
+        router.push(redirectTo);
         router.refresh();
       }
     } catch (err) {
