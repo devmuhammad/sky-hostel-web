@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
             (invoice) => invoice.reference === payment.invoice_id
           );
 
-          let paycashlessPayments: any[] = [];
+          let paycashlessPayments: Array<{ amount: number; [key: string]: any }> = [];
           if (paycashlessInvoice) {
             const paymentsResult = await getPaycashlessInvoicePayments(
               paycashlessInvoice.id
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       );
 
       let paymentToKeep: any = null;
-      let paymentsToCancel: any[] = [];
+      let paymentsToCancel: Array<{ payment: any; paycashlessInvoice?: any }> = [];
 
       if (completedPayments.length > 0) {
         // Keep the most recent completed payment
