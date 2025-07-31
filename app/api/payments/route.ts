@@ -30,6 +30,46 @@ async function handlePOST(request: NextRequest) {
 
     const supabaseAdmin = await createServerSupabaseClient();
 
+    // Check if a payment already exists for this email
+    const { data: existingPayment, error: checkError } = await supabaseAdmin
+      .from("payments")
+      .select("id, status, created_at")
+      .eq("email", data.email)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (existingPayment && !checkError) {
+      // Check if the existing payment is completed
+      if (existingPayment.status === "completed") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              message: `A payment has already been completed for this email (${data.email}). Please contact support if you need assistance.`,
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      // Check if there's a pending payment (within last 24 hours)
+      const paymentAge = Date.now() - new Date(existingPayment.created_at).getTime();
+      const hoursSincePayment = paymentAge / (1000 * 60 * 60);
+
+      if (existingPayment.status === "pending" && hoursSincePayment < 24) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              message: `A payment is already in progress for this email (${data.email}). Please complete your existing payment or wait 24 hours before trying again.`,
+            },
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Generate unique reference
     const reference = `SKY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 

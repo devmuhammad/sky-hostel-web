@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Create payments table
 CREATE TABLE payments (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  email VARCHAR(255) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,  -- Unique: One payment per email
   phone VARCHAR(20) NOT NULL,
   amount_paid DECIMAL(10,2) NOT NULL,
   invoice_id VARCHAR(255) UNIQUE NOT NULL,
