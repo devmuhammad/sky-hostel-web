@@ -10,6 +10,8 @@ import { TableLoadingSkeleton } from "@/shared/components/ui/loading-skeleton";
 import { Payment } from "@/shared/store/appStore";
 import { useToast } from "@/shared/hooks/useToast";
 import { useAppData } from "@/shared/hooks/useAppData";
+import { Input } from "@/shared/components/ui/input";
+import { Label } from "@/shared/components/ui/label";
 
 interface DuplicatePayment {
   email: string;
@@ -29,6 +31,14 @@ interface PaycashlessPaymentInfo {
   status: string;
 }
 
+interface ManualCheckResult {
+  email: string;
+  paycashlessData: PaycashlessPaymentInfo | null;
+  localPayments: Payment[];
+  needsUpdate: boolean;
+  updateMessage: string;
+}
+
 export default function PaymentsPage() {
   const { payments, loading, setPayments } = useAppStore();
   const [showCleanupModal, setShowCleanupModal] = useState(false);
@@ -39,6 +49,12 @@ export default function PaymentsPage() {
   const [paycashlessData, setPaycashlessData] = useState<Record<string, PaycashlessPaymentInfo>>({});
   const toast = useToast();
   const { refetch } = useAppData();
+
+  // Manual payment checker states
+  const [manualEmail, setManualEmail] = useState("");
+  const [isManualChecking, setIsManualChecking] = useState(false);
+  const [manualCheckResult, setManualCheckResult] = useState<ManualCheckResult | null>(null);
+  const [showManualCheckModal, setShowManualCheckModal] = useState(false);
 
   // Find duplicate payments by email
   const findDuplicatePayments = () => {
@@ -83,6 +99,7 @@ export default function PaymentsPage() {
 
     setDuplicatePayments(duplicates);
     setShowCleanupModal(true);
+    return duplicates; // Return duplicates for the cleanup modal
   };
 
   // Check Paycashless for actual payment status
@@ -163,6 +180,113 @@ export default function PaymentsPage() {
     }
   };
 
+  // Manual payment status checker
+  const handleManualPaymentCheck = async () => {
+    if (!manualEmail.trim()) {
+      toast.error("Please enter an email address");
+      return;
+    }
+
+    setIsManualChecking(true);
+    try {
+      // Check Paycashless status
+      const paycashlessResponse = await fetch("/api/payments/check-status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: manualEmail }),
+      });
+
+      const paycashlessResult = await paycashlessResponse.json();
+      const paycashlessData = paycashlessResult.success && paycashlessResult.paycashless ? {
+        invoiceId: paycashlessResult.paycashless.payment_id || "Unknown",
+        totalPaid: paycashlessResult.paycashless.totalPaid || 0,
+        remainingAmount: paycashlessResult.paycashless.remainingAmount || 0,
+        isFullyPaid: paycashlessResult.paycashless.isFullyPaid || false,
+        hasPartialPayment: (paycashlessResult.paycashless.totalPaid || 0) > 0 && !paycashlessResult.paycashless.isFullyPaid,
+        status: paycashlessResult.paycashless.isFullyPaid ? "Fully Paid" : (paycashlessResult.paycashless.totalPaid > 0 ? "Partially Paid" : "No Payments")
+      } : null;
+
+      // Find local payments for this email
+      const localPayments = payments.filter(p => p.email === manualEmail);
+
+      // Determine if update is needed
+      let needsUpdate = false;
+      let updateMessage = "";
+
+      if (paycashlessData && localPayments.length > 0) {
+        const localPayment = localPayments[0]; // Use first payment for comparison
+        const localAmountPaid = localPayment.amount_paid || 0;
+        const localStatus = localPayment.status;
+
+        if (paycashlessData.totalPaid !== localAmountPaid) {
+          needsUpdate = true;
+          updateMessage = `Local amount: ₦${localAmountPaid.toLocaleString()}, Paycashless amount: ₦${paycashlessData.totalPaid.toLocaleString()}`;
+        } else if (paycashlessData.isFullyPaid && localStatus !== "completed") {
+          needsUpdate = true;
+          updateMessage = `Paycashless shows fully paid but local status is ${localStatus}`;
+        } else if (paycashlessData.hasPartialPayment && localStatus !== "partially_paid") {
+          needsUpdate = true;
+          updateMessage = `Paycashless shows partial payment but local status is ${localStatus}`;
+        }
+      } else if (paycashlessData && localPayments.length === 0) {
+        needsUpdate = true;
+        updateMessage = "Payment found on Paycashless but not in local database";
+      }
+
+      setManualCheckResult({
+        email: manualEmail,
+        paycashlessData,
+        localPayments,
+        needsUpdate,
+        updateMessage
+      });
+
+      setShowManualCheckModal(true);
+    } catch (error) {
+      toast.error("Error checking payment status");
+    } finally {
+      setIsManualChecking(false);
+    }
+  };
+
+  // Update payment status
+  const handleUpdatePaymentStatus = async () => {
+    if (!manualCheckResult?.needsUpdate) return;
+
+    setIsManualChecking(true);
+    try {
+      const response = await fetch("/api/payments/manual-update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: manualCheckResult.email,
+          paycashlessData: manualCheckResult.paycashlessData,
+          localPayments: manualCheckResult.localPayments
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast.success(result.message || "Payment status updated successfully");
+        setShowManualCheckModal(false);
+        setManualCheckResult(null);
+        setManualEmail("");
+        await refetch(); // Refresh data
+      } else {
+        const error = await response.json();
+        toast.error(error.message || "Failed to update payment status");
+      }
+    } catch (error) {
+      toast.error("Error updating payment status");
+    } finally {
+      setIsManualChecking(false);
+    }
+  };
+
   const columns = [
     {
       key: "email",
@@ -228,33 +352,137 @@ export default function PaymentsPage() {
           </p>
         </div>
 
-        <div className="flex justify-between items-center">
-          <div className="text-sm text-gray-500">
-            Total Payments: {payments.length}
+        {/* Manual Payment Checker */}
+        <CardContainer>
+          <div className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Manual Payment Status Checker</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Check and update payment status for a specific email address
+            </p>
+            
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <Label htmlFor="manual-email">Email Address</Label>
+                <Input
+                  id="manual-email"
+                  type="email"
+                  placeholder="Enter student email"
+                  value={manualEmail}
+                  onChange={(e) => setManualEmail(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <Button
+                onClick={handleManualPaymentCheck}
+                disabled={isManualChecking || !manualEmail.trim()}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {isManualChecking ? "Checking..." : "🔍 Check Status"}
+              </Button>
+            </div>
           </div>
+        </CardContainer>
+
+        {/* Duplicate Payments Cleanup */}
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold">All Payments</h2>
           <Button
-            onClick={findDuplicatePayments}
+            onClick={() => {
+              const duplicates = findDuplicatePayments();
+              setDuplicatePayments(duplicates);
+              setShowCleanupModal(true);
+            }}
             className="bg-orange-600 hover:bg-orange-700"
           >
-            🔍 Find Duplicate Payments
+            🧹 Cleanup Duplicates
           </Button>
         </div>
 
-        <CardContainer>
-          <DataTable
-            data={payments}
-            columns={columns}
-            searchFields={["email", "phone", "invoice_id"]}
-          />
-        </CardContainer>
+        <DataTable
+          data={payments}
+          columns={columns}
+          searchFields={["email"]}
+          searchPlaceholder="Search by email..."
+        />
+      </div>
 
-        {/* Cleanup Modal */}
-        <Modal
-          isOpen={showCleanupModal}
-          onClose={() => setShowCleanupModal(false)}
-          title="Duplicate Payments Cleanup"
-          size="lg"
-        >
+      {/* Manual Check Modal */}
+      <Modal
+        isOpen={showManualCheckModal}
+        onClose={() => setShowManualCheckModal(false)}
+        title="Payment Status Check Result"
+        size="lg"
+      >
+        {manualCheckResult && (
+          <div className="space-y-4">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-medium mb-2">Email: {manualCheckResult.email}</h4>
+              
+              {manualCheckResult.paycashlessData ? (
+                <div className="space-y-2">
+                  <p><strong>Paycashless Status:</strong> {manualCheckResult.paycashlessData.status}</p>
+                  <p><strong>Total Paid:</strong> ₦{manualCheckResult.paycashlessData.totalPaid.toLocaleString()}</p>
+                  <p><strong>Remaining:</strong> ₦{manualCheckResult.paycashlessData.remainingAmount.toLocaleString()}</p>
+                  <p><strong>Invoice ID:</strong> {manualCheckResult.paycashlessData.invoiceId}</p>
+                </div>
+              ) : (
+                <p className="text-gray-500">No payment data found on Paycashless</p>
+              )}
+            </div>
+
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <h4 className="font-medium mb-2">Local Database Payments</h4>
+              {manualCheckResult.localPayments.length > 0 ? (
+                <div className="space-y-2">
+                  {manualCheckResult.localPayments.map((payment, index) => (
+                    <div key={payment.id} className="p-2 bg-white rounded border">
+                      <p><strong>Invoice:</strong> {payment.invoice_id}</p>
+                      <p><strong>Amount Paid:</strong> ₦{(payment.amount_paid || 0).toLocaleString()}</p>
+                      <p><strong>Status:</strong> {payment.status}</p>
+                      <p><strong>Created:</strong> {new Date(payment.created_at).toLocaleDateString()}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500">No payments found in local database</p>
+              )}
+            </div>
+
+            {manualCheckResult.needsUpdate && (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h4 className="font-medium text-yellow-800 mb-2">⚠️ Update Required</h4>
+                <p className="text-yellow-700">{manualCheckResult.updateMessage}</p>
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <Button
+                onClick={() => setShowManualCheckModal(false)}
+                variant="outline"
+              >
+                Close
+              </Button>
+              {manualCheckResult.needsUpdate && (
+                <Button
+                  onClick={handleUpdatePaymentStatus}
+                  disabled={isManualChecking}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {isManualChecking ? "Updating..." : "🔄 Update Payment Status"}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Cleanup Modal */}
+      <Modal
+        isOpen={showCleanupModal}
+        onClose={() => setShowCleanupModal(false)}
+        title="Duplicate Payments Cleanup"
+        size="lg"
+      >
           <div className="space-y-4">
             <p className="text-gray-600">
               Found {duplicatePayments.length} emails with duplicate payments. 
@@ -382,7 +610,6 @@ export default function PaymentsPage() {
             </div>
           </div>
         </Modal>
-      </div>
     </div>
   );
 }

@@ -1,153 +1,134 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/shared/config/supabase";
+import { PAYMENT_CONFIG } from "@/shared/config/constants";
+
+interface ManualUpdateRequest {
+  email: string;
+  paycashlessData: {
+    invoiceId: string;
+    totalPaid: number;
+    remainingAmount: number;
+    isFullyPaid: boolean;
+    hasPartialPayment: boolean;
+    status: string;
+  } | null;
+  localPayments: any[];
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const { email, paycashlessData, localPayments }: ManualUpdateRequest = await request.json();
 
-    const { action, email, invoice_id } = body;
-
-    if (action === "mark_completed_by_email" && email) {
-      const { data, error } = await supabaseAdmin
-        .from("payments")
-        .update({
-          status: "completed",
-          paid_at: new Date().toISOString(),
-        })
-        .eq("email", email)
-        .eq("status", "pending")
-        .select();
-
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: `Updated ${data?.length || 0} payment(s) for ${email}`,
-        data,
-      });
+    if (!email) {
+      return NextResponse.json(
+        { error: "Email is required" },
+        { status: 400 }
+      );
     }
 
-    if (action === "mark_completed_by_invoice" && invoice_id) {
-      const { data, error } = await supabaseAdmin
-        .from("payments")
-        .update({
-          status: "completed",
-          paid_at: new Date().toISOString(),
-        })
-        .eq("invoice_id", invoice_id)
-        .eq("status", "pending")
-        .select();
+    console.log("Manual payment update request:", {
+      email,
+      paycashlessData,
+      localPaymentsCount: localPayments.length
+    });
 
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: `Updated payment for invoice ${invoice_id}`,
-        data,
-      });
+    // If no Paycashless data, we can't update
+    if (!paycashlessData) {
+      return NextResponse.json(
+        { error: "No Paycashless data available for update" },
+        { status: 400 }
+      );
     }
 
-    if (action === "test_webhook" && invoice_id) {
-      // Simulate webhook payload
-      const webhookPayload = {
-        data: {
-          reference: invoice_id,
-          status: "paid",
-          customer: {
-            email: email || "test@example.com",
-          },
-        },
+    let updateResult = null;
+    let message = "";
+
+    if (localPayments.length === 0) {
+      // No local payment found - create new payment record
+      const newPayment = {
+        email,
+        phone: "", // We don't have phone from Paycashless data
+        amount_paid: paycashlessData.totalPaid,
+        invoice_id: paycashlessData.invoiceId,
+        status: paycashlessData.isFullyPaid ? "completed" : "partially_paid",
+        paid_at: new Date().toISOString(),
       };
 
-      // Call the webhook endpoint internally
-      const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/paycashless`;
-      const response = await fetch(webhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(webhookPayload),
-      });
-
-      const result = await response.json();
-
-      return NextResponse.json({
-        success: true,
-        message: `Tested webhook for invoice ${invoice_id}`,
-        webhook_response: result,
-      });
-    }
-
-    if (action === "fix_pending_payments") {
-      // Find all pending payments with amount_paid > 0 and update them to completed
-      const { data, error } = await supabaseAdmin
+      const { data: createdPayment, error: createError } = await supabaseAdmin
         .from("payments")
-        .update({
-          status: "completed",
-          paid_at: new Date().toISOString(),
-        })
-        .eq("status", "pending")
-        .gt("amount_paid", 0)
-        .select();
-
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: `Updated ${data?.length || 0} pending payments to completed`,
-        data,
-      });
-    }
-
-    if (action === "debug_payment" && invoice_id) {
-      // Debug: Find payment details
-      const { data: payment, error } = await supabaseAdmin
-        .from("payments")
-        .select("*")
-        .eq("invoice_id", invoice_id)
+        .insert(newPayment)
+        .select()
         .single();
 
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+      if (createError) {
+        console.error("Error creating payment:", createError);
+        return NextResponse.json(
+          { error: "Failed to create payment record" },
+          { status: 500 }
+        );
       }
 
-      return NextResponse.json({
-        success: true,
-        message: `Payment details for invoice ${invoice_id}`,
-        payment,
-      });
-    }
+      updateResult = createdPayment;
+      message = `Created new payment record for ${email} with amount ₦${paycashlessData.totalPaid.toLocaleString()}`;
+    } else {
+      // Update existing payment(s)
+      const paymentIds = localPayments.map(p => p.id);
+      
+      // Determine new status
+      let newStatus = "pending";
+      if (paycashlessData.isFullyPaid) {
+        newStatus = "completed";
+      } else if (paycashlessData.hasPartialPayment) {
+        newStatus = "partially_paid";
+      }
 
-    if (action === "list_pending_payments") {
-      // List all pending payments
-      const { data: payments, error } = await supabaseAdmin
+      const updateData = {
+        amount_paid: paycashlessData.totalPaid,
+        status: newStatus,
+        paid_at: paycashlessData.isFullyPaid ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data: updatedPayments, error: updateError } = await supabaseAdmin
         .from("payments")
-        .select("*")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
+        .update(updateData)
+        .in("id", paymentIds)
+        .select();
 
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+      if (updateError) {
+        console.error("Error updating payments:", updateError);
+        return NextResponse.json(
+          { error: "Failed to update payment records" },
+          { status: 500 }
+        );
       }
 
-      return NextResponse.json({
-        success: true,
-        message: `Found ${payments?.length || 0} pending payments`,
-        payments,
-      });
+      updateResult = updatedPayments;
+      message = `Updated ${updatedPayments.length} payment record(s) for ${email}. New amount: ₦${paycashlessData.totalPaid.toLocaleString()}, Status: ${newStatus}`;
     }
 
-    return NextResponse.json(
-      { error: "Invalid action or missing parameters" },
-      { status: 400 }
-    );
+    // Log the manual update activity
+    await supabaseAdmin.from("activity_logs").insert({
+      action: "manual_payment_update",
+      resource_type: "payment",
+      resource_id: updateResult?.id || email,
+      metadata: {
+        email,
+        paycashless_data: paycashlessData,
+        local_payments_count: localPayments.length,
+        update_result: updateResult,
+        updated_at: new Date().toISOString(),
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message,
+      updated_payment: updateResult,
+    });
+
   } catch (error) {
+    console.error("Manual payment update error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
