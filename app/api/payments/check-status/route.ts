@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/shared/config/supabase";
+import { verifyPaycashlessPayment } from "@/shared/utils/paycashless";
 
 export async function POST(request: NextRequest) {
   try {
@@ -68,7 +69,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Return the most recent payment
+    // Check Paycashless for actual payment status
+    const paycashlessResult = await verifyPaycashlessPayment(email || "", phone);
+
+    // Return the most recent payment with Paycashless data
     const latestPayment = payments[0];
 
     // Add user-friendly status message
@@ -94,6 +98,7 @@ export async function POST(request: NextRequest) {
         reference: latestPayment.invoice_id,
         statusMessage,
       },
+      paycashless: paycashlessResult.success ? paycashlessResult.data : null,
       message: statusMessage,
     });
   } catch (error) {

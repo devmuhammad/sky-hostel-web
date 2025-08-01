@@ -20,12 +20,23 @@ interface DuplicatePayment {
   recommendedAction: string;
 }
 
+interface PaycashlessPaymentInfo {
+  invoiceId: string;
+  totalPaid: number;
+  remainingAmount: number;
+  isFullyPaid: boolean;
+  hasPartialPayment: boolean;
+  status: string;
+}
+
 export default function PaymentsPage() {
   const { payments, loading, setPayments } = useAppStore();
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [duplicatePayments, setDuplicatePayments] = useState<DuplicatePayment[]>([]);
   const [selectedPaymentsToDelete, setSelectedPaymentsToDelete] = useState<string[]>([]);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [isCheckingPaycashless, setIsCheckingPaycashless] = useState(false);
+  const [paycashlessData, setPaycashlessData] = useState<Record<string, PaycashlessPaymentInfo>>({});
   const toast = useToast();
   const { refetch } = useAppData();
 
@@ -74,6 +85,46 @@ export default function PaymentsPage() {
     setShowCleanupModal(true);
   };
 
+  // Check Paycashless for actual payment status
+  const checkPaycashlessPayments = async (email: string) => {
+    setIsCheckingPaycashless(true);
+    try {
+      const response = await fetch("/api/payments/check-status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.paycashless) {
+          setPaycashlessData(prev => ({
+            ...prev,
+            [email]: {
+              invoiceId: result.paycashless.payment_id || "Unknown",
+              totalPaid: result.paycashless.totalPaid || 0,
+              remainingAmount: result.paycashless.remainingAmount || 0,
+              isFullyPaid: result.paycashless.isFullyPaid || false,
+              hasPartialPayment: (result.paycashless.totalPaid || 0) > 0 && !result.paycashless.isFullyPaid,
+              status: result.paycashless.isFullyPaid ? "Fully Paid" : (result.paycashless.totalPaid > 0 ? "Partially Paid" : "No Payments")
+            }
+          }));
+          toast.success(`Found payment data for ${email}`);
+        } else {
+          toast.error(`No payment data found for ${email}`);
+        }
+      } else {
+        toast.error("Failed to check Paycashless payments");
+      }
+    } catch (error) {
+      toast.error("Error checking Paycashless payments");
+    } finally {
+      setIsCheckingPaycashless(false);
+    }
+  };
+
   const handleCleanup = async () => {
     if (selectedPaymentsToDelete.length === 0) {
       toast.error("Please select payments to delete");
@@ -97,6 +148,7 @@ export default function PaymentsPage() {
         toast.success(`Successfully deleted ${selectedPaymentsToDelete.length} duplicate payments!`);
         setShowCleanupModal(false);
         setSelectedPaymentsToDelete([]);
+        setPaycashlessData({});
         
         // Refetch data instead of reloading the page
         await refetch();
@@ -210,68 +262,107 @@ export default function PaymentsPage() {
             </p>
 
             <div className="space-y-4 max-h-96 overflow-y-auto">
-              {duplicatePayments.map((duplicate, index) => (
-                <div key={index} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h4 className="font-medium">{duplicate.email}</h4>
-                      <p className="text-sm text-gray-500">
-                        {duplicate.payments.length} payments • {duplicate.recommendedAction}
-                      </p>
+              {duplicatePayments.map((duplicate, index) => {
+                const paycashlessInfo = paycashlessData[duplicate.email];
+                return (
+                  <div key={index} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h4 className="font-medium">{duplicate.email}</h4>
+                        <p className="text-sm text-gray-500">
+                          {duplicate.payments.length} payments • {duplicate.recommendedAction}
+                        </p>
+                        {paycashlessInfo && (
+                          <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
+                            <p><strong>Paycashless Status:</strong> {paycashlessInfo.status}</p>
+                            <p><strong>Total Paid:</strong> ₦{paycashlessInfo.totalPaid.toLocaleString()}</p>
+                            <p><strong>Remaining:</strong> ₦{paycashlessInfo.remainingAmount.toLocaleString()}</p>
+                            <p><strong>Paycashless Invoice:</strong> {paycashlessInfo.invoiceId}</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-xs space-y-1">
+                        {duplicate.hasFullPayment && (
+                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded">Has Full Payment</span>
+                        )}
+                        {duplicate.hasPartialPayment && (
+                          <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Has Partial Payment</span>
+                        )}
+                        {duplicate.totalPending > 0 && (
+                          <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                            {duplicate.totalPending} Pending
+                          </span>
+                        )}
+                        {paycashlessInfo?.hasPartialPayment && (
+                          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">Has Paycashless Payments</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-xs space-y-1">
-                      {duplicate.hasFullPayment && (
-                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded">Has Full Payment</span>
-                      )}
-                      {duplicate.hasPartialPayment && (
-                        <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Has Partial Payment</span>
-                      )}
-                      {duplicate.totalPending > 0 && (
-                        <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded">
-                          {duplicate.totalPending} Pending
-                        </span>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    {duplicate.payments.map((payment) => (
-                      <div key={payment.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                        <div className="flex items-center space-x-3">
-                          <input
-                            type="checkbox"
-                            id={payment.id}
-                            checked={selectedPaymentsToDelete.includes(payment.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedPaymentsToDelete(prev => [...prev, payment.id]);
-                              } else {
-                                setSelectedPaymentsToDelete(prev => prev.filter(id => id !== payment.id));
-                              }
-                            }}
-                            className="rounded"
-                          />
-                          <div>
-                            <div className="font-medium text-sm">
-                              {payment.invoice_id}
+                    {!paycashlessInfo && (
+                      <div className="mb-3">
+                        <Button
+                          onClick={() => checkPaycashlessPayments(duplicate.email)}
+                          disabled={isCheckingPaycashless}
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          {isCheckingPaycashless ? "Checking..." : "🔍 Check Paycashless Status"}
+                        </Button>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      {duplicate.payments.map((payment) => {
+                        const shouldKeep = paycashlessInfo?.hasPartialPayment && 
+                          payment.invoice_id === paycashlessInfo.invoiceId;
+                        
+                        return (
+                          <div key={payment.id} className={`flex items-center justify-between p-2 rounded ${
+                            shouldKeep ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
+                          }`}>
+                            <div className="flex items-center space-x-3">
+                              <input
+                                type="checkbox"
+                                id={payment.id}
+                                checked={selectedPaymentsToDelete.includes(payment.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedPaymentsToDelete(prev => [...prev, payment.id]);
+                                  } else {
+                                    setSelectedPaymentsToDelete(prev => prev.filter(id => id !== payment.id));
+                                  }
+                                }}
+                                className="rounded"
+                              />
+                              <div>
+                                <div className="font-medium text-sm">
+                                  {payment.invoice_id}
+                                  {shouldKeep && (
+                                    <span className="ml-2 text-xs bg-green-100 text-green-800 px-1 rounded">
+                                      KEEP (Has Payments)
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  ₦{payment.amount_paid?.toLocaleString() || "0"} • {payment.status} • {new Date(payment.created_at).toLocaleDateString()}
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-xs text-gray-500">
-                              ₦{payment.amount_paid?.toLocaleString() || "0"} • {payment.status} • {new Date(payment.created_at).toLocaleDateString()}
+                            <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              payment.status === "completed" ? "bg-green-100 text-green-800" :
+                              payment.status === "partially_paid" ? "bg-yellow-100 text-yellow-800" :
+                              "bg-gray-100 text-gray-800"
+                            }`}>
+                              {payment.status}
                             </div>
                           </div>
-                        </div>
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          payment.status === "completed" ? "bg-green-100 text-green-800" :
-                          payment.status === "partially_paid" ? "bg-yellow-100 text-yellow-800" :
-                          "bg-gray-100 text-gray-800"
-                        }`}>
-                          {payment.status}
-                        </div>
-                      </div>
-                    ))}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t">
