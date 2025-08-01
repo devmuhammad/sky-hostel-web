@@ -1,77 +1,32 @@
-"use client";
-
-import { useState, useEffect } from "react";
+import { Suspense } from "react";
 import { CardContainer } from "@/shared/components/ui/card-container";
-import { Button } from "@/shared/components/ui/button";
 import { StatusBadge } from "@/shared/components/ui/status-badge";
 import { EmptyState } from "@/shared/components/ui/empty-state";
-import CreateAdminModal from "./components/CreateAdminModal";
-import { supabase } from "@/shared/config/supabase";
-import { AdminUser } from "@/shared/store/appStore";
+import CreateAdminButton from "./components/CreateAdminButton";
+import {
+  createServerSupabaseClient,
+  requireAdminAccess,
+} from "@/shared/config/auth";
+import { redirect } from "next/navigation";
 
-function AdminUsersList() {
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+async function getAdminUsers() {
+  const supabase = await createServerSupabaseClient();
 
-  useEffect(() => {
-    async function fetchAdminUsers() {
-      try {
-        const { data, error } = await supabase
-          .from("admin_users")
-          .select("*")
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          console.error("Error fetching admin users:", error);
-          setError("Failed to fetch admin users");
-        } else {
-          setAdminUsers(data || []);
-        }
-      } catch (err) {
-        console.error("Error fetching admin users:", err);
-        setError("Failed to fetch admin users");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchAdminUsers();
-  }, []);
-
-  if (loading) {
-    return (
-      <CardContainer title="Admin Users">
-        <div className="space-y-3">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
-              <div className="flex-1">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-1 animate-pulse"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/2 animate-pulse"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContainer>
-    );
-  }
+  const { data: adminUsers, error } = await supabase
+    .from("admin_users")
+    .select("*")
+    .order("created_at", { ascending: false });
 
   if (error) {
-    return (
-      <CardContainer title="Admin Users">
-        <div className="text-center py-8">
-          <p className="text-red-600">{error}</p>
-          <Button 
-            onClick={() => window.location.reload()} 
-            className="mt-4"
-          >
-            Retry
-          </Button>
-        </div>
-      </CardContainer>
-    );
+    console.error("Error fetching admin users:", error);
+    return [];
   }
+
+  return adminUsers || [];
+}
+
+async function AdminUsersList() {
+  const adminUsers = await getAdminUsers();
 
   return (
     <div className="space-y-6">
@@ -154,13 +109,9 @@ function AdminUsersList() {
   );
 }
 
-export default function AdminUsersPage() {
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
-  const handleCreateSuccess = () => {
-    // Refresh the page to show the new admin user
-    window.location.reload();
-  };
+export default async function AdminUsersPage() {
+  // Check admin access
+  await requireAdminAccess();
 
   return (
     <div className="p-6">
@@ -181,35 +132,28 @@ export default function AdminUsersPage() {
               Manage system administrators
             </p>
           </div>
-          <Button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <svg
-              className="w-4 h-4 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-              />
-            </svg>
-            Add Admin User
-          </Button>
+          <CreateAdminButton />
         </div>
 
-        <AdminUsersList />
-
-        {/* Create Admin Modal */}
-        <CreateAdminModal
-          isOpen={isCreateModalOpen}
-          onClose={() => setIsCreateModalOpen(false)}
-          onSuccess={handleCreateSuccess}
-        />
+        <Suspense
+          fallback={
+            <CardContainer>
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
+                    <div className="flex-1">
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-1 animate-pulse"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContainer>
+          }
+        >
+          <AdminUsersList />
+        </Suspense>
       </div>
     </div>
   );
