@@ -1,36 +1,77 @@
 "use client";
 
-import { useState } from "react";
-import { Suspense } from "react";
+import { useState, useEffect } from "react";
 import { CardContainer } from "@/shared/components/ui/card-container";
 import { Button } from "@/shared/components/ui/button";
 import { StatusBadge } from "@/shared/components/ui/status-badge";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import CreateAdminModal from "./components/CreateAdminModal";
-import {
-  createServerSupabaseClient,
-  requireAdminAccess,
-} from "@/shared/config/auth";
-import { redirect } from "next/navigation";
+import { supabase } from "@/shared/config/supabase";
+import { AdminUser } from "@/shared/store/appStore";
 
-async function getAdminUsers() {
-  const supabase = await createServerSupabaseClient();
+function AdminUsersList() {
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data: adminUsers, error } = await supabase
-    .from("admin_users")
-    .select("*")
-    .order("created_at", { ascending: false });
+  useEffect(() => {
+    async function fetchAdminUsers() {
+      try {
+        const { data, error } = await supabase
+          .from("admin_users")
+          .select("*")
+          .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("Error fetching admin users:", error);
-    return [];
+        if (error) {
+          console.error("Error fetching admin users:", error);
+          setError("Failed to fetch admin users");
+        } else {
+          setAdminUsers(data || []);
+        }
+      } catch (err) {
+        console.error("Error fetching admin users:", err);
+        setError("Failed to fetch admin users");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchAdminUsers();
+  }, []);
+
+  if (loading) {
+    return (
+      <CardContainer title="Admin Users">
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
+              <div className="flex-1">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-1 animate-pulse"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContainer>
+    );
   }
 
-  return adminUsers || [];
-}
-
-async function AdminUsersList() {
-  const adminUsers = await getAdminUsers();
+  if (error) {
+    return (
+      <CardContainer title="Admin Users">
+        <div className="text-center py-8">
+          <p className="text-red-600">{error}</p>
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="mt-4"
+          >
+            Retry
+          </Button>
+        </div>
+      </CardContainer>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -161,25 +202,7 @@ export default function AdminUsersPage() {
           </Button>
         </div>
 
-        <Suspense
-          fallback={
-            <CardContainer>
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
-                    <div className="flex-1">
-                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-1 animate-pulse"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2 animate-pulse"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContainer>
-          }
-        >
-          <AdminUsersList />
-        </Suspense>
+        <AdminUsersList />
 
         {/* Create Admin Modal */}
         <CreateAdminModal
