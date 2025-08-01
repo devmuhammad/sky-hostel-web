@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CardContainer, EmptyState } from "@/shared/components/ui";
+import { CardContainer } from "@/shared/components/ui/card-container";
+import { EmptyState } from "@/shared/components/ui/empty-state";
 import { Button } from "@/shared/components/ui/button";
+import { createClientSupabaseClient } from "@/shared/config/auth";
+import Image from "next/image";
 import { productionLogger } from "@/shared/utils/production-logger";
 
 // Force dynamic rendering for this page
@@ -192,9 +196,11 @@ export default function RegistrationSuccess() {
                 Passport Photo
               </h3>
               <div className="flex justify-center">
-                <img
+                <Image
                   src={studentData.passport_photo_url}
                   alt="Passport photo"
+                  width={80}
+                  height={80}
                   className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
                 />
               </div>
@@ -213,9 +219,11 @@ export default function RegistrationSuccess() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Passport Photo
                     </label>
-                    <img
+                    <Image
                       src={studentData.passport_photo_url}
                       alt="Passport photo"
+                      width={96}
+                      height={96}
                       className="w-24 h-24 rounded-lg object-cover border-2 border-gray-200"
                     />
                   </div>

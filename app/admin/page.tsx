@@ -297,7 +297,7 @@ export default function AdminDashboard() {
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
             <p className="text-sm text-gray-600 mt-1">
-              Welcome back! Here's what's happening with your hostel.
+              Welcome back! Here&apos;s what&apos;s happening with your hostel.
             </p>
           </div>
 
