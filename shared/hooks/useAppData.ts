@@ -58,12 +58,13 @@ const fetchAdminUsers = async () => {
 
 // React Query Hooks
 export const useStudents = () => {
-  const { setStudents, setLoading } = useAppStore();
+  const { setStudents, setLoading, currentUser } = useAppStore();
   const toast = useToast();
 
   const query = useQuery({
     queryKey: ["students"],
     queryFn: fetchStudents,
+    enabled: !!currentUser, // Only fetch if there's a current user
   });
 
   useEffect(() => {
@@ -89,12 +90,13 @@ export const useStudents = () => {
 };
 
 export const usePayments = () => {
-  const { setPayments, setLoading } = useAppStore();
+  const { setPayments, setLoading, currentUser } = useAppStore();
   const toast = useToast();
 
   const query = useQuery({
     queryKey: ["payments"],
     queryFn: fetchPayments,
+    enabled: !!currentUser, // Only fetch if there's a current user
   });
 
   useEffect(() => {
@@ -120,12 +122,13 @@ export const usePayments = () => {
 };
 
 export const useRooms = () => {
-  const { setRooms, setLoading } = useAppStore();
+  const { setRooms, setLoading, currentUser } = useAppStore();
   const toast = useToast();
 
   const query = useQuery({
     queryKey: ["rooms"],
     queryFn: fetchRooms,
+    enabled: !!currentUser, // Only fetch if there's a current user
   });
 
   useEffect(() => {
@@ -151,12 +154,13 @@ export const useRooms = () => {
 };
 
 export const useAdminUsers = () => {
-  const { setAdminUsers, setLoading } = useAppStore();
+  const { setAdminUsers, setLoading, currentUser } = useAppStore();
   const toast = useToast();
 
   const query = useQuery({
     queryKey: ["adminUsers"],
     queryFn: fetchAdminUsers,
+    enabled: !!currentUser, // Only fetch if there's a current user
   });
 
   useEffect(() => {
@@ -350,13 +354,35 @@ export const useUpdatePayment = () => {
 
 // Combined hook for fetching all data
 export const useAppData = () => {
-  const { setAllData, setLoading, lastDataFetch } = useAppStore();
+  const { setAllData, setLoading, lastDataFetch, currentUser } = useAppStore();
   const toast = useToast();
 
-  const studentsQuery = useStudents();
-  const paymentsQuery = usePayments();
-  const roomsQuery = useRooms();
-  const adminUsersQuery = useAdminUsers();
+  // Only fetch data if there's a current user (admin)
+  const shouldFetch = !!currentUser;
+
+  const studentsQuery = useQuery({
+    queryKey: ["students"],
+    queryFn: fetchStudents,
+    enabled: shouldFetch,
+  });
+
+  const paymentsQuery = useQuery({
+    queryKey: ["payments"],
+    queryFn: fetchPayments,
+    enabled: shouldFetch,
+  });
+
+  const roomsQuery = useQuery({
+    queryKey: ["rooms"],
+    queryFn: fetchRooms,
+    enabled: shouldFetch,
+  });
+
+  const adminUsersQuery = useQuery({
+    queryKey: ["adminUsers"],
+    queryFn: fetchAdminUsers,
+    enabled: shouldFetch,
+  });
 
   const isLoading =
     studentsQuery.isLoading ||

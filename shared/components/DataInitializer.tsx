@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAppStore } from "@/shared/store/appStore";
 import { useAppData } from "@/shared/hooks/useAppData";
 import { createClientSupabaseClient } from "@/shared/config/auth";
@@ -11,15 +11,15 @@ interface DataInitializerProps {
 
 export default function DataInitializer({ children }: DataInitializerProps) {
   const { currentUser, setCurrentUser, setLoading } = useAppStore();
-  const { isLoading, refetch } = useAppData();
+  const [isInitialized, setIsInitialized] = useState(false);
   const supabase = createClientSupabaseClient();
+  
+  // Only use useAppData when there's a current user
+  const { isLoading, refetch } = useAppData();
 
   useEffect(() => {
     const initializeData = async () => {
       try {
-        // Set initial loading state
-        setLoading("dashboard", true);
-        
         // Check if user is authenticated
         const {
           data: { session },
@@ -36,23 +36,25 @@ export default function DataInitializer({ children }: DataInitializerProps) {
 
           if (adminUser && !error) {
             setCurrentUser(adminUser);
+            setLoading("dashboard", true);
             
-            // Preload all data with better error handling
-            try {
-              await refetch();
-            } catch (refetchError) {
-              console.error("Error refetching data:", refetchError);
-              // Don't fail completely if refetch fails
-            }
+            // Only initialize data for admin users
+            // The actual data fetching will be handled by the dashboard components
+            // when they mount and detect the currentUser
           } else {
+            setCurrentUser(null);
             setLoading("dashboard", false);
           }
         } else {
+          setCurrentUser(null);
           setLoading("dashboard", false);
         }
       } catch (error) {
         console.error("Error initializing data:", error);
+        setCurrentUser(null);
         setLoading("dashboard", false);
+      } finally {
+        setIsInitialized(true);
       }
     };
 
@@ -63,8 +65,6 @@ export default function DataInitializer({ children }: DataInitializerProps) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session) {
-        setLoading("dashboard", true);
-        
         const { data: adminUser, error } = await supabase
           .from("admin_users")
           .select("*")
@@ -74,13 +74,9 @@ export default function DataInitializer({ children }: DataInitializerProps) {
 
         if (adminUser && !error) {
           setCurrentUser(adminUser);
-          try {
-            await refetch();
-          } catch (refetchError) {
-            console.error("Error refetching data on sign in:", refetchError);
-            setLoading("dashboard", false);
-          }
+          setLoading("dashboard", true);
         } else {
+          setCurrentUser(null);
           setLoading("dashboard", false);
         }
       } else if (event === "SIGNED_OUT") {
@@ -90,9 +86,9 @@ export default function DataInitializer({ children }: DataInitializerProps) {
     });
 
     return () => subscription.unsubscribe();
-  }, [supabase, setCurrentUser, setLoading, refetch]);
+  }, [supabase, setCurrentUser, setLoading]);
 
-  // Set up background refresh every 5 minutes
+  // Set up background refresh every 5 minutes for admin users
   useEffect(() => {
     if (currentUser) {
       const interval = setInterval(
@@ -108,8 +104,22 @@ export default function DataInitializer({ children }: DataInitializerProps) {
 
   // Update loading state based on useAppData
   useEffect(() => {
-    setLoading("dashboard", isLoading);
-  }, [isLoading, setLoading]);
+    if (currentUser) {
+      setLoading("dashboard", isLoading);
+    }
+  }, [isLoading, setLoading, currentUser]);
+
+  // Don't render children until initialization is complete
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return <>{children}</>;
 }
