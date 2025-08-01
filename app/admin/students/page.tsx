@@ -131,7 +131,7 @@ function StudentsTable() {
   const columns: Column<Student>[] = [
     {
       key: "name",
-      label: "Name",
+      header: "Name",
       render: (student) => (
         <div>
           <div className="font-medium">
@@ -143,27 +143,27 @@ function StudentsTable() {
     },
     {
       key: "matric_number",
-      label: "Matric Number",
+      header: "Matric Number",
       render: (student) => student.matric_number,
     },
     {
       key: "faculty",
-      label: "Faculty",
+      header: "Faculty",
       render: (student) => student.faculty,
     },
     {
       key: "level",
-      label: "Level",
+      header: "Level",
       render: (student) => student.level,
     },
     {
       key: "phone",
-      label: "Phone",
+      header: "Phone",
       render: (student) => student.phone,
     },
     {
       key: "actions",
-      label: "Actions",
+      header: "Actions",
       render: (student) => (
         <div className="flex space-x-2">
           <Button
