@@ -8,6 +8,8 @@ import { Button } from "@/shared/components/ui/button";
 import { Modal } from "@/shared/components/ui/modal";
 import { TableLoadingSkeleton } from "@/shared/components/ui/loading-skeleton";
 import { Payment } from "@/shared/store/appStore";
+import { useToast } from "@/shared/hooks/useToast";
+import { useAppData } from "@/shared/hooks/useAppData";
 
 interface DuplicatePayment {
   email: string;
@@ -19,11 +21,13 @@ interface DuplicatePayment {
 }
 
 export default function PaymentsPage() {
-  const { payments, loading } = useAppStore();
+  const { payments, loading, setPayments } = useAppStore();
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [duplicatePayments, setDuplicatePayments] = useState<DuplicatePayment[]>([]);
   const [selectedPaymentsToDelete, setSelectedPaymentsToDelete] = useState<string[]>([]);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const toast = useToast();
+  const { refetch } = useAppData();
 
   // Find duplicate payments by email
   const findDuplicatePayments = () => {
@@ -72,7 +76,7 @@ export default function PaymentsPage() {
 
   const handleCleanup = async () => {
     if (selectedPaymentsToDelete.length === 0) {
-      alert("Please select payments to delete");
+      toast.error("Please select payments to delete");
       return;
     }
 
@@ -89,17 +93,19 @@ export default function PaymentsPage() {
       });
 
       if (response.ok) {
-        alert("Duplicate payments cleaned up successfully!");
+        const result = await response.json();
+        toast.success(`Successfully deleted ${selectedPaymentsToDelete.length} duplicate payments!`);
         setShowCleanupModal(false);
         setSelectedPaymentsToDelete([]);
-        // Refresh payments data
-        window.location.reload();
+        
+        // Refetch data instead of reloading the page
+        await refetch();
       } else {
         const error = await response.json();
-        alert(`Error: ${error.message}`);
+        toast.error(`Error: ${error.message}`);
       }
     } catch (error) {
-      alert("Failed to cleanup payments");
+      toast.error("Failed to cleanup payments");
     } finally {
       setIsCleaningUp(false);
     }
