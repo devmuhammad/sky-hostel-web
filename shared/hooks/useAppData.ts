@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/shared/store/appStore";
 import { createClientSupabaseClient } from "@/shared/config/auth";
 import { useToast } from "./useToast";
-import React from "react"; // Added missing import for React
+import React, { useEffect } from "react"; // Added missing import for React
 
 // API Functions
 const fetchStudents = async () => {
@@ -61,88 +61,124 @@ export const useStudents = () => {
   const { setStudents, setLoading } = useAppStore();
   const toast = useToast();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["students"],
     queryFn: fetchStudents,
-    onSuccess: (data) => {
-      setStudents(data);
+  });
+
+  useEffect(() => {
+    if (query.data) {
+      setStudents(query.data);
       setLoading("students", false);
-    },
-    onError: (error) => {
-      console.error("Error fetching students:", error);
+    }
+  }, [query.data, setStudents, setLoading]);
+
+  useEffect(() => {
+    if (query.error) {
+      console.error("Error fetching students:", query.error);
       toast.error("Failed to fetch students");
       setLoading("students", false);
-    },
-    onSettled: () => {
-      setLoading("students", false);
-    },
-  });
+    }
+  }, [query.error, toast, setLoading]);
+
+  useEffect(() => {
+    setLoading("students", query.isLoading);
+  }, [query.isLoading, setLoading]);
+
+  return query;
 };
 
 export const usePayments = () => {
   const { setPayments, setLoading } = useAppStore();
   const toast = useToast();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["payments"],
     queryFn: fetchPayments,
-    onSuccess: (data) => {
-      setPayments(data);
+  });
+
+  useEffect(() => {
+    if (query.data) {
+      setPayments(query.data);
       setLoading("payments", false);
-    },
-    onError: (error) => {
-      console.error("Error fetching payments:", error);
+    }
+  }, [query.data, setPayments, setLoading]);
+
+  useEffect(() => {
+    if (query.error) {
+      console.error("Error fetching payments:", query.error);
       toast.error("Failed to fetch payments");
       setLoading("payments", false);
-    },
-    onSettled: () => {
-      setLoading("payments", false);
-    },
-  });
+    }
+  }, [query.error, toast, setLoading]);
+
+  useEffect(() => {
+    setLoading("payments", query.isLoading);
+  }, [query.isLoading, setLoading]);
+
+  return query;
 };
 
 export const useRooms = () => {
   const { setRooms, setLoading } = useAppStore();
   const toast = useToast();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["rooms"],
     queryFn: fetchRooms,
-    onSuccess: (data) => {
-      setRooms(data);
+  });
+
+  useEffect(() => {
+    if (query.data) {
+      setRooms(query.data);
       setLoading("rooms", false);
-    },
-    onError: (error) => {
-      console.error("Error fetching rooms:", error);
+    }
+  }, [query.data, setRooms, setLoading]);
+
+  useEffect(() => {
+    if (query.error) {
+      console.error("Error fetching rooms:", query.error);
       toast.error("Failed to fetch rooms");
       setLoading("rooms", false);
-    },
-    onSettled: () => {
-      setLoading("rooms", false);
-    },
-  });
+    }
+  }, [query.error, toast, setLoading]);
+
+  useEffect(() => {
+    setLoading("rooms", query.isLoading);
+  }, [query.isLoading, setLoading]);
+
+  return query;
 };
 
 export const useAdminUsers = () => {
   const { setAdminUsers, setLoading } = useAppStore();
   const toast = useToast();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["adminUsers"],
     queryFn: fetchAdminUsers,
-    onSuccess: (data) => {
-      setAdminUsers(data);
+  });
+
+  useEffect(() => {
+    if (query.data) {
+      setAdminUsers(query.data);
       setLoading("adminUsers", false);
-    },
-    onError: (error) => {
-      console.error("Error fetching admin users:", error);
+    }
+  }, [query.data, setAdminUsers, setLoading]);
+
+  useEffect(() => {
+    if (query.error) {
+      console.error("Error fetching admin users:", query.error);
       toast.error("Failed to fetch admin users");
       setLoading("adminUsers", false);
-    },
-    onSettled: () => {
-      setLoading("adminUsers", false);
-    },
-  });
+    }
+  }, [query.error, toast, setLoading]);
+
+  useEffect(() => {
+    setLoading("adminUsers", query.isLoading);
+  }, [query.isLoading, setLoading]);
+
+  return query;
 };
 
 // Mutation Hooks
@@ -151,7 +187,7 @@ export const useCreateStudent = () => {
   const { addStudent } = useAppStore();
   const toast = useToast();
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async (studentData: any) => {
       const supabase = createClientSupabaseClient();
       const { data, error } = await supabase
@@ -163,37 +199,28 @@ export const useCreateStudent = () => {
       if (error) throw error;
       return data;
     },
-    onMutate: async (newStudent) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["students"] });
-
-      // Snapshot the previous value
-      const previousStudents = queryClient.getQueryData(["students"]);
-
-      // Optimistically update to the new value
-      queryClient.setQueryData(["students"], (old: any) => [
-        { ...newStudent, id: "temp-" + Date.now() },
-        ...(old || []),
-      ]);
-
-      // Return a context object with the snapshotted value
-      return { previousStudents };
-    },
-    onError: (err, newStudent, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      queryClient.setQueryData(["students"], context?.previousStudents);
-      toast.error("Failed to create student");
-    },
-    onSuccess: (data) => {
-      // Update the store
-      addStudent(data);
-      toast.success("Student created successfully");
-    },
-    onSettled: () => {
-      // Always refetch after error or success
-      queryClient.invalidateQueries({ queryKey: ["students"] });
-    },
   });
+
+  useEffect(() => {
+    if (mutation.data) {
+      addStudent(mutation.data);
+      toast.success("Student created successfully");
+    }
+  }, [mutation.data, addStudent, toast]);
+
+  useEffect(() => {
+    if (mutation.error) {
+      toast.error("Failed to create student");
+    }
+  }, [mutation.error, toast]);
+
+  useEffect(() => {
+    if (mutation.isSuccess) {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+    }
+  }, [mutation.isSuccess, queryClient]);
+
+  return mutation;
 };
 
 export const useUpdateStudent = () => {
@@ -201,7 +228,7 @@ export const useUpdateStudent = () => {
   const { updateStudent } = useAppStore();
   const toast = useToast();
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
       const supabase = createClientSupabaseClient();
       const { data, error } = await supabase
@@ -214,30 +241,28 @@ export const useUpdateStudent = () => {
       if (error) throw error;
       return data;
     },
-    onMutate: async ({ id, updates }) => {
-      await queryClient.cancelQueries({ queryKey: ["students"] });
-      const previousStudents = queryClient.getQueryData(["students"]);
-
-      queryClient.setQueryData(["students"], (old: any) =>
-        old?.map((student: any) =>
-          student.id === id ? { ...student, ...updates } : student
-        )
-      );
-
-      return { previousStudents };
-    },
-    onError: (err, variables, context) => {
-      queryClient.setQueryData(["students"], context?.previousStudents);
-      toast.error("Failed to update student");
-    },
-    onSuccess: (data) => {
-      updateStudent(data.id, data);
-      toast.success("Student updated successfully");
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["students"] });
-    },
   });
+
+  useEffect(() => {
+    if (mutation.data) {
+      updateStudent(mutation.data.id, mutation.data);
+      toast.success("Student updated successfully");
+    }
+  }, [mutation.data, updateStudent, toast]);
+
+  useEffect(() => {
+    if (mutation.error) {
+      toast.error("Failed to update student");
+    }
+  }, [mutation.error, toast]);
+
+  useEffect(() => {
+    if (mutation.isSuccess) {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+    }
+  }, [mutation.isSuccess, queryClient]);
+
+  return mutation;
 };
 
 export const useCreatePayment = () => {
@@ -245,46 +270,40 @@ export const useCreatePayment = () => {
   const { addPayment } = useAppStore();
   const toast = useToast();
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async (paymentData: any) => {
       const supabase = createClientSupabaseClient();
       const { data, error } = await supabase
         .from("payments")
         .insert(paymentData)
-        .select(
-          `
-          *,
-          student:students(*)
-        `
-        )
+        .select()
         .single();
 
       if (error) throw error;
       return data;
     },
-    onMutate: async (newPayment) => {
-      await queryClient.cancelQueries({ queryKey: ["payments"] });
-      const previousPayments = queryClient.getQueryData(["payments"]);
-
-      queryClient.setQueryData(["payments"], (old: any) => [
-        { ...newPayment, id: "temp-" + Date.now() },
-        ...(old || []),
-      ]);
-
-      return { previousPayments };
-    },
-    onError: (err, newPayment, context) => {
-      queryClient.setQueryData(["payments"], context?.previousPayments);
-      toast.error("Failed to create payment");
-    },
-    onSuccess: (data) => {
-      addPayment(data);
-      toast.success("Payment created successfully");
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["payments"] });
-    },
   });
+
+  useEffect(() => {
+    if (mutation.data) {
+      addPayment(mutation.data);
+      toast.success("Payment created successfully");
+    }
+  }, [mutation.data, addPayment, toast]);
+
+  useEffect(() => {
+    if (mutation.error) {
+      toast.error("Failed to create payment");
+    }
+  }, [mutation.error, toast]);
+
+  useEffect(() => {
+    if (mutation.isSuccess) {
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+    }
+  }, [mutation.isSuccess, queryClient]);
+
+  return mutation;
 };
 
 export const useUpdatePayment = () => {
@@ -292,48 +311,41 @@ export const useUpdatePayment = () => {
   const { updatePayment } = useAppStore();
   const toast = useToast();
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
       const supabase = createClientSupabaseClient();
       const { data, error } = await supabase
         .from("payments")
         .update(updates)
         .eq("id", id)
-        .select(
-          `
-          *,
-          student:students(*)
-        `
-        )
+        .select()
         .single();
 
       if (error) throw error;
       return data;
     },
-    onMutate: async ({ id, updates }) => {
-      await queryClient.cancelQueries({ queryKey: ["payments"] });
-      const previousPayments = queryClient.getQueryData(["payments"]);
-
-      queryClient.setQueryData(["payments"], (old: any) =>
-        old?.map((payment: any) =>
-          payment.id === id ? { ...payment, ...updates } : payment
-        )
-      );
-
-      return { previousPayments };
-    },
-    onError: (err, variables, context) => {
-      queryClient.setQueryData(["payments"], context?.previousPayments);
-      toast.error("Failed to update payment");
-    },
-    onSuccess: (data) => {
-      updatePayment(data.id, data);
-      toast.success("Payment updated successfully");
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["payments"] });
-    },
   });
+
+  useEffect(() => {
+    if (mutation.data) {
+      updatePayment(mutation.data.id, mutation.data);
+      toast.success("Payment updated successfully");
+    }
+  }, [mutation.data, updatePayment, toast]);
+
+  useEffect(() => {
+    if (mutation.error) {
+      toast.error("Failed to update payment");
+    }
+  }, [mutation.error, toast]);
+
+  useEffect(() => {
+    if (mutation.isSuccess) {
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+    }
+  }, [mutation.isSuccess, queryClient]);
+
+  return mutation;
 };
 
 // Combined hook for fetching all data

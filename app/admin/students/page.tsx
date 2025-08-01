@@ -14,33 +14,7 @@ import { Label } from "@/shared/components/ui/label";
 import { useToast } from "@/shared/hooks/useToast";
 import { useAppStore } from "@/shared/store/appStore";
 import { useStudents, useUpdateStudent } from "@/shared/hooks/useAppData";
-
-interface Student {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  matric_number: string;
-  faculty: string;
-  department: string;
-  level: string;
-  block: string;
-  room: string;
-  bedspace_label: string;
-  state_of_origin: string;
-  address?: string;
-  date_of_birth?: string;
-  lga?: string;
-  marital_status?: string;
-  religion?: string;
-  course?: string;
-  next_of_kin_name?: string;
-  next_of_kin_phone?: string;
-  next_of_kin_email?: string;
-  next_of_kin_relationship?: string;
-  created_at: string;
-}
+import { Student } from "@/shared/store/appStore";
 
 interface EditStudentForm {
   first_name: string;
@@ -124,9 +98,11 @@ function StudentsTable() {
 
   // Get unique faculties and levels for filters
   const faculties = [...new Set(students.map((s) => s.faculty))].filter(
-    Boolean
+    (faculty): faculty is string => Boolean(faculty)
   );
-  const levels = [...new Set(students.map((s) => s.level))].filter(Boolean);
+  const levels = [...new Set(students.map((s) => s.level))].filter(
+    (level): level is string => Boolean(level)
+  );
 
   const columns: Column<Student>[] = [
     {
@@ -189,7 +165,6 @@ function StudentsTable() {
     {
       key: "faculty",
       label: "Faculty",
-      type: "select",
       options: faculties.map((faculty) => ({
         value: faculty,
         label: faculty,
@@ -200,7 +175,6 @@ function StudentsTable() {
     {
       key: "level",
       label: "Level",
-      type: "select",
       options: levels.map((level) => ({
         value: level,
         label: level,
@@ -231,7 +205,7 @@ function StudentsTable() {
         data={filteredStudents}
         columns={columns}
         filters={filters}
-        searchKey="name"
+        searchFields={["first_name", "last_name", "email", "matric_number"]}
         searchPlaceholder="Search students..."
       />
 

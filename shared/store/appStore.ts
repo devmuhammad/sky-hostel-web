@@ -17,6 +17,15 @@ export interface Student {
   block?: string;
   room?: string;
   bedspace_label?: string;
+  date_of_birth?: string;
+  lga?: string;
+  marital_status?: string;
+  religion?: string;
+  course?: string;
+  next_of_kin_name?: string;
+  next_of_kin_phone?: string;
+  next_of_kin_email?: string;
+  next_of_kin_relationship?: string;
   created_at: string;
   updated_at: string;
 }
