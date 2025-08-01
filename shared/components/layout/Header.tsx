@@ -38,10 +38,15 @@ const Header = () => {
 
           if (adminData && !error) {
             setAdminUser(adminData);
+          } else {
+            setAdminUser(null);
           }
+        } else {
+          setAdminUser(null);
         }
       } catch (error) {
         console.error("Error checking admin session:", error);
+        setAdminUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -63,6 +68,8 @@ const Header = () => {
 
         if (adminData && !error) {
           setAdminUser(adminData);
+        } else {
+          setAdminUser(null);
         }
       } else if (event === "SIGNED_OUT") {
         setAdminUser(null);
@@ -72,15 +79,22 @@ const Header = () => {
     return () => subscription.unsubscribe();
   }, [supabase]);
 
-  // Also use the store's currentUser as a fallback
+  // Use the store's currentUser as a fallback, but only if we have a valid session
   useEffect(() => {
-    if (currentUser && !adminUser) {
-      setAdminUser(currentUser);
-    }
-  }, [currentUser, adminUser]);
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && currentUser && !adminUser) {
+        setAdminUser(currentUser);
+      } else if (!session) {
+        setAdminUser(null);
+      }
+    };
+    
+    checkSession();
+  }, [currentUser, adminUser, supabase]);
 
   // Determine which user data to display
-  const displayUser = adminUser || currentUser;
+  const displayUser = adminUser;
 
   return (
     <header className="py-4 px-6 bg-white transition-all duration-300 z-10 fixed top-0 right-0 w-full border-b border-gray-200">
