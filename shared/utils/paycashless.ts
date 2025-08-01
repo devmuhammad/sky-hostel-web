@@ -164,6 +164,120 @@ export async function createPaycashlessInvoice(
   }
 }
 
+export async function getPaycashlessPaymentStatus(
+  email: string,
+  phone?: string
+): Promise<{
+  success: boolean;
+  data?: {
+    totalPaid: number;
+    remainingAmount: number;
+    isFullyPaid: boolean;
+    payment_id?: string;
+    payments: Array<{
+      id: string;
+      reference: string;
+      amount: number;
+      status: string;
+      paidAt?: string;
+    }>;
+  };
+  error?: string;
+}> {
+  try {
+    if (!PAYCASHLESS_API_KEY || !PAYCASHLESS_API_SECRET) {
+      throw new Error("Paycashless API credentials are not configured");
+    }
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    const requestPath = "/v1/payments/search";
+
+    // Search for payments by customer email
+    const requestBody = {
+      customerEmail: email,
+      limit: 50,
+      offset: 0,
+    };
+
+    const signature = generateRequestSignature(
+      requestPath,
+      requestBody,
+      timestamp
+    );
+
+    const response = await fetch(`${PAYCASHLESS_API_URL}${requestPath}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": PAYCASHLESS_API_KEY,
+        "X-Timestamp": timestamp.toString(),
+        "X-Signature": signature,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Paycashless API error:", response.status, errorText);
+      throw new Error(`Paycashless API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log("Paycashless API response:", JSON.stringify(result, null, 2));
+
+    if (!result.success || !result.data) {
+      return {
+        success: false,
+        error: result.message || "No payment data found on Paycashless",
+      };
+    }
+
+    const payments = result.data.payments || [];
+    
+    // Filter for successful payments
+    const successfulPayments = payments.filter(
+      (payment: any) => payment.status === "successful" || payment.status === "completed"
+    );
+
+    // Calculate totals
+    const totalPaid = successfulPayments.reduce(
+      (sum: number, payment: any) => sum + (payment.amount || 0),
+      0
+    );
+
+    const remainingAmount = Math.max(0, PAYMENT_CONFIG.amount - totalPaid);
+    const isFullyPaid = totalPaid >= PAYMENT_CONFIG.amount;
+
+    // Get the most recent payment ID
+    const payment_id = successfulPayments.length > 0 
+      ? successfulPayments[0].id || successfulPayments[0].payment_id
+      : undefined;
+
+    return {
+      success: true,
+      data: {
+        totalPaid,
+        remainingAmount,
+        isFullyPaid,
+        payment_id,
+        payments: successfulPayments.map((payment: any) => ({
+          id: payment.id || payment.payment_id,
+          reference: payment.reference || payment.invoice_id,
+          amount: payment.amount || 0,
+          status: payment.status,
+          paidAt: payment.paid_at || payment.created_at,
+        })),
+      },
+    };
+  } catch (error) {
+    console.error("Paycashless API call error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to fetch Paycashless data",
+    };
+  }
+}
+
 export async function verifyPaycashlessPayment(
   email: string,
   phone?: string
@@ -204,86 +318,81 @@ export async function verifyPaycashlessPayment(
       };
     }
 
-    // First, get all payments from our database for this user
-    const { data: localPayments, error: dbError } = await supabaseAdmin
-      .from("payments")
-      .select("*")
-      .or(`email.eq.${email}${phone ? `,phone.eq.${phone}` : ""}`)
-      .order("created_at", { ascending: false });
+    // Call the actual Paycashless API to get real payment data
+    const paycashlessResult = await getPaycashlessPaymentStatus(email, phone);
+    
+    if (!paycashlessResult.success) {
+      // If Paycashless API fails, fall back to local database
+      console.log("Paycashless API failed, falling back to local data:", paycashlessResult.error);
+      
+      // Get local payments as fallback
+      const { data: localPayments, error: dbError } = await supabaseAdmin
+        .from("payments")
+        .select("*")
+        .or(`email.eq.${email}${phone ? `,phone.eq.${phone}` : ""}`)
+        .order("created_at", { ascending: false });
 
-    if (dbError) {
-      throw new Error("Failed to fetch payment records");
-    }
+      if (dbError) {
+        throw new Error("Failed to fetch payment records");
+      }
 
-    if (!localPayments || localPayments.length === 0) {
+      if (!localPayments || localPayments.length === 0) {
+        return {
+          success: true,
+          data: {
+            totalPaid: 0,
+            remainingAmount: PAYMENT_CONFIG.amount,
+            isFullyPaid: false,
+            payment_id: undefined,
+            payments: [],
+          },
+        };
+      }
+
+      // Calculate totals from local payments
+      let totalPaid = 0;
+      let payment_id: string | undefined;
+      const completedPayments = localPayments
+        .filter(
+          (payment) =>
+            payment.status === "completed" ||
+            (payment.status === "pending" && payment.amount_paid > 0)
+        )
+        .map((payment) => {
+          const paymentAmount =
+            payment.amount_paid > 0 ? payment.amount_paid : PAYMENT_CONFIG.amount;
+          totalPaid += paymentAmount;
+
+          if (!payment_id) {
+            payment_id = payment.id;
+          }
+
+          return {
+            id: payment.id,
+            reference: payment.invoice_id,
+            amount: paymentAmount,
+            status: payment.status,
+            paidAt: payment.paid_at,
+          };
+        });
+
+      const remainingAmount = Math.max(0, PAYMENT_CONFIG.amount - totalPaid);
+      const isFullyPaid = totalPaid >= PAYMENT_CONFIG.amount;
+
       return {
         success: true,
         data: {
-          totalPaid: 0,
-          remainingAmount: PAYMENT_CONFIG.amount,
-          isFullyPaid: false,
-          payment_id: undefined,
-          payments: [],
+          totalPaid,
+          remainingAmount,
+          isFullyPaid,
+          payment_id,
+          payments: completedPayments,
         },
       };
     }
 
-    // Calculate totals from local payments (webhooks keep these accurate)
-    let totalPaid = 0;
-    let payment_id: string | undefined;
-    const completedPayments = localPayments
-      .filter(
-        (payment) =>
-          payment.status === "completed" ||
-          (payment.status === "pending" && payment.amount_paid > 0)
-      )
-      .map((payment) => {
-        // Use the stored amount_paid, but if it's 0 or null, use the configured amount
-        const paymentAmount =
-          payment.amount_paid > 0 ? payment.amount_paid : PAYMENT_CONFIG.amount;
-        totalPaid += paymentAmount;
-
-        // Use the first completed payment's ID as the payment_id
-        if (!payment_id) {
-          payment_id = payment.id;
-        }
-
-        return {
-          id: payment.id,
-          reference: payment.invoice_id,
-          amount: paymentAmount,
-          status: payment.status,
-          paidAt: payment.paid_at,
-        };
-      });
-
-    // Check for pending payments that might need webhook confirmation
-    const pendingPayments = localPayments.filter(
-      (payment) => payment.status === "pending" && payment.amount_paid === 0
-    );
-    if (pendingPayments.length > 0) {
-      console.log(
-        "Found pending payments that may need webhook confirmation:",
-        pendingPayments
-      );
-      console.log(
-        "Payment is still pending - webhook may not have updated yet"
-      );
-    }
-
-    const remainingAmount = Math.max(0, PAYMENT_CONFIG.amount - totalPaid);
-    const isFullyPaid = totalPaid >= PAYMENT_CONFIG.amount;
-
-    return {
-      success: true,
-      data: {
-        totalPaid,
-        remainingAmount,
-        isFullyPaid,
-        payment_id,
-        payments: completedPayments,
-      },
-    };
+    // Return the real Paycashless data
+    return paycashlessResult;
   } catch (error) {
     console.error("Payment verification error:", error);
     return {

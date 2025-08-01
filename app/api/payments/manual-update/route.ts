@@ -17,19 +17,17 @@ interface ManualUpdateRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, paycashlessData, localPayments }: ManualUpdateRequest = await request.json();
+    const { email, paycashlessData, localPayments }: ManualUpdateRequest =
+      await request.json();
 
     if (!email) {
-      return NextResponse.json(
-        { error: "Email is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
     console.log("Manual payment update request:", {
       email,
       paycashlessData,
-      localPaymentsCount: localPayments.length
+      localPaymentsCount: localPayments.length,
     });
 
     // If no Paycashless data, we can't update
@@ -72,8 +70,8 @@ export async function POST(request: NextRequest) {
       message = `Created new payment record for ${email} with amount ₦${paycashlessData.totalPaid.toLocaleString()}`;
     } else {
       // Update existing payment(s)
-      const paymentIds = localPayments.map(p => p.id);
-      
+      const paymentIds = localPayments.map((p) => p.id);
+
       // Determine new status
       let newStatus = "pending";
       if (paycashlessData.isFullyPaid) {
@@ -126,7 +124,6 @@ export async function POST(request: NextRequest) {
       message,
       updated_payment: updateResult,
     });
-
   } catch (error) {
     console.error("Manual payment update error:", error);
     return NextResponse.json(
