@@ -1,382 +1,290 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useAppStore } from "@/shared/store/appStore";
+import { DataTable } from "@/shared/components/ui/data-table";
 import { CardContainer } from "@/shared/components/ui/card-container";
-import { StatusBadge } from "@/shared/components/ui/status-badge";
 import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
-import { LoadingButton } from "@/shared/components/ui/loading-button";
-import { useToast } from "@/shared/hooks/useToast";
-import { useAppStore, Payment } from "@/shared/store/appStore";
-import { usePayments } from "@/shared/hooks/useAppData";
-import React from "react";
+import { Modal } from "@/shared/components/ui/modal";
+import { TableLoadingSkeleton } from "@/shared/components/ui/loading-skeleton";
+import { Payment } from "@/shared/store/appStore";
 
-interface DuplicateAnalysis {
-  payment: Payment;
-  paycashlessInvoice?: any;
-  paycashlessPayments: any[];
-  hasPayments: boolean;
-  totalPaid: number;
+interface DuplicatePayment {
+  email: string;
+  payments: Payment[];
+  hasPartialPayment: boolean;
+  hasFullPayment: boolean;
+  totalPending: number;
+  recommendedAction: string;
 }
 
 export default function PaymentsPage() {
-  const [duplicateEmails, setDuplicateEmails] = useState<string[]>([]);
-  const [selectedEmail, setSelectedEmail] = useState("");
-  const [analysis, setAnalysis] = useState<DuplicateAnalysis[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isCleaning, setIsCleaning] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
-
-  // Use store and hooks instead of local state
   const { payments, loading } = useAppStore();
-  const { data, isLoading, error } = usePayments();
-  const toast = useToast();
+  const [showCleanupModal, setShowCleanupModal] = useState(false);
+  const [duplicatePayments, setDuplicatePayments] = useState<DuplicatePayment[]>([]);
+  const [selectedPaymentsToDelete, setSelectedPaymentsToDelete] = useState<string[]>([]);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
 
-  // Find duplicate emails when payments data changes
-  React.useEffect(() => {
-    if (payments.length > 0) {
-      const emailCounts = payments.reduce((acc: any, payment: Payment) => {
-        // Get email from student if available, otherwise use a default
-        const email = payment.student?.email || "unknown@email.com";
-        acc[email] = (acc[email] || 0) + 1;
-        return acc;
-      }, {});
-
-      const duplicates = Object.keys(emailCounts).filter(
-        (email) => emailCounts[email] > 1 && email !== "unknown@email.com"
-      );
-      setDuplicateEmails(duplicates);
-    }
-  }, [payments]);
-
-  const analyzeDuplicates = async () => {
-    if (!selectedEmail) {
-      toast.error("Please select an email to analyze");
-      return;
-    }
-
-    setIsAnalyzing(true);
-    try {
-      const response = await fetch("/api/admin/cleanup-duplicates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: selectedEmail,
-          action: "analyze",
-        }),
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        setAnalysis(result.analysis || []);
-        toast.success("Analysis completed");
-      } else {
-        toast.error(result.error || "Analysis failed");
+  // Find duplicate payments by email
+  const findDuplicatePayments = () => {
+    const emailGroups = new Map<string, Payment[]>();
+    
+    payments.forEach(payment => {
+      if (!emailGroups.has(payment.email)) {
+        emailGroups.set(payment.email, []);
       }
-    } catch (error) {
-      toast.error("Failed to analyze duplicates");
-    } finally {
-      setIsAnalyzing(false);
-    }
+      emailGroups.get(payment.email)!.push(payment);
+    });
+
+    const duplicates: DuplicatePayment[] = [];
+    
+    emailGroups.forEach((paymentsForEmail, email) => {
+      if (paymentsForEmail.length > 1) {
+        const hasPartialPayment = paymentsForEmail.some(p => p.status === "partially_paid");
+        const hasFullPayment = paymentsForEmail.some(p => p.status === "completed");
+        const totalPending = paymentsForEmail.filter(p => p.status === "pending").length;
+        
+        let recommendedAction = "";
+        if (hasFullPayment) {
+          recommendedAction = "Keep completed payment, delete all others";
+        } else if (hasPartialPayment) {
+          recommendedAction = "Keep partial payment, delete pending duplicates";
+        } else if (totalPending > 1) {
+          recommendedAction = "Keep most recent pending, delete older pending";
+        } else {
+          recommendedAction = "No action needed";
+        }
+
+        duplicates.push({
+          email,
+          payments: paymentsForEmail,
+          hasPartialPayment,
+          hasFullPayment,
+          totalPending,
+          recommendedAction
+        });
+      }
+    });
+
+    setDuplicatePayments(duplicates);
+    setShowCleanupModal(true);
   };
 
-  const cleanupDuplicates = async () => {
-    if (!selectedEmail) {
-      toast.error("Please select an email to clean up");
+  const handleCleanup = async () => {
+    if (selectedPaymentsToDelete.length === 0) {
+      alert("Please select payments to delete");
       return;
     }
 
-    setIsCleaning(true);
+    setIsCleaningUp(true);
     try {
       const response = await fetch("/api/admin/cleanup-duplicates", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          email: selectedEmail,
-          action: "cleanup",
+          paymentIds: selectedPaymentsToDelete,
         }),
       });
 
-      const result = await response.json();
-      if (result.success) {
-        toast.success("Cleanup completed successfully");
+      if (response.ok) {
+        alert("Duplicate payments cleaned up successfully!");
+        setShowCleanupModal(false);
+        setSelectedPaymentsToDelete([]);
         // Refresh payments data
         window.location.reload();
       } else {
-        toast.error(result.error || "Cleanup failed");
+        const error = await response.json();
+        alert(`Error: ${error.message}`);
       }
     } catch (error) {
-      toast.error("Failed to clean up duplicates");
+      alert("Failed to cleanup payments");
     } finally {
-      setIsCleaning(false);
+      setIsCleaningUp(false);
     }
   };
 
-  // Filter payments based on search and status
-  const filteredPayments = payments.filter((payment) => {
-    const studentEmail = payment.student?.email || "";
-    const studentPhone = payment.student?.phone || "";
-    const reference = payment.reference || "";
-
-    const matchesSearch =
-      studentEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      studentPhone.includes(searchTerm) ||
-      reference.includes(searchTerm);
-
-    const matchesStatus =
-      statusFilter === "all" || payment.status === statusFilter;
-
-    const isDuplicate = duplicateEmails.includes(studentEmail);
-    const matchesDuplicateFilter = !showDuplicatesOnly || isDuplicate;
-
-    return matchesSearch && matchesStatus && matchesDuplicateFilter;
-  });
-
-  if (isLoading) {
-    return (
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Manage and monitor payment records.
-            </p>
-          </div>
-          <CardContainer>
-            <div className="animate-pulse space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center space-x-4">
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/6"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/6"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/6"></div>
-                </div>
-              ))}
-            </div>
-          </CardContainer>
+  const columns = [
+    {
+      key: "email",
+      header: "Email",
+      render: (payment: Payment) => (
+        <div className="font-medium">{payment.email}</div>
+      ),
+    },
+    {
+      key: "phone",
+      header: "Phone",
+      render: (payment: Payment) => (
+        <div>{payment.phone}</div>
+      ),
+    },
+    {
+      key: "amount_paid",
+      header: "Amount Paid",
+      render: (payment: Payment) => (
+        <div>₦{payment.amount_paid?.toLocaleString() || "0"}</div>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (payment: Payment) => (
+        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+          payment.status === "completed" ? "bg-green-100 text-green-800" :
+          payment.status === "partially_paid" ? "bg-yellow-100 text-yellow-800" :
+          "bg-gray-100 text-gray-800"
+        }`}>
+          {payment.status}
         </div>
-      </div>
-    );
-  }
+      ),
+    },
+    {
+      key: "invoice_id",
+      header: "Invoice ID",
+      render: (payment: Payment) => (
+        <div className="font-mono text-sm">{payment.invoice_id}</div>
+      ),
+    },
+    {
+      key: "created_at",
+      header: "Created",
+      render: (payment: Payment) => (
+        <div>{new Date(payment.created_at).toLocaleDateString()}</div>
+      ),
+    },
+  ];
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Manage and monitor payment records.
-            </p>
-          </div>
-          <CardContainer>
-            <div className="text-center py-8">
-              <p className="text-red-600">Failed to load payments</p>
-              <Button onClick={() => window.location.reload()} className="mt-4">
-                Retry
-              </Button>
-            </div>
-          </CardContainer>
-        </div>
-      </div>
-    );
+  if (loading.payments) {
+    return <TableLoadingSkeleton />;
   }
 
   return (
     <div className="p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Page Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Manage and monitor payment records.
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Payments</h1>
+          <p className="mt-2 text-gray-600">
+            Manage and track all student payments
           </p>
         </div>
 
-        {/* Filters */}
-        <CardContainer>
-          <div className="flex flex-wrap gap-4 items-center">
-            <div className="flex-1 min-w-0">
-              <Input
-                placeholder="Search by email, phone, or reference..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-md"
-              />
-            </div>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
-            </select>
-
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={showDuplicatesOnly}
-                onChange={(e) => setShowDuplicatesOnly(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              <span className="text-sm text-gray-700">
-                Show duplicates only
-              </span>
-            </label>
+        <div className="flex justify-between items-center">
+          <div className="text-sm text-gray-500">
+            Total Payments: {payments.length}
           </div>
+          <Button
+            onClick={findDuplicatePayments}
+            className="bg-orange-600 hover:bg-orange-700"
+          >
+            🔍 Find Duplicate Payments
+          </Button>
+        </div>
+
+        <CardContainer>
+          <DataTable
+            data={payments}
+            columns={columns}
+            searchFields={["email", "phone", "invoice_id"]}
+          />
         </CardContainer>
 
-        {/* Duplicate Analysis */}
-        {duplicateEmails.length > 0 && (
-          <CardContainer title="Duplicate Payments Analysis">
-            <div className="space-y-4">
-              <div className="flex items-center space-x-4">
-                <select
-                  value={selectedEmail}
-                  onChange={(e) => setSelectedEmail(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select an email with duplicates</option>
-                  {duplicateEmails.map((email) => (
-                    <option key={email} value={email}>
-                      {email} (
-                      {
-                        payments.filter((p) => p.student?.email === email)
-                          .length
-                      }{" "}
-                      payments)
-                    </option>
-                  ))}
-                </select>
+        {/* Cleanup Modal */}
+        <Modal
+          isOpen={showCleanupModal}
+          onClose={() => setShowCleanupModal(false)}
+          title="Duplicate Payments Cleanup"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <p className="text-gray-600">
+              Found {duplicatePayments.length} emails with duplicate payments. 
+              Select which payments to delete:
+            </p>
 
-                <Button
-                  onClick={analyzeDuplicates}
-                  disabled={!selectedEmail || isAnalyzing}
-                >
-                  {isAnalyzing ? "Analyzing..." : "Analyze"}
-                </Button>
-
-                <LoadingButton
-                  onClick={cleanupDuplicates}
-                  disabled={!selectedEmail || isCleaning}
-                  isLoading={isCleaning}
-                  loadingText="Cleaning..."
-                >
-                  Clean Up
-                </LoadingButton>
-              </div>
-
-              {analysis.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <h4 className="font-medium">Analysis Results:</h4>
-                  {analysis.map((item, index) => (
-                    <div key={index} className="p-3 bg-gray-50 rounded">
-                      <p>
-                        <strong>Payment ID:</strong> {item.payment.id}
-                      </p>
-                      <p>
-                        <strong>Amount:</strong> ₦{item.payment.amount_paid}
-                      </p>
-                      <p>
-                        <strong>Total Paid:</strong> ₦{item.totalPaid}
-                      </p>
-                      <p>
-                        <strong>Has PayCashless Payments:</strong>{" "}
-                        {item.hasPayments ? "Yes" : "No"}
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {duplicatePayments.map((duplicate, index) => (
+                <div key={index} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h4 className="font-medium">{duplicate.email}</h4>
+                      <p className="text-sm text-gray-500">
+                        {duplicate.payments.length} payments • {duplicate.recommendedAction}
                       </p>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </CardContainer>
-        )}
+                    <div className="text-xs space-y-1">
+                      {duplicate.hasFullPayment && (
+                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded">Has Full Payment</span>
+                      )}
+                      {duplicate.hasPartialPayment && (
+                        <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Has Partial Payment</span>
+                      )}
+                      {duplicate.totalPending > 0 && (
+                        <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                          {duplicate.totalPending} Pending
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-        {/* Payments Table */}
-        <CardContainer title={`Payments (${filteredPayments.length})`}>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Student
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Reference
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Duplicate
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredPayments.map((payment) => {
-                  const studentEmail = payment.student?.email || "Unknown";
-                  const studentPhone = payment.student?.phone || "Unknown";
-                  const isDuplicate = duplicateEmails.includes(studentEmail);
-
-                  return (
-                    <tr key={payment.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {studentEmail}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {studentPhone}
+                  <div className="space-y-2">
+                    {duplicate.payments.map((payment) => (
+                      <div key={payment.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            id={payment.id}
+                            checked={selectedPaymentsToDelete.includes(payment.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedPaymentsToDelete(prev => [...prev, payment.id]);
+                              } else {
+                                setSelectedPaymentsToDelete(prev => prev.filter(id => id !== payment.id));
+                              }
+                            }}
+                            className="rounded"
+                          />
+                          <div>
+                            <div className="font-medium text-sm">
+                              {payment.invoice_id}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              ₦{payment.amount_paid?.toLocaleString() || "0"} • {payment.status} • {new Date(payment.created_at).toLocaleDateString()}
+                            </div>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ₦{payment.amount_paid.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <StatusBadge
-                          status={payment.status}
-                          variant="payment"
-                        />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {payment.reference}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(payment.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {isDuplicate && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            Duplicate
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredPayments.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No payments found</p>
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          payment.status === "completed" ? "bg-green-100 text-green-800" :
+                          payment.status === "partially_paid" ? "bg-yellow-100 text-yellow-800" :
+                          "bg-gray-100 text-gray-800"
+                        }`}>
+                          {payment.status}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
-        </CardContainer>
+
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <Button
+                onClick={() => setShowCleanupModal(false)}
+                variant="outline"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCleanup}
+                disabled={selectedPaymentsToDelete.length === 0 || isCleaningUp}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isCleaningUp ? "Cleaning Up..." : `Delete ${selectedPaymentsToDelete.length} Payments`}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </div>
   );

@@ -32,11 +32,12 @@ export interface Student {
 
 export interface Payment {
   id: string;
-  student_id: string;
+  email: string;
+  phone: string;
   amount_paid: number;
-  status: "pending" | "completed" | "failed";
-  payment_method: string;
-  reference: string;
+  invoice_id: string;
+  status: "pending" | "completed" | "failed" | "partially_paid";
+  paid_at?: string;
   created_at: string;
   updated_at: string;
   student?: Student;
