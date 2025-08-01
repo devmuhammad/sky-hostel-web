@@ -7,8 +7,8 @@ import { Suspense, useState, useEffect, useMemo } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { CardContainer } from "@/shared/components/ui/card-container";
 import {
-  StatsLoadingSkeleton,
-  ChartLoadingSkeleton,
+  CardLoadingSkeleton,
+  TableLoadingSkeleton,
 } from "@/shared/components/ui/loading-skeleton";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import { useAppStore } from "@/shared/store/appStore";
@@ -224,7 +224,7 @@ function ReportsAnalytics() {
   };
 
   if (isLoading) {
-    return <StatsLoadingSkeleton />;
+    return <CardLoadingSkeleton cards={4} />;
   }
 
   if (isError) {
@@ -487,7 +487,7 @@ export default function ReportsPage() {
   return (
     <div className="p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <Suspense fallback={<StatsLoadingSkeleton />}>
+        <Suspense fallback={<CardLoadingSkeleton cards={4} />}>
           <ReportsAnalytics />
         </Suspense>
       </div>

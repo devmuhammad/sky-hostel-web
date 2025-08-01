@@ -14,9 +14,8 @@ export { StatusBadge } from "./status-badge";
 export { LoadingButton } from "./loading-button";
 export {
   LoadingSkeleton,
-  StatsLoadingSkeleton,
   TableLoadingSkeleton,
-  ChartLoadingSkeleton,
+  CardLoadingSkeleton,
 } from "./loading-skeleton";
 
 // Custom Components

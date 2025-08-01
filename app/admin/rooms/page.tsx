@@ -8,7 +8,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { CardContainer } from "@/shared/components/ui/card-container";
 import { Modal } from "@/shared/components/ui/modal";
-import { StatsLoadingSkeleton } from "@/shared/components/ui/loading-skeleton";
+import { CardLoadingSkeleton } from "@/shared/components/ui/loading-skeleton";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import { useAppStore, Room, Student } from "@/shared/store/appStore";
 import { useRooms, useStudents } from "@/shared/hooks/useAppData";
@@ -242,7 +242,7 @@ function RoomsManagement() {
   };
 
   if (isLoading) {
-    return <StatsLoadingSkeleton />;
+    return <CardLoadingSkeleton cards={4} />;
   }
 
   if (isError) {
@@ -631,7 +631,7 @@ export default function RoomsPage() {
 
       <div className="p-6">
         <div className="max-w-7xl mx-auto space-y-6">
-          <Suspense fallback={<StatsLoadingSkeleton />}>
+          <Suspense fallback={<CardLoadingSkeleton cards={4} />}>
             <RoomsManagement />
           </Suspense>
         </div>

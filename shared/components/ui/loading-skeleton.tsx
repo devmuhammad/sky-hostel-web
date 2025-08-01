@@ -1,122 +1,98 @@
-import { ReactNode } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import React from "react";
 
 interface LoadingSkeletonProps {
   className?: string;
-}
-
-export function LoadingSkeleton({ className = "" }: LoadingSkeletonProps) {
-  return <Skeleton className={className} />;
-}
-
-interface StatsLoadingSkeletonProps {
   count?: number;
-  columns?: number;
+  height?: string;
 }
 
-export function StatsLoadingSkeleton({
-  count = 4,
-  columns = 4,
-}: StatsLoadingSkeletonProps) {
-  const gridCols = {
-    1: "grid-cols-1",
-    2: "grid-cols-1 md:grid-cols-2",
-    3: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
-    4: "grid-cols-1 md:grid-cols-2 lg:grid-cols-4",
-  };
-
+export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
+  className = "",
+  count = 1,
+  height = "h-4",
+}) => {
   return (
-    <div
-      className={`grid ${gridCols[columns as keyof typeof gridCols] || gridCols[4]} gap-6`}
-    >
-      {[...Array(count)].map((_, i) => (
-        <Card key={i}>
-          <CardContent className="pt-6">
-            <div className="flex items-center">
-              <Skeleton className="w-12 h-12 rounded-lg" />
-              <div className="ml-4 flex-1">
-                <Skeleton className="h-4 w-1/2 mb-2" />
-                <Skeleton className="h-6 w-3/4" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    <>
+      {Array.from({ length: count }).map((_, index) => (
+        <div
+          key={index}
+          className={`animate-pulse bg-gray-200 rounded ${height} ${className}`}
+        />
       ))}
-    </div>
+    </>
   );
-}
+};
 
-interface TableLoadingSkeletonProps {
-  rows?: number;
-  showHeader?: boolean;
-}
-
-export function TableLoadingSkeleton({
+export const TableLoadingSkeleton: React.FC<{ rows?: number; columns?: number }> = ({
   rows = 5,
-  showHeader = true,
-}: TableLoadingSkeletonProps) {
+  columns = 4,
+}) => {
   return (
-    <div className="space-y-6">
-      {/* Search/Filter skeleton */}
-      <Card>
-        <CardContent className="pt-6">
-          <Skeleton className="h-10 w-full" />
-        </CardContent>
-      </Card>
-
-      {/* Table skeleton */}
-      <Card>
-        {showHeader && (
-          <CardHeader>
-            <Skeleton className="h-6 w-1/4" />
-          </CardHeader>
-        )}
-        <CardContent className={showHeader ? "" : "pt-6"}>
-          <div className="space-y-3">
-            {[...Array(rows)].map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-interface ChartLoadingSkeletonProps {
-  count?: number;
-  columns?: number;
-}
-
-export function ChartLoadingSkeleton({
-  count = 4,
-  columns = 2,
-}: ChartLoadingSkeletonProps) {
-  const gridCols = columns === 1 ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2";
-
-  return (
-    <div className={`grid ${gridCols} gap-6`}>
-      {[...Array(count)].map((_, i) => (
-        <Card key={i}>
-          <CardHeader>
-            <Skeleton className="h-6 w-1/3" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {[...Array(5)].map((_, j) => (
-                <div key={j} className="flex items-center justify-between">
-                  <Skeleton className="h-4 w-1/3" />
-                  <div className="flex items-center space-x-2">
-                    <Skeleton className="h-2 w-16 rounded-full" />
-                    <Skeleton className="h-4 w-8" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+    <div className="space-y-3">
+      {/* Header */}
+      <div className="flex space-x-4">
+        {Array.from({ length: columns }).map((_, index) => (
+          <div
+            key={index}
+            className="h-4 bg-gray-200 rounded animate-pulse flex-1"
+          />
+        ))}
+      </div>
+      {/* Rows */}
+      {Array.from({ length: rows }).map((_, rowIndex) => (
+        <div key={rowIndex} className="flex space-x-4">
+          {Array.from({ length: columns }).map((_, colIndex) => (
+            <div
+              key={colIndex}
+              className="h-4 bg-gray-200 rounded animate-pulse flex-1"
+            />
+          ))}
+        </div>
       ))}
     </div>
   );
-}
+};
+
+export const CardLoadingSkeleton: React.FC<{ cards?: number }> = ({
+  cards = 4,
+}) => {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {Array.from({ length: cards }).map((_, index) => (
+        <div
+          key={index}
+          className="bg-white p-6 rounded-lg shadow-sm border border-gray-200"
+        >
+          <div className="space-y-3">
+            <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2" />
+            <div className="h-8 bg-gray-200 rounded animate-pulse" />
+            <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export const PageLoadingSkeleton: React.FC = () => {
+  return (
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      {/* Page Header */}
+      <div className="space-y-2">
+        <div className="h-8 bg-gray-200 rounded animate-pulse w-1/3" />
+        <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2" />
+      </div>
+      
+      {/* Content */}
+      <div className="space-y-6">
+        <CardLoadingSkeleton cards={4} />
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="space-y-4">
+            <div className="h-6 bg-gray-200 rounded animate-pulse w-1/4" />
+            <TableLoadingSkeleton rows={8} columns={5} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

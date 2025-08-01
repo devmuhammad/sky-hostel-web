@@ -82,14 +82,16 @@ const Header = () => {
   // Use the store's currentUser as a fallback, but only if we have a valid session
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (session && currentUser && !adminUser) {
         setAdminUser(currentUser);
       } else if (!session) {
         setAdminUser(null);
       }
     };
-    
+
     checkSession();
   }, [currentUser, adminUser, supabase]);
 

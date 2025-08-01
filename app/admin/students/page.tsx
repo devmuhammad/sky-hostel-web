@@ -120,22 +120,36 @@ function StudentsTable() {
     {
       key: "matric_number",
       header: "Matric Number",
-      render: (student) => student.matric_number,
+      render: (student) => (
+        <div className="font-mono text-sm">{student.matric_number}</div>
+      ),
     },
     {
       key: "faculty",
       header: "Faculty",
-      render: (student) => student.faculty,
+      render: (student) => (
+        <div>
+          <div className="font-medium">{student.faculty}</div>
+          <div className="text-sm text-gray-500">{student.level}</div>
+        </div>
+      ),
     },
     {
-      key: "level",
-      header: "Level",
-      render: (student) => student.level,
+      key: "room",
+      header: "Room",
+      render: (student) => (
+        <div>
+          <div className="font-medium">Block {student.block}</div>
+          <div className="text-sm text-gray-500">Room {student.room}</div>
+        </div>
+      ),
     },
     {
       key: "phone",
       header: "Phone",
-      render: (student) => student.phone,
+      render: (student) => (
+        <div className="text-sm">{student.phone}</div>
+      ),
     },
     {
       key: "actions",
@@ -184,29 +198,28 @@ function StudentsTable() {
     },
   ];
 
-  if (isLoading) {
-    return <TableLoadingSkeleton />;
+  // Show loading skeleton if data is loading
+  if (isLoading || loading.students) {
+    return <TableLoadingSkeleton rows={8} columns={6} />;
   }
 
+  // Show error state if there's an error
   if (error) {
     return (
       <div className="text-center py-8">
-        <p className="text-red-600">Failed to load students</p>
-        <Button onClick={() => window.location.reload()} className="mt-4">
-          Retry
-        </Button>
+        <div className="text-red-600 mb-4">Failed to load students</div>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <>
       <DataTable
         data={filteredStudents}
         columns={columns}
         filters={filters}
         searchFields={["first_name", "last_name", "email", "matric_number"]}
-        searchPlaceholder="Search students..."
       />
 
       {/* Student Detail Modal */}
@@ -225,32 +238,29 @@ function StudentsTable() {
         <Modal
           isOpen={!!editingStudent}
           onClose={() => setEditingStudent(null)}
-          title="Edit Student"
+          title={`Edit Student - ${editingStudent.first_name} ${editingStudent.last_name}`}
         >
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="firstName">First Name</Label>
+                <Label htmlFor="first_name">First Name</Label>
                 <Input
-                  id="firstName"
+                  id="first_name"
                   name="first_name"
                   value={editForm.first_name}
                   onChange={handleInputChange}
-                  className="mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label htmlFor="last_name">Last Name</Label>
                 <Input
-                  id="lastName"
+                  id="last_name"
                   name="last_name"
                   value={editForm.last_name}
                   onChange={handleInputChange}
-                  className="mt-1"
                 />
               </div>
             </div>
-
             <div>
               <Label htmlFor="email">Email</Label>
               <Input
@@ -259,10 +269,8 @@ function StudentsTable() {
                 type="email"
                 value={editForm.email}
                 onChange={handleInputChange}
-                className="mt-1"
               />
             </div>
-
             <div>
               <Label htmlFor="phone">Phone</Label>
               <Input
@@ -270,21 +278,17 @@ function StudentsTable() {
                 name="phone"
                 value={editForm.phone}
                 onChange={handleInputChange}
-                className="mt-1"
               />
             </div>
-
             <div>
-              <Label htmlFor="matricNumber">Matric Number</Label>
+              <Label htmlFor="matric_number">Matric Number</Label>
               <Input
-                id="matricNumber"
+                id="matric_number"
                 name="matric_number"
                 value={editForm.matric_number}
                 onChange={handleInputChange}
-                className="mt-1"
               />
             </div>
-
             <div>
               <Label htmlFor="address">Address</Label>
               <Input
@@ -292,26 +296,21 @@ function StudentsTable() {
                 name="address"
                 value={editForm.address}
                 onChange={handleInputChange}
-                className="mt-1"
               />
             </div>
-
             <div>
-              <Label htmlFor="stateOfOrigin">State of Origin</Label>
+              <Label htmlFor="state_of_origin">State of Origin</Label>
               <Input
-                id="stateOfOrigin"
+                id="state_of_origin"
                 name="state_of_origin"
                 value={editForm.state_of_origin}
                 onChange={handleInputChange}
-                className="mt-1"
               />
             </div>
-
-            <div className="flex justify-end space-x-3 pt-4">
+            <div className="flex justify-end space-x-2 pt-4">
               <Button
                 variant="outline"
                 onClick={() => setEditingStudent(null)}
-                disabled={updateStudentMutation.isPending}
               >
                 Cancel
               </Button>
@@ -325,7 +324,7 @@ function StudentsTable() {
           </div>
         </Modal>
       )}
-    </div>
+    </>
   );
 }
 
@@ -333,23 +332,12 @@ const getStudentDetailSections = (student: Student) => [
   {
     title: "Personal Information",
     items: [
-      {
-        label: "Full Name",
-        value: `${student.first_name} ${student.last_name}`,
-      },
+      { label: "Full Name", value: `${student.first_name} ${student.last_name}` },
       { label: "Email", value: student.email },
       { label: "Phone", value: student.phone },
       { label: "Matric Number", value: student.matric_number },
-      {
-        label: "Date of Birth",
-        value: student.date_of_birth || "Not provided",
-      },
-      { label: "State of Origin", value: student.state_of_origin },
-      { label: "LGA", value: student.lga || "Not provided" },
-      {
-        label: "Marital Status",
-        value: student.marital_status || "Not provided",
-      },
+      { label: "Date of Birth", value: student.date_of_birth || "Not provided" },
+      { label: "Marital Status", value: student.marital_status || "Not provided" },
       { label: "Religion", value: student.religion || "Not provided" },
     ],
   },
@@ -357,17 +345,24 @@ const getStudentDetailSections = (student: Student) => [
     title: "Academic Information",
     items: [
       { label: "Faculty", value: student.faculty },
-      { label: "Department", value: student.department },
-      { label: "Course", value: student.course || "Not provided" },
       { label: "Level", value: student.level },
+      { label: "Course", value: student.course || "Not provided" },
     ],
   },
   {
-    title: "Accommodation",
+    title: "Address Information",
+    items: [
+      { label: "Address", value: student.address || "Not provided" },
+      { label: "State of Origin", value: student.state_of_origin },
+      { label: "LGA", value: student.lga || "Not provided" },
+    ],
+  },
+  {
+    title: "Hostel Information",
     items: [
       { label: "Block", value: student.block },
       { label: "Room", value: student.room },
-      { label: "Bedspace", value: student.bedspace_label },
+      { label: "Registration Date", value: new Date(student.created_at).toLocaleDateString() },
     ],
   },
   {
@@ -376,40 +371,24 @@ const getStudentDetailSections = (student: Student) => [
       { label: "Name", value: student.next_of_kin_name || "Not provided" },
       { label: "Phone", value: student.next_of_kin_phone || "Not provided" },
       { label: "Email", value: student.next_of_kin_email || "Not provided" },
-      {
-        label: "Relationship",
-        value: student.next_of_kin_relationship || "Not provided",
-      },
-    ],
-  },
-  {
-    title: "Additional Information",
-    items: [
-      { label: "Address", value: student.address || "Not provided" },
-      {
-        label: "Registration Date",
-        value: new Date(student.created_at).toLocaleDateString(),
-      },
+      { label: "Relationship", value: student.next_of_kin_relationship || "Not provided" },
     ],
   },
 ];
 
 export default function StudentsPage() {
   return (
-    <div className="p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Page Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Students</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Manage student registrations and information.
-          </p>
-        </div>
-
-        <Suspense fallback={<TableLoadingSkeleton />}>
-          <StudentsTable />
-        </Suspense>
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Students</h1>
+        <p className="text-gray-600 mt-2">
+          Manage and view all registered students in the hostel.
+        </p>
       </div>
+
+      <Suspense fallback={<TableLoadingSkeleton rows={8} columns={6} />}>
+        <StudentsTable />
+      </Suspense>
     </div>
   );
 }
