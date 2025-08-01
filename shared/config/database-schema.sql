@@ -1,6 +1,19 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Create admin_users table
+CREATE TABLE admin_users (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  first_name VARCHAR(100) NOT NULL,
+  last_name VARCHAR(100) NOT NULL,
+  role VARCHAR(50) DEFAULT 'admin' CHECK (role IN ('admin', 'super_admin')),
+  is_active BOOLEAN DEFAULT true,
+  last_login TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Create payments table
 CREATE TABLE payments (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -75,11 +88,16 @@ CREATE TABLE activity_logs (
   resource_type VARCHAR(50) NOT NULL,
   resource_id UUID NOT NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  admin_user_id UUID REFERENCES admin_users(id) ON DELETE SET NULL,
   metadata JSONB,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
 -- Create indexes for better performance
+CREATE INDEX idx_admin_users_email ON admin_users(email);
+CREATE INDEX idx_admin_users_role ON admin_users(role);
+CREATE INDEX idx_admin_users_is_active ON admin_users(is_active);
+
 CREATE INDEX idx_payments_email ON payments(email);
 CREATE INDEX idx_payments_phone ON payments(phone);
 CREATE INDEX idx_payments_status ON payments(status);
@@ -111,6 +129,9 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+CREATE TRIGGER update_admin_users_updated_at BEFORE UPDATE ON admin_users 
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments 
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -141,10 +162,26 @@ INSERT INTO rooms (name, block, total_beds, available_beds) VALUES
 ('Room 5', 'Block C', 4, ARRAY['Bed 1 (Top)', 'Bed 1 (Down)', 'Bed 2 (Top)', 'Bed 2 (Down)']);
 
 -- Set up Row Level Security (RLS)
+ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for admin_users table
+CREATE POLICY "Enable read access for authenticated users" ON admin_users FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Enable insert for super admins only" ON admin_users FOR INSERT WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM admin_users 
+    WHERE id = auth.uid() AND role = 'super_admin'
+  )
+);
+CREATE POLICY "Enable update for super admins only" ON admin_users FOR UPDATE USING (
+  EXISTS (
+    SELECT 1 FROM admin_users 
+    WHERE id = auth.uid() AND role = 'super_admin'
+  )
+);
 
 -- Create policies for payments table
 CREATE POLICY "Enable read access for authenticated users" ON payments FOR SELECT USING (auth.role() = 'authenticated');

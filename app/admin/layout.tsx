@@ -1,5 +1,8 @@
 import { ReactNode } from "react";
-import { createServerSupabaseClient } from "@/shared/config/auth";
+import {
+  createServerSupabaseClient,
+  checkAdminAccess,
+} from "@/shared/config/auth";
 import { redirect } from "next/navigation";
 import Sidebar from "@/features/dashboard/components/Sidebar";
 
@@ -20,16 +23,27 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
 
   // If no session, redirect to login
   if (!session) {
-    redirect("/admin/(auth)/login");
+    redirect("/login");
+  }
+
+  // Check if user has admin access
+  const { isAdmin, adminUser, error } = await checkAdminAccess();
+
+  if (!isAdmin) {
+    // Redirect to login with error message
+    redirect("/login?error=admin_access_required");
   }
 
   return (
     <div className="h-screen flex bg-gray-50">
       {/* Sidebar - Only show when authenticated */}
-      <Sidebar />
+      <Sidebar adminUser={adminUser} />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">{children}</div>
+      <div className="flex-1 flex flex-col">
+        {/* Add top padding to account for fixed header */}
+        <div className="pt-20 h-full overflow-y-auto">{children}</div>
+      </div>
     </div>
   );
 }

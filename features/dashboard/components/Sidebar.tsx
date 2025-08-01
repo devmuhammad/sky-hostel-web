@@ -6,9 +6,22 @@ import { usePathname } from "next/navigation";
 import { createClientSupabaseClient } from "@/shared/config/auth";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/shared/hooks/useToast";
+import { useAppStore } from "@/shared/store/appStore";
+
+interface AdminUser {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: "admin" | "super_admin";
+  is_active: boolean;
+  last_login?: string;
+}
 
 interface SidebarProps {
   className?: string;
+  adminUser?: AdminUser;
 }
 
 const navigation = [
@@ -70,7 +83,7 @@ const navigation = [
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth={2}
-          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2.5 2.5 0 014 0z"
         />
       </svg>
     ),
@@ -113,18 +126,70 @@ const navigation = [
       </svg>
     ),
   },
+  {
+    name: "Admin Users",
+    href: "/admin/users",
+    icon: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+        />
+      </svg>
+    ),
+  },
 ];
 
-export default function Sidebar({ className }: SidebarProps) {
+export default function Sidebar({ className, adminUser }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClientSupabaseClient();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const toast = useToast();
+  const { setCurrentUser, setAllData } = useAppStore();
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push("/admin/login");
-    router.refresh();
+    try {
+      setIsSigningOut(true);
+      
+      // Clear the store data
+      setCurrentUser(null);
+      setAllData({
+        students: [],
+        payments: [],
+        rooms: [],
+        adminUsers: [],
+      });
+
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error("Sign out error:", error);
+        toast.error("Failed to sign out. Please try again.");
+        return;
+      }
+
+      // Show success message
+      toast.success("Signed out successfully");
+      
+      // Redirect to login page
+      router.push("/login");
+      router.refresh();
+    } catch (error) {
+      console.error("Sign out error:", error);
+      toast.error("Failed to sign out. Please try again.");
+    } finally {
+      setIsSigningOut(false);
+    }
   };
 
   return (
@@ -222,29 +287,26 @@ export default function Sidebar({ className }: SidebarProps) {
             isCollapsed && "justify-center"
           )}
         >
-          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-            <svg
-              className="w-4 h-4 text-gray-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-              />
-            </svg>
+          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+            <span className="text-sm font-medium text-blue-600">
+              {adminUser ? adminUser.first_name.charAt(0) : "A"}
+            </span>
           </div>
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
-                Admin User
+                {adminUser
+                  ? `${adminUser.first_name} ${adminUser.last_name}`
+                  : "Admin User"}
               </p>
               <p className="text-xs text-gray-500 truncate">
-                admin@skyhotel.com
+                {adminUser ? adminUser.email : "admin@skyhotel.com"}
               </p>
+              {adminUser && (
+                <p className="text-xs text-blue-600 font-medium capitalize">
+                  {adminUser.role.replace("_", " ")}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -252,22 +314,44 @@ export default function Sidebar({ className }: SidebarProps) {
         {!isCollapsed && (
           <button
             onClick={handleSignOut}
-            className="mt-3 w-full flex items-center justify-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            disabled={isSigningOut}
+            className="mt-3 w-full flex items-center justify-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
-            <span>Sign Out</span>
+            {isSigningOut ? (
+              <>
+                <svg
+                  className="w-4 h-4 animate-spin"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+                <span>Signing Out...</span>
+              </>
+            ) : (
+              <>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+                <span>Sign Out</span>
+              </>
+            )}
           </button>
         )}
       </div>

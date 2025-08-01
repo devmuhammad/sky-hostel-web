@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClientSupabaseClient } from "@/shared/config/auth";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { ErrorAlert } from "@/shared/components/ui/error-alert";
 import { LoadingButton } from "@/shared/components/ui/loading-button";
+import { useToast } from "@/shared/hooks/useToast";
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("");
@@ -15,12 +16,26 @@ export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClientSupabaseClient();
+  const toast = useToast();
+
+  useEffect(() => {
+    // Check for error messages in URL params
+    const errorParam = searchParams.get("error");
+    if (errorParam === "admin_access_required") {
+      setError(
+        "You need admin privileges to access the dashboard. Please contact your administrator."
+      );
+    }
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+
+    console.log("Login attempt for:", email);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -28,17 +43,54 @@ export default function AdminLogin() {
         password,
       });
 
+      console.log("Sign in result:", { data: !!data, error: error?.message });
+
       if (error) {
+        console.log("Sign in error:", error);
         setError(error.message);
+        toast.error("Login failed. Please check your credentials.");
       } else if (data.user) {
-        // Get the redirect URL from query params or default to admin
-        const urlParams = new URLSearchParams(window.location.search);
-        const redirectTo = urlParams.get("redirectedFrom") || "/admin";
-        router.push(redirectTo);
-        router.refresh();
+        console.log("User authenticated, checking admin status...");
+
+        // Check if user is an admin
+        const { data: adminUser, error: adminError } = await supabase
+          .from("admin_users")
+          .select("*")
+          .eq("email", data.user.email)
+          .eq("is_active", true)
+          .single();
+
+        console.log("Admin check result:", {
+          adminUser: !!adminUser,
+          error: adminError?.message,
+        });
+
+        if (adminError || !adminUser) {
+          console.log("Admin check failed:", adminError);
+          setError(
+            "You don't have admin privileges. Please contact your administrator."
+          );
+          toast.error("Access denied. You don't have admin privileges.");
+          // Sign out the user since they're not an admin
+          await supabase.auth.signOut();
+        } else {
+          console.log("Admin check successful, redirecting...");
+          
+          // Show success message
+          toast.success(`Welcome back, ${adminUser.first_name}!`);
+          
+          // Get the redirect URL from query params or default to admin
+          const urlParams = new URLSearchParams(window.location.search);
+          const redirectTo = urlParams.get("redirectedFrom") || "/admin";
+          console.log("Redirecting to:", redirectTo);
+          router.push(redirectTo);
+          router.refresh();
+        }
       }
     } catch (err) {
+      console.log("Login error:", err);
       setError("An unexpected error occurred");
+      toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }

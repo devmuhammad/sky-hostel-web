@@ -3,15 +3,16 @@
 // Force dynamic rendering for this page
 export const dynamic = "force-dynamic";
 
-import { Suspense, useState, useEffect } from "react";
-import Header from "@/features/dashboard/components/Header";
-import { createClientSupabaseClient } from "@/shared/config/auth";
+import { Suspense, useState, useEffect, useMemo } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { CardContainer } from "@/shared/components/ui/card-container";
 import {
   StatsLoadingSkeleton,
   ChartLoadingSkeleton,
 } from "@/shared/components/ui/loading-skeleton";
+import { EmptyState } from "@/shared/components/ui/empty-state";
+import { useAppStore } from "@/shared/store/appStore";
+import { useStudents, usePayments, useRooms } from "@/shared/hooks/useAppData";
 
 interface ReportData {
   totalStudents: number;
@@ -26,269 +27,290 @@ interface ReportData {
 }
 
 function ReportsAnalytics() {
-  const [reportData, setReportData] = useState<ReportData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
     from: new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0], // Start of year
     to: new Date().toISOString().split("T")[0], // Today
   });
 
-  const supabase = createClientSupabaseClient();
+  // Use prefetched data from store
+  const { students, payments, rooms } = useAppStore();
+  const {
+    data: studentsData,
+    isLoading: studentsLoading,
+    error: studentsError,
+  } = useStudents();
+  const {
+    data: paymentsData,
+    isLoading: paymentsLoading,
+    error: paymentsError,
+  } = usePayments();
+  const {
+    data: roomsData,
+    isLoading: roomsLoading,
+    error: roomsError,
+  } = useRooms();
 
-  useEffect(() => {
-    fetchReportData();
-  }, [dateRange]);
+  const isLoading = studentsLoading || paymentsLoading || roomsLoading;
+  const isError = studentsError || paymentsError || roomsError;
 
-  const fetchReportData = async () => {
-    try {
-      // Fetch all data in parallel
-      const [studentsResult, paymentsResult, roomsResult] = await Promise.all([
-        supabase
-          .from("students")
-          .select("*")
-          .gte("created_at", dateRange.from)
-          .lte("created_at", dateRange.to + "T23:59:59"),
-        supabase
-          .from("payments")
-          .select("*")
-          .gte("created_at", dateRange.from)
-          .lte("created_at", dateRange.to + "T23:59:59"),
-        supabase.from("rooms").select("total_beds, available_beds"),
-      ]);
+  // Calculate report data from prefetched data
+  const reportData = useMemo(() => {
+    if (!studentsData || !paymentsData || !roomsData) return null;
 
-      if (studentsResult.error) throw studentsResult.error;
-      if (paymentsResult.error) throw paymentsResult.error;
-      if (roomsResult.error) throw roomsResult.error;
+    // Filter data by date range
+    const filteredStudents = (studentsData as any[]).filter(
+      (student: any) =>
+        student.created_at >= dateRange.from &&
+        student.created_at <= dateRange.to + "T23:59:59"
+    );
 
-      const students = studentsResult.data || [];
-      const payments = paymentsResult.data || [];
-      const rooms = roomsResult.data || [];
+    const filteredPayments = (paymentsData as any[]).filter(
+      (payment: any) =>
+        payment.created_at >= dateRange.from &&
+        payment.created_at <= dateRange.to + "T23:59:59"
+    );
 
-      // Calculate analytics
-      const totalStudents = students.length;
-      const totalRevenue = payments
-        .filter((p) => p.status === "completed")
-        .reduce((sum, p) => sum + p.amount_paid, 0);
+    // Calculate analytics
+    const totalStudents = filteredStudents.length;
+    const totalRevenue = filteredPayments
+      .filter((p: any) => p.status === "completed")
+      .reduce((sum: number, p: any) => sum + p.amount_paid, 0);
 
-      const totalBeds = rooms.reduce((sum, room) => sum + room.total_beds, 0);
-      const availableBeds = rooms.reduce(
-        (sum, room) => sum + room.available_beds.length,
-        0
-      );
-      const occupancyRate =
-        totalBeds > 0
-          ? Math.round(((totalBeds - availableBeds) / totalBeds) * 100)
-          : 0;
+    const totalBeds = (roomsData as any[]).reduce(
+      (sum: number, room: any) => sum + room.total_beds,
+      0
+    );
+    const availableBeds = (roomsData as any[]).reduce(
+      (sum: number, room: any) => sum + room.available_beds.length,
+      0
+    );
+    const occupancyRate =
+      totalBeds > 0
+        ? Math.round(((totalBeds - availableBeds) / totalBeds) * 100)
+        : 0;
 
-      // Group by faculty
-      const studentsByFaculty = students.reduce(
-        (acc, student) => {
-          acc[student.faculty] = (acc[student.faculty] || 0) + 1;
-          return acc;
-        },
-        {} as Record<string, number>
-      );
+    // Group by faculty
+    const studentsByFaculty = filteredStudents.reduce(
+      (acc, student) => {
+        acc[student.faculty] = (acc[student.faculty] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
-      // Group by level
-      const studentsByLevel = students.reduce(
-        (acc, student) => {
-          acc[student.level] = (acc[student.level] || 0) + 1;
-          return acc;
-        },
-        {} as Record<string, number>
-      );
+    // Group by level
+    const studentsByLevel = filteredStudents.reduce(
+      (acc, student) => {
+        acc[student.level] = (acc[student.level] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
-      // Group by state
-      const studentsByState = students.reduce(
-        (acc, student) => {
-          acc[student.state_of_origin] =
-            (acc[student.state_of_origin] || 0) + 1;
-          return acc;
-        },
-        {} as Record<string, number>
-      );
+    // Group by state
+    const studentsByState = filteredStudents.reduce(
+      (acc, student) => {
+        acc[student.state_of_origin] = (acc[student.state_of_origin] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
-      // Payment status breakdown
-      const paymentsByStatus = payments.reduce(
-        (acc, payment) => {
-          acc[payment.status] = (acc[payment.status] || 0) + 1;
-          return acc;
-        },
-        {} as Record<string, number>
-      );
+    // Group payments by status
+    const paymentsByStatus = filteredPayments.reduce(
+      (acc, payment) => {
+        acc[payment.status] = (acc[payment.status] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
-      // Registration trend (last 30 days)
-      const registrationTrend = getLast30Days().map((date) => {
-        const count = students.filter(
-          (s) =>
-            new Date(s.created_at).toDateString() ===
-            new Date(date).toDateString()
-        ).length;
-        return { date: new Date(date).toLocaleDateString(), count };
-      });
+    // Registration trend (last 30 days)
+    const getLast30Days = () => {
+      const dates = [];
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        dates.push(date.toISOString().split("T")[0]);
+      }
+      return dates;
+    };
 
-      // Revenue by month (current year)
-      const revenueByMonth = getMonthsOfYear().map((month) => {
-        const monthRevenue = payments
-          .filter(
-            (p) =>
-              p.status === "completed" &&
-              new Date(p.paid_at || p.created_at).getMonth() === month.index
-          )
-          .reduce((sum, p) => sum + p.amount_paid, 0);
-        return { month: month.name, revenue: monthRevenue };
-      });
+    const registrationTrend = getLast30Days().map((date) => ({
+      date,
+      count: filteredStudents.filter((student) =>
+        student.created_at.startsWith(date)
+      ).length,
+    }));
 
-      setReportData({
-        totalStudents,
-        totalRevenue,
-        occupancyRate,
-        studentsByFaculty,
-        studentsByLevel,
-        studentsByState,
-        paymentsByStatus,
-        registrationTrend,
-        revenueByMonth,
-      });
-    } catch (error) {
-      console.error("Error fetching report data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Revenue by month
+    const getMonthsOfYear = () => {
+      const months = [];
+      for (let i = 0; i < 12; i++) {
+        const date = new Date(new Date().getFullYear(), i, 1);
+        months.push(date.toISOString().slice(0, 7)); // YYYY-MM format
+      }
+      return months;
+    };
 
-  const getLast30Days = () => {
-    const days = [];
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      days.push(date.toISOString().split("T")[0]);
-    }
-    return days;
-  };
+    const revenueByMonth = getMonthsOfYear().map((month) => ({
+      month,
+      revenue: filteredPayments
+        .filter(
+          (payment) =>
+            payment.status === "completed" &&
+            payment.created_at.startsWith(month)
+        )
+        .reduce((sum, payment) => sum + payment.amount_paid, 0),
+    }));
 
-  const getMonthsOfYear = () => {
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    return months.map((name, index) => ({ name, index }));
-  };
+    return {
+      totalStudents,
+      totalRevenue,
+      occupancyRate,
+      studentsByFaculty,
+      studentsByLevel,
+      studentsByState,
+      paymentsByStatus,
+      registrationTrend,
+      revenueByMonth,
+    };
+  }, [studentsData, paymentsData, roomsData, dateRange]);
 
   const exportToCSV = async (type: "students" | "payments") => {
-    try {
-      const { data, error } = await supabase
-        .from(type)
-        .select("*")
-        .gte("created_at", dateRange.from)
-        .lte("created_at", dateRange.to + "T23:59:59");
+    if (!studentsData || !paymentsData) return;
 
-      if (error) throw error;
+    let csvContent = "";
+    let filename = "";
 
-      if (!data || data.length === 0) {
-        alert("No data to export");
-        return;
-      }
+    if (type === "students") {
+      filename = `students_${dateRange.from}_to_${dateRange.to}.csv`;
+      csvContent =
+        "Name,Email,Phone,Matric Number,Faculty,Level,State,Room,Bed\n";
 
-      // Convert to CSV
-      const headers = Object.keys(data[0]).join(",");
-      const rows = data.map((row) =>
-        Object.values(row)
-          .map((value) =>
-            typeof value === "string" && value.includes(",")
-              ? `"${value}"`
-              : value
-          )
-          .join(",")
+      const filteredStudents = (studentsData as any[]).filter(
+        (student: any) =>
+          student.created_at >= dateRange.from &&
+          student.created_at <= dateRange.to + "T23:59:59"
       );
-      const csv = [headers, ...rows].join("\n");
 
-      // Download CSV
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${type}_report_${new Date().toISOString().split("T")[0]}.csv`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Export error:", error);
-      alert("Failed to export data");
+      filteredStudents.forEach((student: any) => {
+        csvContent += `"${student.first_name} ${student.last_name}","${student.email}","${student.phone}","${student.matric_number}","${student.faculty}","${student.level}","${student.state_of_origin}","${student.block}${student.room}","${student.bedspace_label}"\n`;
+      });
+    } else {
+      filename = `payments_${dateRange.from}_to_${dateRange.to}.csv`;
+      csvContent = "Email,Phone,Amount,Status,Invoice ID,Date\n";
+
+      const filteredPayments = (paymentsData as any[]).filter(
+        (payment: any) =>
+          payment.created_at >= dateRange.from &&
+          payment.created_at <= dateRange.to + "T23:59:59"
+      );
+
+      filteredPayments.forEach((payment: any) => {
+        csvContent += `"${payment.email}","${payment.phone}","${payment.amount_paid}","${payment.status}","${payment.invoice_id}","${payment.created_at}"\n`;
+      });
     }
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
-  if (loading || !reportData) {
+  if (isLoading) {
+    return <StatsLoadingSkeleton />;
+  }
+
+  if (isError) {
     return (
-      <div className="space-y-6">
-        <CardContainer>
-          <div className="h-20 bg-gray-200 rounded animate-pulse"></div>
-        </CardContainer>
-        <StatsLoadingSkeleton count={3} columns={3} />
-        <ChartLoadingSkeleton count={4} columns={2} />
-        <CardContainer>
-          <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
-        </CardContainer>
+      <div className="text-center py-8">
+        <p className="text-red-600">Failed to load reports data</p>
+        <Button onClick={() => window.location.reload()} className="mt-4">
+          Retry
+        </Button>
       </div>
+    );
+  }
+
+  if (!reportData) {
+    return (
+      <EmptyState
+        title="No Data Available"
+        description="There is no data to display for the selected date range."
+      />
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Reports & Analytics
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Comprehensive insights into your hostel operations
+          </p>
+        </div>
+        <div className="mt-4 sm:mt-0 flex space-x-2">
+          <Button
+            onClick={() => exportToCSV("students")}
+            variant="outline"
+            size="sm"
+          >
+            Export Students
+          </Button>
+          <Button
+            onClick={() => exportToCSV("payments")}
+            variant="outline"
+            size="sm"
+          >
+            Export Payments
+          </Button>
+        </div>
+      </div>
+
       {/* Date Range Filter */}
       <CardContainer>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                From Date
-              </label>
-              <input
-                type="date"
-                value={dateRange.from}
-                onChange={(e) =>
-                  setDateRange({ ...dateRange, from: e.target.value })
-                }
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                To Date
-              </label>
-              <input
-                type="date"
-                value={dateRange.to}
-                onChange={(e) =>
-                  setDateRange({ ...dateRange, to: e.target.value })
-                }
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
+        <div className="flex items-center space-x-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              From Date
+            </label>
+            <input
+              type="date"
+              value={dateRange.from}
+              onChange={(e) =>
+                setDateRange({ ...dateRange, from: e.target.value })
+              }
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            />
           </div>
-
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => exportToCSV("students")}>
-              Export Students
-            </Button>
-            <Button variant="outline" onClick={() => exportToCSV("payments")}>
-              Export Payments
-            </Button>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              To Date
+            </label>
+            <input
+              type="date"
+              value={dateRange.to}
+              onChange={(e) =>
+                setDateRange({ ...dateRange, to: e.target.value })
+              }
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            />
           </div>
         </div>
       </CardContainer>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <CardContainer>
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -345,9 +367,9 @@ function ReportsAnalytics() {
 
         <CardContainer>
           <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
+            <div className="p-2 bg-yellow-100 rounded-lg">
               <svg
-                className="w-6 h-6 text-purple-600"
+                className="w-6 h-6 text-yellow-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -356,7 +378,7 @@ function ReportsAnalytics() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
                 />
               </svg>
             </div>
@@ -370,37 +392,53 @@ function ReportsAnalytics() {
             </div>
           </div>
         </CardContainer>
+
+        <CardContainer>
+          <div className="flex items-center">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <svg
+                className="w-6 h-6 text-purple-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">
+                Payment Status
+              </p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {reportData.paymentsByStatus.completed || 0}
+              </p>
+              <p className="text-xs text-gray-500">Completed</p>
+            </div>
+          </div>
+        </CardContainer>
       </div>
 
-      {/* Charts Grid */}
+      {/* Charts and Detailed Analytics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Students by Faculty */}
         <CardContainer title="Students by Faculty">
           <div className="space-y-3">
             {Object.entries(reportData.studentsByFaculty)
-              .sort(([, a], [, b]) => b - a)
-              .slice(0, 5)
+              .sort(([, a], [, b]) => (b as number) - (a as number))
               .map(([faculty, count]) => (
                 <div
                   key={faculty}
                   className="flex items-center justify-between"
                 >
-                  <span className="text-sm text-gray-600 truncate flex-1 mr-2">
-                    {faculty}
+                  <span className="text-sm text-gray-600">{faculty}</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {count as number}
                   </span>
-                  <div className="flex items-center">
-                    <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{
-                          width: `${(count / reportData.totalStudents) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900 w-8 text-right">
-                      {count}
-                    </span>
-                  </div>
                 </div>
               ))}
           </div>
@@ -410,95 +448,13 @@ function ReportsAnalytics() {
         <CardContainer title="Students by Level">
           <div className="space-y-3">
             {Object.entries(reportData.studentsByLevel)
-              .sort(([, a], [, b]) => b - a)
+              .sort(([, a], [, b]) => (b as number) - (a as number))
               .map(([level, count]) => (
                 <div key={level} className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">{level}</span>
-                  <div className="flex items-center">
-                    <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
-                      <div
-                        className="bg-green-600 h-2 rounded-full"
-                        style={{
-                          width: `${(count / reportData.totalStudents) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900 w-8 text-right">
-                      {count}
-                    </span>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </CardContainer>
-
-        {/* Payment Status */}
-        <CardContainer title="Payment Status">
-          <div className="space-y-3">
-            {Object.entries(reportData.paymentsByStatus).map(
-              ([status, count]) => {
-                const colors = {
-                  completed: "bg-green-600",
-                  pending: "bg-yellow-600",
-                  failed: "bg-red-600",
-                };
-                const total = Object.values(reportData.paymentsByStatus).reduce(
-                  (sum, c) => sum + c,
-                  0
-                );
-
-                return (
-                  <div
-                    key={status}
-                    className="flex items-center justify-between"
-                  >
-                    <span className="text-sm text-gray-600 capitalize">
-                      {status}
-                    </span>
-                    <div className="flex items-center">
-                      <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
-                        <div
-                          className={`h-2 rounded-full ${colors[status as keyof typeof colors] || "bg-gray-600"}`}
-                          style={{
-                            width: `${total > 0 ? (count / total) * 100 : 0}%`,
-                          }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-medium text-gray-900 w-8 text-right">
-                        {count}
-                      </span>
-                    </div>
-                  </div>
-                );
-              }
-            )}
-          </div>
-        </CardContainer>
-
-        {/* Top States */}
-        <CardContainer title="Top States">
-          <div className="space-y-3">
-            {Object.entries(reportData.studentsByState)
-              .sort(([, a], [, b]) => b - a)
-              .slice(0, 5)
-              .map(([state, count]) => (
-                <div key={state} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 truncate flex-1 mr-2">
-                    {state}
+                  <span className="text-sm font-medium text-gray-900">
+                    {count as number}
                   </span>
-                  <div className="flex items-center">
-                    <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
-                      <div
-                        className="bg-purple-600 h-2 rounded-full"
-                        style={{
-                          width: `${(count / reportData.totalStudents) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900 w-8 text-right">
-                      {count}
-                    </span>
-                  </div>
                 </div>
               ))}
           </div>
@@ -507,21 +463,20 @@ function ReportsAnalytics() {
 
       {/* Registration Trend */}
       <CardContainer title="Registration Trend (Last 30 Days)">
-        <div className="h-64 flex items-end justify-between space-x-1">
+        <div className="h-64 flex items-end space-x-1">
           {reportData.registrationTrend.map((day, index) => (
-            <div key={index} className="flex flex-col items-center flex-1">
-              <div
-                className="bg-blue-600 rounded-t w-full min-h-[4px]"
-                style={{
-                  height: `${Math.max(4, (day.count / Math.max(...reportData.registrationTrend.map((d) => d.count))) * 200)}px`,
-                }}
-                title={`${day.date}: ${day.count} registrations`}
-              ></div>
-              <span className="text-xs text-gray-500 mt-1 rotate-45 origin-bottom-left">
-                {day.date.split("/").slice(0, 2).join("/")}
-              </span>
-            </div>
+            <div
+              key={index}
+              className="flex-1 bg-blue-500 rounded-t"
+              style={{
+                height: `${Math.max((day.count / Math.max(...reportData.registrationTrend.map((d) => d.count))) * 200, 4)}px`,
+              }}
+              title={`${day.date}: ${day.count} registrations`}
+            ></div>
           ))}
+        </div>
+        <div className="mt-2 text-xs text-gray-500 text-center">
+          Daily student registrations
         </div>
       </CardContainer>
     </div>
@@ -530,32 +485,12 @@ function ReportsAnalytics() {
 
 export default function ReportsPage() {
   return (
-    <>
-      <Header
-        title="Reports & Analytics"
-        subtitle="Track performance and generate insights"
-      />
-
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-7xl mx-auto">
-          <Suspense
-            fallback={
-              <div className="space-y-6">
-                <CardContainer>
-                  <div className="h-20 bg-gray-200 rounded animate-pulse"></div>
-                </CardContainer>
-                <StatsLoadingSkeleton count={3} columns={3} />
-                <ChartLoadingSkeleton count={4} columns={2} />
-                <CardContainer>
-                  <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
-                </CardContainer>
-              </div>
-            }
-          >
-            <ReportsAnalytics />
-          </Suspense>
-        </div>
+    <div className="p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <Suspense fallback={<StatsLoadingSkeleton />}>
+          <ReportsAnalytics />
+        </Suspense>
       </div>
-    </>
+    </div>
   );
 }

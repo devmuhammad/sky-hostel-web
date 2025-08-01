@@ -3,9 +3,7 @@
 // Force dynamic rendering for this page
 export const dynamic = "force-dynamic";
 
-import { Suspense, useState, useEffect } from "react";
-import Header from "@/features/dashboard/components/Header";
-import { createClientSupabaseClient } from "@/shared/config/auth";
+import { Suspense, useState } from "react";
 import { DataTable, Column, Filter } from "@/shared/components/ui/data-table";
 import { Modal } from "@/shared/components/ui/modal";
 import { DetailGrid } from "@/shared/components/ui/detail-grid";
@@ -14,6 +12,8 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { useToast } from "@/shared/hooks/useToast";
+import { useAppStore } from "@/shared/store/appStore";
+import { useStudents, useUpdateStudent } from "@/shared/hooks/useAppData";
 
 interface Student {
   id: string;
@@ -53,8 +53,6 @@ interface EditStudentForm {
 }
 
 function StudentsTable() {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [editForm, setEditForm] = useState<EditStudentForm>({
@@ -66,33 +64,14 @@ function StudentsTable() {
     address: "",
     state_of_origin: "",
   });
-  const [saving, setSaving] = useState(false);
   const [filterFaculty, setFilterFaculty] = useState("");
   const [filterLevel, setFilterLevel] = useState("");
 
-  const supabase = createClientSupabaseClient();
+  // Use store and hooks instead of local state
+  const { students, loading } = useAppStore();
+  const { data, isLoading, error } = useStudents();
+  const updateStudentMutation = useUpdateStudent();
   const toast = useToast();
-
-  useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  const fetchStudents = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("students")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setStudents(data || []);
-    } catch (error) {
-      console.error("Error fetching students:", error);
-      toast.error("Failed to fetch students");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleEditStudent = (student: Student) => {
     setEditingStudent(student);
@@ -110,257 +89,190 @@ function StudentsTable() {
   const handleSaveEdit = async () => {
     if (!editingStudent) return;
 
-    setSaving(true);
     try {
-      const { error } = await supabase
-        .from("students")
-        .update({
-          first_name: editForm.first_name,
-          last_name: editForm.last_name,
-          email: editForm.email,
-          phone: editForm.phone,
-          matric_number: editForm.matric_number,
-          address: editForm.address,
-          state_of_origin: editForm.state_of_origin,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", editingStudent.id);
+      await updateStudentMutation.mutateAsync({
+        id: editingStudent.id,
+        updates: editForm,
+      });
 
-      if (error) throw error;
-
-      toast.success("Student information updated successfully");
       setEditingStudent(null);
-      await fetchStudents(); // Refresh the data
-    } catch (error: any) {
+      setEditForm({
+        first_name: "",
+        last_name: "",
+        email: "",
+        phone: "",
+        matric_number: "",
+        address: "",
+        state_of_origin: "",
+      });
+    } catch (error) {
       console.error("Error updating student:", error);
-      toast.error(
-        error.message?.includes("unique")
-          ? "Matric number already exists"
-          : "Failed to update student information"
-      );
-    } finally {
-      setSaving(false);
     }
   };
 
-  // Define table columns
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setEditForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Filter students based on faculty and level
+  const filteredStudents = students.filter((student) => {
+    const facultyMatch = !filterFaculty || student.faculty === filterFaculty;
+    const levelMatch = !filterLevel || student.level === filterLevel;
+    return facultyMatch && levelMatch;
+  });
+
+  // Get unique faculties and levels for filters
+  const faculties = [...new Set(students.map((s) => s.faculty))].filter(
+    Boolean
+  );
+  const levels = [...new Set(students.map((s) => s.level))].filter(Boolean);
+
   const columns: Column<Student>[] = [
     {
-      key: "student",
-      header: "Student",
-      render: (student) => (
-        <div className="flex items-center">
-          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium text-blue-600">
-              {student.first_name.charAt(0)}
-              {student.last_name.charAt(0)}
-            </span>
-          </div>
-          <div className="ml-4">
-            <div className="text-sm font-medium text-gray-900">
-              {student.first_name} {student.last_name}
-            </div>
-            <div className="text-sm text-gray-500">{student.email}</div>
-            <div className="text-sm text-gray-500">{student.matric_number}</div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "academic",
-      header: "Academic Info",
+      key: "name",
+      label: "Name",
       render: (student) => (
         <div>
-          <div className="text-sm text-gray-900">{student.faculty}</div>
-          <div className="text-sm text-gray-500">{student.department}</div>
-          <div className="text-sm text-gray-500">Level {student.level}</div>
-        </div>
-      ),
-    },
-    {
-      key: "accommodation",
-      header: "Accommodation",
-      render: (student) => (
-        <div>
-          <div className="text-sm text-gray-900">
-            {student.block} - {student.room}
+          <div className="font-medium">
+            {student.first_name} {student.last_name}
           </div>
-          <div className="text-sm text-gray-500">{student.bedspace_label}</div>
+          <div className="text-sm text-gray-500">{student.email}</div>
         </div>
       ),
     },
     {
-      key: "registration_date",
-      header: "Registration Date",
+      key: "matric_number",
+      label: "Matric Number",
+      render: (student) => student.matric_number,
+    },
+    {
+      key: "faculty",
+      label: "Faculty",
+      render: (student) => student.faculty,
+    },
+    {
+      key: "level",
+      label: "Level",
+      render: (student) => student.level,
+    },
+    {
+      key: "phone",
+      label: "Phone",
+      render: (student) => student.phone,
+    },
+    {
+      key: "actions",
+      label: "Actions",
       render: (student) => (
-        <div className="text-sm text-gray-500">
-          {new Date(student.created_at).toLocaleDateString()}
+        <div className="flex space-x-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setSelectedStudent(student)}
+          >
+            View
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleEditStudent(student)}
+          >
+            Edit
+          </Button>
         </div>
       ),
     },
   ];
 
-  // Define filters
-  const faculties = [...new Set(students.map((s) => s.faculty))];
-  const levels = [...new Set(students.map((s) => s.level))];
-
   const filters: Filter[] = [
     {
       key: "faculty",
-      label: "Filter by Faculty",
-      options: faculties.map((faculty) => ({ value: faculty, label: faculty })),
+      label: "Faculty",
+      type: "select",
+      options: faculties.map((faculty) => ({
+        value: faculty,
+        label: faculty,
+      })),
       value: filterFaculty,
       onChange: setFilterFaculty,
     },
     {
       key: "level",
-      label: "Filter by Level",
-      options: levels.map((level) => ({ value: level, label: level })),
+      label: "Level",
+      type: "select",
+      options: levels.map((level) => ({
+        value: level,
+        label: level,
+      })),
       value: filterLevel,
       onChange: setFilterLevel,
     },
   ];
 
-  // Modal content for student details
-  const getStudentDetailSections = (student: Student) => [
-    {
-      title: "Personal Information",
-      items: [
-        { label: "Name", value: `${student.first_name} ${student.last_name}` },
-        { label: "Email", value: student.email },
-        { label: "Phone", value: student.phone },
-        { label: "State of Origin", value: student.state_of_origin },
-        ...(student.address
-          ? [{ label: "Address", value: student.address }]
-          : []),
-      ],
-    },
-    {
-      title: "Academic Information",
-      items: [
-        { label: "Matric Number", value: student.matric_number },
-        { label: "Faculty", value: student.faculty },
-        { label: "Department", value: student.department },
-        { label: "Level", value: student.level },
-        ...(student.course ? [{ label: "Course", value: student.course }] : []),
-      ],
-    },
-    {
-      title: "Accommodation",
-      items: [
-        { label: "Block", value: student.block },
-        { label: "Room", value: student.room },
-        { label: "Bedspace", value: student.bedspace_label },
-      ],
-    },
-    {
-      title: "Registration",
-      items: [
-        {
-          label: "Registration Date",
-          value: new Date(student.created_at).toLocaleDateString(),
-        },
-      ],
-    },
-  ];
+  if (isLoading) {
+    return <TableLoadingSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-red-600">Failed to load students</p>
+        <Button onClick={() => window.location.reload()} className="mt-4">
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <>
+    <div className="space-y-6">
       <DataTable
-        data={students}
+        data={filteredStudents}
         columns={columns}
-        loading={loading}
-        searchPlaceholder="Search by name, email, or matric number..."
-        searchFields={["first_name", "last_name", "email", "matric_number"]}
         filters={filters}
-        onRowAction={setSelectedStudent}
-        actionLabel="View Details"
-        title="Students"
-        emptyState={{
-          title: "No students found",
-          description:
-            "No students have registered yet or try adjusting your search criteria.",
-        }}
+        searchKey="name"
+        searchPlaceholder="Search students..."
       />
 
-      {/* Student Details Modal */}
-      <Modal
-        isOpen={!!selectedStudent}
-        onClose={() => setSelectedStudent(null)}
-        title="Student Details"
-        description="Complete student information and registration details"
-        size="lg"
-        footer={
-          <div className="flex justify-end space-x-3">
-            <Button variant="outline" onClick={() => setSelectedStudent(null)}>
-              Close
-            </Button>
-            <Button
-              onClick={() => {
-                if (selectedStudent) {
-                  handleEditStudent(selectedStudent);
-                  setSelectedStudent(null);
-                }
-              }}
-            >
-              Edit Student
-            </Button>
-          </div>
-        }
-      >
-        {selectedStudent && (
-          <DetailGrid
-            sections={getStudentDetailSections(selectedStudent)}
-            columns={2}
-          />
-        )}
-      </Modal>
+      {/* Student Detail Modal */}
+      {selectedStudent && (
+        <Modal
+          isOpen={!!selectedStudent}
+          onClose={() => setSelectedStudent(null)}
+          title={`Student Details - ${selectedStudent.first_name} ${selectedStudent.last_name}`}
+        >
+          <DetailGrid sections={getStudentDetailSections(selectedStudent)} />
+        </Modal>
+      )}
 
       {/* Edit Student Modal */}
-      <Modal
-        isOpen={!!editingStudent}
-        onClose={() => !saving && setEditingStudent(null)}
-        title="Edit Student Information"
-        description="Update student's personal and contact information"
-        size="md"
-        footer={
-          <div className="flex justify-end space-x-3">
-            <Button
-              variant="outline"
-              onClick={() => setEditingStudent(null)}
-              disabled={saving}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleSaveEdit} disabled={saving}>
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
-          </div>
-        }
-      >
-        {editingStudent && (
+      {editingStudent && (
+        <Modal
+          isOpen={!!editingStudent}
+          onClose={() => setEditingStudent(null)}
+          title="Edit Student"
+        >
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="first_name">First Name</Label>
+                <Label htmlFor="firstName">First Name</Label>
                 <Input
-                  id="first_name"
+                  id="firstName"
+                  name="first_name"
                   value={editForm.first_name}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, first_name: e.target.value })
-                  }
-                  disabled={saving}
+                  onChange={handleInputChange}
+                  className="mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="last_name">Last Name</Label>
+                <Label htmlFor="lastName">Last Name</Label>
                 <Input
-                  id="last_name"
+                  id="lastName"
+                  name="last_name"
                   value={editForm.last_name}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, last_name: e.target.value })
-                  }
-                  disabled={saving}
+                  onChange={handleInputChange}
+                  className="mt-1"
                 />
               </div>
             </div>
@@ -369,36 +281,33 @@ function StudentsTable() {
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
                 value={editForm.email}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, email: e.target.value })
-                }
-                disabled={saving}
+                onChange={handleInputChange}
+                className="mt-1"
               />
             </div>
 
             <div>
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="phone">Phone</Label>
               <Input
                 id="phone"
+                name="phone"
                 value={editForm.phone}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, phone: e.target.value })
-                }
-                disabled={saving}
+                onChange={handleInputChange}
+                className="mt-1"
               />
             </div>
 
             <div>
-              <Label htmlFor="matric_number">Matric Number</Label>
+              <Label htmlFor="matricNumber">Matric Number</Label>
               <Input
-                id="matric_number"
+                id="matricNumber"
+                name="matric_number"
                 value={editForm.matric_number}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, matric_number: e.target.value })
-                }
-                disabled={saving}
+                onChange={handleInputChange}
+                className="mt-1"
               />
             </div>
 
@@ -406,48 +315,127 @@ function StudentsTable() {
               <Label htmlFor="address">Address</Label>
               <Input
                 id="address"
+                name="address"
                 value={editForm.address}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, address: e.target.value })
-                }
-                disabled={saving}
-                placeholder="Enter full address"
+                onChange={handleInputChange}
+                className="mt-1"
               />
             </div>
 
             <div>
-              <Label htmlFor="state_of_origin">State of Origin</Label>
+              <Label htmlFor="stateOfOrigin">State of Origin</Label>
               <Input
-                id="state_of_origin"
+                id="stateOfOrigin"
+                name="state_of_origin"
                 value={editForm.state_of_origin}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, state_of_origin: e.target.value })
-                }
-                disabled={saving}
+                onChange={handleInputChange}
+                className="mt-1"
               />
             </div>
+
+            <div className="flex justify-end space-x-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setEditingStudent(null)}
+                disabled={updateStudentMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveEdit}
+                disabled={updateStudentMutation.isPending}
+              >
+                {updateStudentMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
           </div>
-        )}
-      </Modal>
-    </>
+        </Modal>
+      )}
+    </div>
   );
 }
 
+const getStudentDetailSections = (student: Student) => [
+  {
+    title: "Personal Information",
+    items: [
+      {
+        label: "Full Name",
+        value: `${student.first_name} ${student.last_name}`,
+      },
+      { label: "Email", value: student.email },
+      { label: "Phone", value: student.phone },
+      { label: "Matric Number", value: student.matric_number },
+      {
+        label: "Date of Birth",
+        value: student.date_of_birth || "Not provided",
+      },
+      { label: "State of Origin", value: student.state_of_origin },
+      { label: "LGA", value: student.lga || "Not provided" },
+      {
+        label: "Marital Status",
+        value: student.marital_status || "Not provided",
+      },
+      { label: "Religion", value: student.religion || "Not provided" },
+    ],
+  },
+  {
+    title: "Academic Information",
+    items: [
+      { label: "Faculty", value: student.faculty },
+      { label: "Department", value: student.department },
+      { label: "Course", value: student.course || "Not provided" },
+      { label: "Level", value: student.level },
+    ],
+  },
+  {
+    title: "Accommodation",
+    items: [
+      { label: "Block", value: student.block },
+      { label: "Room", value: student.room },
+      { label: "Bedspace", value: student.bedspace_label },
+    ],
+  },
+  {
+    title: "Next of Kin",
+    items: [
+      { label: "Name", value: student.next_of_kin_name || "Not provided" },
+      { label: "Phone", value: student.next_of_kin_phone || "Not provided" },
+      { label: "Email", value: student.next_of_kin_email || "Not provided" },
+      {
+        label: "Relationship",
+        value: student.next_of_kin_relationship || "Not provided",
+      },
+    ],
+  },
+  {
+    title: "Additional Information",
+    items: [
+      { label: "Address", value: student.address || "Not provided" },
+      {
+        label: "Registration Date",
+        value: new Date(student.created_at).toLocaleDateString(),
+      },
+    ],
+  },
+];
+
 export default function StudentsPage() {
   return (
-    <>
-      <Header
-        title="Students Management"
-        subtitle="View and manage registered students"
-      />
-
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-7xl mx-auto">
-          <Suspense fallback={<TableLoadingSkeleton />}>
-            <StudentsTable />
-          </Suspense>
+    <div className="p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Page Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Students</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Manage student registrations and information.
+          </p>
         </div>
+
+        <Suspense fallback={<TableLoadingSkeleton />}>
+          <StudentsTable />
+        </Suspense>
       </div>
-    </>
+    </div>
   );
 }
