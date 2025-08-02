@@ -38,6 +38,7 @@ interface ManualCheckResult {
   localPayments: Payment[];
   needsUpdate: boolean;
   updateMessage: string;
+  cleanupAction: string;
 }
 
 export default function PaymentsPage() {
@@ -243,32 +244,27 @@ export default function PaymentsPage() {
       // Find local payments for this email
       const localPayments = payments.filter((p) => p.email === manualEmail);
 
-      // Determine if update is needed
+      // Determine cleanup action based on Paycashless data
       let needsUpdate = false;
       let updateMessage = "";
+      let cleanupAction = "";
 
-      if (paycashlessData && localPayments.length > 0) {
-        const localPayment = localPayments[0]; // Use first payment for comparison
-        const localAmountPaid = localPayment.amount_paid || 0;
-        const localStatus = localPayment.status;
-
-        if (paycashlessData.totalPaid !== localAmountPaid) {
+      if (paycashlessData) {
+        if (paycashlessData.isFullyPaid) {
           needsUpdate = true;
-          updateMessage = `Local amount: ₦${localAmountPaid.toLocaleString()}, Paycashless amount: ₦${paycashlessData.totalPaid.toLocaleString()}`;
-        } else if (paycashlessData.isFullyPaid && localStatus !== "completed") {
+          updateMessage = `Paycashless shows fully paid (₦${paycashlessData.totalPaid.toLocaleString()})`;
+          cleanupAction = "Keep one invoice, mark as completed, delete duplicates";
+        } else if (paycashlessData.hasPartialPayment) {
           needsUpdate = true;
-          updateMessage = `Paycashless shows fully paid but local status is ${localStatus}`;
-        } else if (
-          paycashlessData.hasPartialPayment &&
-          localStatus !== "partially_paid"
-        ) {
-          needsUpdate = true;
-          updateMessage = `Paycashless shows partial payment but local status is ${localStatus}`;
+          updateMessage = `Paycashless shows partial payment (₦${paycashlessData.totalPaid.toLocaleString()})`;
+          cleanupAction = "Keep one invoice, mark as partially paid, delete duplicates";
+        } else {
+          updateMessage = "No payments found on Paycashless";
+          cleanupAction = "Keep most recent invoice, delete others";
         }
-      } else if (paycashlessData && localPayments.length === 0) {
-        needsUpdate = true;
-        updateMessage =
-          "Payment found on Paycashless but not in local database";
+      } else {
+        updateMessage = "No payment data found on Paycashless";
+        cleanupAction = "Keep most recent invoice, delete others";
       }
 
       setManualCheckResult({
@@ -277,6 +273,7 @@ export default function PaymentsPage() {
         localPayments,
         needsUpdate,
         updateMessage,
+        cleanupAction,
       });
 
       setShowManualCheckModal(true);
@@ -287,37 +284,67 @@ export default function PaymentsPage() {
     }
   };
 
-  // Update payment status
+  // Update payment status and cleanup duplicates
   const handleUpdatePaymentStatus = async () => {
     if (!manualCheckResult?.needsUpdate) return;
 
     setIsManualChecking(true);
     try {
-      const response = await fetch("/api/payments/manual-update", {
+      // Determine which invoice to keep based on Paycashless data
+      let invoiceToKeep: Payment | null = null;
+      let newStatus = "pending";
+      let newAmountPaid = 0;
+
+      if (manualCheckResult.paycashlessData) {
+        if (manualCheckResult.paycashlessData.isFullyPaid) {
+          newStatus = "completed";
+          newAmountPaid = manualCheckResult.paycashlessData.totalPaid;
+        } else if (manualCheckResult.paycashlessData.hasPartialPayment) {
+          newStatus = "partially_paid";
+          newAmountPaid = manualCheckResult.paycashlessData.totalPaid;
+        }
+      }
+
+      // Keep the most recent invoice
+      invoiceToKeep = manualCheckResult.localPayments.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )[0];
+
+      // Get IDs of invoices to delete (all except the one to keep)
+      const invoicesToDelete = manualCheckResult.localPayments
+        .filter(p => p.id !== invoiceToKeep?.id)
+        .map(p => p.id);
+
+      // Call the cleanup API
+      const response = await fetch("/api/admin/cleanup-duplicates", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: manualCheckResult.email,
-          paycashlessData: manualCheckResult.paycashlessData,
-          localPayments: manualCheckResult.localPayments,
+          paymentIds: invoicesToDelete,
+          keepPaymentId: invoiceToKeep?.id,
+          updateData: {
+            status: newStatus,
+            amount_paid: newAmountPaid,
+            paid_at: newStatus === "completed" ? new Date().toISOString() : null,
+          },
         }),
       });
 
       if (response.ok) {
         const result = await response.json();
-        toast.success(result.message || "Payment status updated successfully");
+        toast.success(result.message || "Payment cleaned up successfully");
         setShowManualCheckModal(false);
         setManualCheckResult(null);
         setManualEmail("");
         await refetch(); // Refresh data
       } else {
         const error = await response.json();
-        toast.error(error.message || "Failed to update payment status");
+        toast.error(error.message || "Failed to cleanup payment");
       }
     } catch (error) {
-      toast.error("Error updating payment status");
+      toast.error("Error cleaning up payment");
     } finally {
       setIsManualChecking(false);
     }
@@ -394,6 +421,7 @@ export default function PaymentsPage() {
             localPayments: [updatedPayment],
             needsUpdate: false,
             updateMessage: result.message || "Webhook simulation completed",
+            cleanupAction: "Webhook simulation completed",
           });
           setShowManualCheckModal(true);
         }
@@ -603,45 +631,27 @@ export default function PaymentsPage() {
             </div>
 
             <div className="p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-medium mb-2">Local Database Payments</h4>
-              {manualCheckResult.localPayments.length > 0 ? (
-                <div className="space-y-2">
-                  {manualCheckResult.localPayments.map((payment, index) => (
-                    <div
-                      key={payment.id}
-                      className="p-2 bg-white rounded border"
-                    >
-                      <p>
-                        <strong>Invoice:</strong> {payment.invoice_id}
-                      </p>
-                      <p>
-                        <strong>Amount Paid:</strong> ₦
-                        {(payment.amount_paid || 0).toLocaleString()}
-                      </p>
-                      <p>
-                        <strong>Status:</strong> {payment.status}
-                      </p>
-                      <p>
-                        <strong>Created:</strong>{" "}
-                        {new Date(payment.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  ))}
+              <h4 className="font-medium mb-2">Local Invoices Found</h4>
+              <p className="text-sm text-gray-600 mb-2">
+                {manualCheckResult.localPayments.length} invoice(s) found for this email
+              </p>
+              {manualCheckResult.localPayments.length > 0 && (
+                <div className="text-sm">
+                  <p><strong>Action Required:</strong> {manualCheckResult.cleanupAction}</p>
                 </div>
-              ) : (
-                <p className="text-gray-500">
-                  No payments found in local database
-                </p>
               )}
             </div>
 
             {manualCheckResult.needsUpdate && (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <h4 className="font-medium text-yellow-800 mb-2">
-                  ⚠️ Update Required
+                  ⚠️ Cleanup Required
                 </h4>
                 <p className="text-yellow-700">
                   {manualCheckResult.updateMessage}
+                </p>
+                <p className="text-yellow-700 mt-2">
+                  <strong>Recommended Action:</strong> {manualCheckResult.cleanupAction}
                 </p>
               </div>
             )}
@@ -660,8 +670,8 @@ export default function PaymentsPage() {
                   className="bg-green-600 hover:bg-green-700"
                 >
                   {isManualChecking
-                    ? "Updating..."
-                    : "🔄 Update Payment Status"}
+                    ? "Cleaning up..."
+                    : "🧹 Cleanup & Update"}
                 </Button>
               )}
             </div>
