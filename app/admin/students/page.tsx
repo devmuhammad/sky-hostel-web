@@ -424,10 +424,10 @@ const getStudentDetailSections = (student: Student) => [
 
 export default function StudentsPage() {
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-4 lg:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Students</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Students</h1>
+        <p className="text-gray-600 mt-2 text-sm lg:text-base">
           Manage and view all registered students in the hostel.
         </p>
       </div>

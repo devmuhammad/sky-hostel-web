@@ -489,11 +489,11 @@ export default function PaymentsPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="p-4 lg:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 lg:space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Payments</h1>
-          <p className="mt-2 text-gray-600">
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Payments</h1>
+          <p className="mt-2 text-gray-600 text-sm lg:text-base">
             Manage and track all student payments
           </p>
         </div>
@@ -508,7 +508,7 @@ export default function PaymentsPage() {
               Check and update payment status for a specific email address
             </p>
 
-            <div className="flex gap-4 items-end">
+            <div className="flex flex-col sm:flex-row gap-4 items-end">
               <div className="flex-1">
                 <Label htmlFor="manual-email">Email Address</Label>
                 <Input
@@ -523,7 +523,7 @@ export default function PaymentsPage() {
               <Button
                 onClick={handleManualPaymentCheck}
                 disabled={isManualChecking || !manualEmail.trim()}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
               >
                 {isManualChecking ? "Checking..." : "🔍 Check Status"}
               </Button>
@@ -534,14 +534,14 @@ export default function PaymentsPage() {
               <p className="text-sm text-gray-600 mb-3">
                 Simulate webhook payments (for testing):
               </p>
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
                 <Button
                   onClick={() =>
                     handleSimulateWebhook("simulate_partial_payment")
                   }
                   disabled={isManualChecking || !manualEmail.trim()}
                   variant="outline"
-                  className="text-orange-600 border-orange-600 hover:bg-orange-50"
+                  className="text-orange-600 border-orange-600 hover:bg-orange-50 w-full sm:w-auto"
                 >
                   {isManualChecking
                     ? "Processing..."
@@ -551,7 +551,7 @@ export default function PaymentsPage() {
                   onClick={() => handleSimulateWebhook("simulate_full_payment")}
                   disabled={isManualChecking || !manualEmail.trim()}
                   variant="outline"
-                  className="text-green-600 border-green-600 hover:bg-green-50"
+                  className="text-green-600 border-green-600 hover:bg-green-50 w-full sm:w-auto"
                 >
                   {isManualChecking
                     ? "Processing..."
@@ -563,7 +563,7 @@ export default function PaymentsPage() {
         </CardContainer>
 
         {/* Duplicate Payments Cleanup */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h2 className="text-xl font-semibold">All Payments</h2>
           <Button
             onClick={() => {
@@ -571,7 +571,7 @@ export default function PaymentsPage() {
               setDuplicatePayments(duplicates);
               setShowCleanupModal(true);
             }}
-            className="bg-orange-600 hover:bg-orange-700"
+            className="bg-orange-600 hover:bg-orange-700 w-full sm:w-auto"
           >
             🧹 Cleanup Duplicates
           </Button>
