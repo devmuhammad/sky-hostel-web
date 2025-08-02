@@ -6,6 +6,7 @@ import {
 import { redirect } from "next/navigation";
 import Sidebar from "@/features/dashboard/components/Sidebar";
 import { DashboardLoadingProvider } from "@/shared/components/ui/dashboard-loading";
+import MobileHeader from "@/features/dashboard/components/MobileHeader";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -42,8 +43,13 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
+        {/* Mobile Header - Only visible on mobile */}
+        <div className="lg:hidden">
+          <MobileHeader />
+        </div>
+
         {/* Add top padding to account for fixed header */}
-        <div className="pt-20 h-full overflow-y-auto">
+        <div className="pt-20 lg:pt-20 h-full overflow-y-auto">
           <DashboardLoadingProvider>{children}</DashboardLoadingProvider>
         </div>
       </div>

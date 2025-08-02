@@ -184,7 +184,7 @@ async function RecentActivity() {
   const { recentStudents, recentPayments } = await getRecentActivity();
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
       {/* Recent Students */}
       <CardContainer>
         <div className="flex items-center justify-between mb-4">
@@ -203,7 +203,7 @@ async function RecentActivity() {
             {recentStudents.map((student, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg space-y-2 sm:space-y-0"
               >
                 <div>
                   <p className="font-medium text-gray-900">{student.name}</p>
@@ -243,7 +243,7 @@ async function RecentActivity() {
             {recentPayments.map((payment, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg space-y-2 sm:space-y-0"
               >
                 <div>
                   <p className="font-medium text-gray-900">{payment.email}</p>
@@ -251,7 +251,7 @@ async function RecentActivity() {
                     ₦{payment.amount_paid.toLocaleString()}
                   </p>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
                   <StatusBadge status={payment.status} />
                   <span className="text-sm text-gray-400">
                     {new Date(payment.created_at).toLocaleDateString()}
@@ -273,10 +273,12 @@ async function RecentActivity() {
 
 export default function AdminDashboard() {
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-4 lg:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
+          Dashboard
+        </h1>
+        <p className="text-gray-600 mt-2 text-sm lg:text-base">
           Welcome to the Sky Hostel admin dashboard. Here&apos;s an overview of
           your hostel&apos;s performance.
         </p>
