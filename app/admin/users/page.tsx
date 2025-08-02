@@ -7,7 +7,6 @@ import {
   createServerSupabaseClient,
   requireAdminAccess,
 } from "@/shared/config/auth";
-import { redirect } from "next/navigation";
 
 async function getAdminUsers() {
   const supabase = await createServerSupabaseClient();
@@ -118,18 +117,8 @@ export default async function AdminUsersPage() {
   return (
     <div className="p-4 lg:p-6">
       <div className="mx-auto space-y-4 lg:space-y-6">
-        {/* Page Header */}
-        <div className="mb-4 lg:mb-6">
-          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
-            Admin Users
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Manage admin user accounts and permissions.
-          </p>
-        </div>
-
         {/* Action Bar */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-40">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Admin Users</h2>
             <p className="text-sm text-gray-600">
