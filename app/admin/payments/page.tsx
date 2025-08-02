@@ -12,6 +12,7 @@ import { useToast } from "@/shared/hooks/useToast";
 import { useAppData } from "@/shared/hooks/useAppData";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
+import { PAYMENT_CONFIG } from "@/shared/config/constants";
 
 interface DuplicatePayment {
   email: string;
@@ -322,6 +323,89 @@ export default function PaymentsPage() {
     }
   };
 
+  // Simulate webhook payment
+  const handleSimulateWebhook = async (action: string) => {
+    if (!manualEmail.trim()) {
+      toast.error("Please enter an email address");
+      return;
+    }
+
+    setIsManualChecking(true);
+    try {
+      // Find payment by email
+      const payment = payments.find(p => p.email === manualEmail);
+      
+      if (!payment) {
+        toast.error("No payment found for this email");
+        return;
+      }
+
+      let updateData: any = {};
+      let message = "";
+
+      if (action === "simulate_partial_payment") {
+        const partialAmount = Math.min(50000, PAYMENT_CONFIG.amount - (payment.amount_paid || 0));
+        if (partialAmount <= 0) {
+          toast.error("Payment is already fully paid");
+          return;
+        }
+
+        const newAmountPaid = (payment.amount_paid || 0) + partialAmount;
+        const newStatus = newAmountPaid >= PAYMENT_CONFIG.amount ? "completed" : "partially_paid";
+
+        updateData = {
+          amount_paid: newAmountPaid,
+          status: newStatus,
+          paid_at: newStatus === "completed" ? new Date().toISOString() : payment.paid_at,
+        };
+
+        message = `Simulated partial payment of ₦${partialAmount.toLocaleString()}`;
+      } else if (action === "simulate_full_payment") {
+        const remainingAmount = PAYMENT_CONFIG.amount - (payment.amount_paid || 0);
+        
+        if (remainingAmount <= 0) {
+          toast.error("Payment is already fully paid");
+          return;
+        }
+
+        updateData = {
+          amount_paid: PAYMENT_CONFIG.amount,
+          status: "completed",
+          paid_at: new Date().toISOString(),
+        };
+
+        message = `Simulated full payment of ₦${remainingAmount.toLocaleString()}`;
+      }
+
+      // Update the payment in the store
+      const updatedPayments = payments.map(p => 
+        p.id === payment.id ? { ...p, ...updateData } : p
+      );
+      
+      // Update the store
+      useAppStore.getState().setPayments(updatedPayments);
+
+      toast.success(message);
+      
+      // Update the manual check result
+      const updatedPayment = { ...payment, ...updateData };
+      setManualCheckResult({
+        email: manualEmail,
+        paycashlessData: null,
+        localPayments: [updatedPayment],
+        needsUpdate: false,
+        updateMessage: message,
+      });
+      setShowManualCheckModal(true);
+
+    } catch (error) {
+      console.error("Webhook simulation error:", error);
+      toast.error("Failed to simulate webhook");
+    } finally {
+      setIsManualChecking(false);
+    }
+  };
+
   const columns = [
     {
       key: "email",
@@ -418,6 +502,31 @@ export default function PaymentsPage() {
               >
                 {isManualChecking ? "Checking..." : "🔍 Check Status"}
               </Button>
+            </div>
+
+            {/* Webhook Simulation Buttons */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-600 mb-3">
+                Simulate webhook payments (for testing):
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  onClick={() => handleSimulateWebhook("simulate_partial_payment")}
+                  disabled={isManualChecking || !manualEmail.trim()}
+                  variant="outline"
+                  className="text-orange-600 border-orange-600 hover:bg-orange-50"
+                >
+                  {isManualChecking ? "Processing..." : "💰 Simulate Partial Payment"}
+                </Button>
+                <Button
+                  onClick={() => handleSimulateWebhook("simulate_full_payment")}
+                  disabled={isManualChecking || !manualEmail.trim()}
+                  variant="outline"
+                  className="text-green-600 border-green-600 hover:bg-green-50"
+                >
+                  {isManualChecking ? "Processing..." : "✅ Simulate Full Payment"}
+                </Button>
+              </div>
             </div>
           </div>
         </CardContainer>
