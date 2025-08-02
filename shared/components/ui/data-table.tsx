@@ -89,7 +89,7 @@ export function DataTable<T extends Record<string, any>>({
         <Card>
           <CardContent className="pt-6">
             <div
-              className={`grid gap-4 ${filters.length > 0 ? "grid-cols-1 md:grid-cols-" + Math.min(filters.length + 1, 4) : "grid-cols-1"}`}
+              className={`grid gap-4 ${filters.length > 0 ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-" + Math.min(filters.length + 1, 4) : "grid-cols-1"}`}
             >
               {searchFields.length > 0 && (
                 <div>
@@ -140,42 +140,44 @@ export function DataTable<T extends Record<string, any>>({
         )}
 
         <CardContent className={title ? "" : "pt-6"}>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {columns.map((column) => (
-                  <TableHead key={column.key} className={column.className}>
-                    {column.header}
-                  </TableHead>
-                ))}
-                {onRowAction && (
-                  <TableHead className="text-right">Actions</TableHead>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredData.map((item, index) => (
-                <TableRow key={item.id || index}>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
                   {columns.map((column) => (
-                    <TableCell key={column.key} className={column.className}>
-                      {column.render(item)}
-                    </TableCell>
+                    <TableHead key={column.key} className={column.className}>
+                      {column.header}
+                    </TableHead>
                   ))}
                   {onRowAction && (
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onRowAction(item)}
-                      >
-                        {actionLabel}
-                      </Button>
-                    </TableCell>
+                    <TableHead className="text-right">Actions</TableHead>
                   )}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredData.map((item, index) => (
+                  <TableRow key={item.id || index}>
+                    {columns.map((column) => (
+                      <TableCell key={column.key} className={column.className}>
+                        {column.render(item)}
+                      </TableCell>
+                    ))}
+                    {onRowAction && (
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onRowAction(item)}
+                        >
+                          {actionLabel}
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
           {filteredData.length === 0 && emptyState && (
             <div className="text-center py-12">

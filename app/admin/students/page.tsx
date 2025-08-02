@@ -275,7 +275,7 @@ function StudentsTable() {
           title={`Edit Student - ${editingStudent.first_name} ${editingStudent.last_name}`}
         >
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="first_name">First Name</Label>
                 <Input

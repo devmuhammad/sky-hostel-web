@@ -118,7 +118,9 @@ export default async function AdminUsersPage() {
       <div className="max-w-7xl mx-auto space-y-4 lg:space-y-6">
         {/* Page Header */}
         <div className="mb-4 lg:mb-6">
-          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Admin Users</h1>
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
+            Admin Users
+          </h1>
           <p className="text-sm text-gray-600 mt-1">
             Manage admin user accounts and permissions.
           </p>

@@ -492,7 +492,9 @@ export default function PaymentsPage() {
     <div className="p-4 lg:p-6">
       <div className="max-w-7xl mx-auto space-y-4 lg:space-y-6">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Payments</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
+            Payments
+          </h1>
           <p className="mt-2 text-gray-600 text-sm lg:text-base">
             Manage and track all student payments
           </p>
@@ -656,10 +658,11 @@ export default function PaymentsPage() {
               </div>
             )}
 
-            <div className="flex justify-end space-x-3 pt-4 border-t">
+            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t">
               <Button
                 onClick={() => setShowManualCheckModal(false)}
                 variant="outline"
+                className="w-full sm:w-auto"
               >
                 Close
               </Button>
@@ -667,7 +670,7 @@ export default function PaymentsPage() {
                 <Button
                   onClick={handleUpdatePaymentStatus}
                   disabled={isManualChecking}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
                 >
                   {isManualChecking ? "Cleaning up..." : "🧹 Cleanup & Update"}
                 </Button>
@@ -831,17 +834,18 @@ export default function PaymentsPage() {
             })}
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4 border-t">
+          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t">
             <Button
               onClick={() => setShowCleanupModal(false)}
               variant="outline"
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
             <Button
               onClick={handleCleanup}
               disabled={selectedPaymentsToDelete.length === 0 || isCleaningUp}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 w-full sm:w-auto"
             >
               {isCleaningUp
                 ? "Cleaning Up..."
