@@ -186,11 +186,30 @@ export default function Sidebar({
     fetchAdminUser();
   }, [supabase]);
 
+  // Cleanup effect to reset loading state on unmount
+  useEffect(() => {
+    return () => {
+      setIsSigningOut(false);
+    };
+  }, []);
+
   const handleSignOut = async () => {
+    if (isSigningOut) return; // Prevent multiple clicks
+
     try {
       setIsSigningOut(true);
 
-      // Clear the store data
+      // Sign out from Supabase first
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        console.error("Sign out error:", error);
+        toast.error("Failed to sign out. Please try again.");
+        setIsSigningOut(false);
+        return;
+      }
+
+      // Clear the store data after successful signout
       setCurrentUser(null);
       setAllData({
         students: [],
@@ -199,25 +218,17 @@ export default function Sidebar({
         adminUsers: [],
       });
 
-      // Sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        console.error("Sign out error:", error);
-        toast.error("Failed to sign out. Please try again.");
-        return;
-      }
-
       // Show success message
       toast.success("Signed out successfully");
 
-      // Redirect to login page
-      router.push("/login");
-      router.refresh();
+      // Small delay to ensure toast shows before redirect
+      setTimeout(() => {
+        // Redirect to login page
+        router.push("/login");
+      }, 500);
     } catch (error) {
       console.error("Sign out error:", error);
       toast.error("Failed to sign out. Please try again.");
-    } finally {
       setIsSigningOut(false);
     }
   };
