@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createClientSupabaseClient } from "@/shared/config/auth";
@@ -21,7 +21,7 @@ interface AdminUser {
 
 interface SidebarProps {
   className?: string;
-  adminUser?: AdminUser;
+  adminUser?: AdminUser | null;
 }
 
 const navigation = [
@@ -147,19 +147,49 @@ const navigation = [
   },
 ];
 
-export default function Sidebar({ className, adminUser }: SidebarProps) {
+export default function Sidebar({
+  className,
+}: Omit<SidebarProps, "adminUser">) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClientSupabaseClient();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const toast = useToast();
   const { setCurrentUser, setAllData } = useAppStore();
+
+  // Fetch admin user data
+  useEffect(() => {
+    const fetchAdminUser = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.user?.email) {
+          const { data: adminData, error } = await supabase
+            .from("admin_users")
+            .select("*")
+            .eq("email", session.user.email)
+            .eq("is_active", true)
+            .single();
+
+          if (adminData && !error) {
+            setAdminUser(adminData);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching admin user:", error);
+      }
+    };
+
+    fetchAdminUser();
+  }, [supabase]);
 
   const handleSignOut = async () => {
     try {
       setIsSigningOut(true);
-      
+
       // Clear the store data
       setCurrentUser(null);
       setAllData({
@@ -171,7 +201,7 @@ export default function Sidebar({ className, adminUser }: SidebarProps) {
 
       // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
-      
+
       if (error) {
         console.error("Sign out error:", error);
         toast.error("Failed to sign out. Please try again.");
@@ -180,7 +210,7 @@ export default function Sidebar({ className, adminUser }: SidebarProps) {
 
       // Show success message
       toast.success("Signed out successfully");
-      
+
       // Redirect to login page
       router.push("/login");
       router.refresh();

@@ -28,7 +28,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   // Check if user has admin access
-  const { isAdmin, adminUser, error } = await checkAdminAccess();
+  const { isAdmin, error } = await checkAdminAccess();
 
   if (!isAdmin) {
     // Redirect to login with error message
@@ -37,16 +37,14 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="h-screen flex bg-gray-50">
-      {/* Sidebar - Only show when authenticated */}
-      <Sidebar adminUser={adminUser} />
+      {/* Sidebar - Let it fetch its own admin user data */}
+      <Sidebar />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Add top padding to account for fixed header */}
         <div className="pt-20 h-full overflow-y-auto">
-          <DashboardLoadingProvider>
-            {children}
-          </DashboardLoadingProvider>
+          <DashboardLoadingProvider>{children}</DashboardLoadingProvider>
         </div>
       </div>
     </div>
