@@ -75,10 +75,10 @@ export default function AdminLogin() {
           await supabase.auth.signOut();
         } else {
           console.log("Admin check successful, redirecting...");
-          
+
           // Show success message
           toast.success(`Welcome back, ${adminUser.first_name}!`);
-          
+
           // Get the redirect URL from query params or default to admin
           const urlParams = new URLSearchParams(window.location.search);
           const redirectTo = urlParams.get("redirectedFrom") || "/admin";
@@ -98,7 +98,7 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-      <div className="max-w-md w-full">
+      <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="mx-auto h-12 w-12 bg-blue-600 rounded-xl flex items-center justify-center mb-4">
