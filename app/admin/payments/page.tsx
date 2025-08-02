@@ -333,71 +333,73 @@ export default function PaymentsPage() {
     setIsManualChecking(true);
     try {
       // Find payment by email
-      const payment = payments.find(p => p.email === manualEmail);
-      
+      const payment = payments.find((p) => p.email === manualEmail);
+
       if (!payment) {
         toast.error("No payment found for this email");
         return;
       }
 
-      let updateData: any = {};
-      let message = "";
+      // Simulate webhook payload based on action
+      let webhookPayload: any = {
+        event:
+          action === "simulate_partial_payment"
+            ? "INVOICE_PAYMENT_SUCCEEDED"
+            : "INVOICE_PAID",
+        data: {
+          invoice_id: payment.invoice_id,
+          customer: {
+            email: payment.email,
+            phoneNumber: payment.phone,
+          },
+        },
+      };
 
       if (action === "simulate_partial_payment") {
-        const partialAmount = Math.min(50000, PAYMENT_CONFIG.amount - (payment.amount_paid || 0));
+        const partialAmount = Math.min(
+          50000,
+          PAYMENT_CONFIG.amount - (payment.amount_paid || 0)
+        );
         if (partialAmount <= 0) {
           toast.error("Payment is already fully paid");
           return;
         }
-
-        const newAmountPaid = (payment.amount_paid || 0) + partialAmount;
-        const newStatus = newAmountPaid >= PAYMENT_CONFIG.amount ? "completed" : "partially_paid";
-
-        updateData = {
-          amount_paid: newAmountPaid,
-          status: newStatus,
-          paid_at: newStatus === "completed" ? new Date().toISOString() : payment.paid_at,
-        };
-
-        message = `Simulated partial payment of ₦${partialAmount.toLocaleString()}`;
-      } else if (action === "simulate_full_payment") {
-        const remainingAmount = PAYMENT_CONFIG.amount - (payment.amount_paid || 0);
-        
-        if (remainingAmount <= 0) {
-          toast.error("Payment is already fully paid");
-          return;
-        }
-
-        updateData = {
-          amount_paid: PAYMENT_CONFIG.amount,
-          status: "completed",
-          paid_at: new Date().toISOString(),
-        };
-
-        message = `Simulated full payment of ₦${remainingAmount.toLocaleString()}`;
+        webhookPayload.data.amount = partialAmount;
       }
 
-      // Update the payment in the store
-      const updatedPayments = payments.map(p => 
-        p.id === payment.id ? { ...p, ...updateData } : p
-      );
-      
-      // Update the store
-      useAppStore.getState().setPayments(updatedPayments);
-
-      toast.success(message);
-      
-      // Update the manual check result
-      const updatedPayment = { ...payment, ...updateData };
-      setManualCheckResult({
-        email: manualEmail,
-        paycashlessData: null,
-        localPayments: [updatedPayment],
-        needsUpdate: false,
-        updateMessage: message,
+      // Call the actual webhook endpoint to process the payment
+      const response = await fetch("/api/webhook/paycashless", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(webhookPayload),
       });
-      setShowManualCheckModal(true);
 
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success(result.message || "Webhook simulation successful");
+        // Refresh the payments data to get the updated payment from database
+        await refetch();
+
+        // Get the updated payment for the modal
+        const updatedPayments = useAppStore.getState().payments;
+        const updatedPayment = updatedPayments.find(
+          (p) => p.email === manualEmail
+        );
+
+        if (updatedPayment) {
+          setManualCheckResult({
+            email: manualEmail,
+            paycashlessData: null,
+            localPayments: [updatedPayment],
+            needsUpdate: false,
+            updateMessage: result.message || "Webhook simulation completed",
+          });
+          setShowManualCheckModal(true);
+        }
+      } else {
+        toast.error(result.message || "Failed to simulate webhook");
+      }
     } catch (error) {
       console.error("Webhook simulation error:", error);
       toast.error("Failed to simulate webhook");
@@ -511,12 +513,16 @@ export default function PaymentsPage() {
               </p>
               <div className="flex gap-2 flex-wrap">
                 <Button
-                  onClick={() => handleSimulateWebhook("simulate_partial_payment")}
+                  onClick={() =>
+                    handleSimulateWebhook("simulate_partial_payment")
+                  }
                   disabled={isManualChecking || !manualEmail.trim()}
                   variant="outline"
                   className="text-orange-600 border-orange-600 hover:bg-orange-50"
                 >
-                  {isManualChecking ? "Processing..." : "💰 Simulate Partial Payment"}
+                  {isManualChecking
+                    ? "Processing..."
+                    : "💰 Simulate Partial Payment"}
                 </Button>
                 <Button
                   onClick={() => handleSimulateWebhook("simulate_full_payment")}
@@ -524,7 +530,9 @@ export default function PaymentsPage() {
                   variant="outline"
                   className="text-green-600 border-green-600 hover:bg-green-50"
                 >
-                  {isManualChecking ? "Processing..." : "✅ Simulate Full Payment"}
+                  {isManualChecking
+                    ? "Processing..."
+                    : "✅ Simulate Full Payment"}
                 </Button>
               </div>
             </div>
