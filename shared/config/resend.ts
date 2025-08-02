@@ -9,7 +9,7 @@ export { resend };
 export const EMAIL_CONFIG = {
   from: {
     name: "Sky Student Hostel",
-    email: "onboarding@resend.dev", // Resend's default verified domain
+    email: "noreply@skyhostel.ng",
   },
   replyTo: "mahrikinvltd@gmail.com",
 };
