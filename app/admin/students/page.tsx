@@ -137,28 +137,34 @@ function StudentsTable() {
       key: "name",
       header: "Name",
       render: (student) => (
-        <div>
-          <div className="font-medium">
+        <div className="min-w-0">
+          <div className="font-medium text-xs sm:text-sm lg:text-base truncate">
             {student.first_name} {student.last_name}
           </div>
-          <div className="text-sm text-gray-500">{student.email}</div>
+          <div className="text-xs text-gray-500 truncate">{student.email}</div>
         </div>
       ),
     },
     {
       key: "matric_number",
       header: "Matric Number",
+      className: "hidden sm:table-cell",
       render: (student) => (
-        <div className="font-mono text-sm">{student.matric_number}</div>
+        <div className="font-mono text-xs sm:text-sm lg:text-base truncate">
+          {student.matric_number}
+        </div>
       ),
     },
     {
       key: "faculty",
       header: "Faculty",
+      className: "hidden lg:table-cell",
       render: (student) => (
-        <div>
-          <div className="font-medium">{student.faculty}</div>
-          <div className="text-sm text-gray-500">{student.level}</div>
+        <div className="min-w-0">
+          <div className="font-medium text-xs sm:text-sm lg:text-base truncate">
+            {student.faculty}
+          </div>
+          <div className="text-xs text-gray-500 truncate">{student.level}</div>
         </div>
       ),
     },
@@ -166,26 +172,36 @@ function StudentsTable() {
       key: "room",
       header: "Room",
       render: (student) => (
-        <div>
-          <div className="font-medium">Block {student.block}</div>
-          <div className="text-sm text-gray-500">Room {student.room}</div>
+        <div className="min-w-0">
+          <div className="font-medium text-xs sm:text-sm lg:text-base truncate">
+            Block {student.block}
+          </div>
+          <div className="text-xs text-gray-500 truncate">
+            Room {student.room}
+          </div>
         </div>
       ),
     },
     {
       key: "phone",
       header: "Phone",
-      render: (student) => <div className="text-sm">{student.phone}</div>,
+      className: "hidden md:table-cell",
+      render: (student) => (
+        <div className="text-xs sm:text-sm lg:text-base truncate">
+          {student.phone}
+        </div>
+      ),
     },
     {
       key: "actions",
       header: "Actions",
       render: (student) => (
-        <div className="flex space-x-2">
+        <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
           <Button
             size="sm"
             variant="outline"
             onClick={() => setSelectedStudent(student)}
+            className="text-xs px-2 py-1 h-auto"
           >
             View
           </Button>
@@ -193,6 +209,7 @@ function StudentsTable() {
             size="sm"
             variant="outline"
             onClick={() => handleEditStudent(student)}
+            className="text-xs px-2 py-1 h-auto"
           >
             Edit
           </Button>
@@ -201,6 +218,7 @@ function StudentsTable() {
             variant="outline"
             onClick={() => handleResendEmail(student.id)}
             disabled={isResendingEmail === student.id}
+            className="text-xs px-2 py-1 h-auto"
           >
             {isResendingEmail === student.id ? "Sending..." : "Resend Email"}
           </Button>
@@ -424,10 +442,12 @@ const getStudentDetailSections = (student: Student) => [
 
 export default function StudentsPage() {
   return (
-    <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-4 lg:space-y-6">
+    <div className="p-2 sm:p-4 lg:p-6 mx-auto space-y-3 sm:space-y-4 lg:space-y-6 w-full max-w-full">
       <div>
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Students</h1>
-        <p className="text-gray-600 mt-2 text-sm lg:text-base">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
+          Students
+        </h1>
+        <p className="text-gray-600 mt-1 sm:mt-2 text-xs sm:text-sm lg:text-base">
           Manage and view all registered students in the hostel.
         </p>
       </div>

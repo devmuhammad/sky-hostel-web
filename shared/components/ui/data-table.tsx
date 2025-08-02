@@ -83,17 +83,15 @@ export function DataTable<T extends Record<string, any>>({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 lg:space-y-6 w-full">
       {/* Search and Filters */}
       {(searchFields.length > 0 || filters.length > 0) && (
         <Card>
-          <CardContent className="pt-6">
-            <div
-              className={`grid gap-4 ${filters.length > 0 ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-" + Math.min(filters.length + 1, 4) : "grid-cols-1"}`}
-            >
+          <CardContent className="pt-4 lg:pt-6">
+            <div className="grid gap-3 lg:gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
               {searchFields.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 lg:mb-2">
                     Search
                   </label>
                   <Input
@@ -107,7 +105,7 @@ export function DataTable<T extends Record<string, any>>({
 
               {filters.map((filter) => (
                 <div key={filter.key}>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 lg:mb-2">
                     {filter.label}
                   </label>
                   <select
@@ -130,60 +128,73 @@ export function DataTable<T extends Record<string, any>>({
       )}
 
       {/* Data Table */}
-      <Card>
+      <Card className="w-full">
         {title && (
           <CardHeader>
-            <CardTitle>
+            <CardTitle className="text-lg lg:text-xl">
               {title} ({filteredData.length})
             </CardTitle>
           </CardHeader>
         )}
 
-        <CardContent className={title ? "" : "pt-6"}>
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {columns.map((column) => (
-                    <TableHead key={column.key} className={column.className}>
-                      {column.header}
-                    </TableHead>
-                  ))}
-                  {onRowAction && (
-                    <TableHead className="text-right">Actions</TableHead>
-                  )}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredData.map((item, index) => (
-                  <TableRow key={item.id || index}>
-                    {columns.map((column) => (
-                      <TableCell key={column.key} className={column.className}>
-                        {column.render(item)}
-                      </TableCell>
-                    ))}
-                    {onRowAction && (
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onRowAction(item)}
+        <CardContent className={title ? "p-0" : "pt-4 lg:pt-6"}>
+          <div className="w-full overflow-x-auto">
+            <div className="min-w-full inline-block align-middle">
+              <div className="overflow-hidden">
+                <Table className="min-w-full">
+                  <TableHeader>
+                    <TableRow>
+                      {columns.map((column) => (
+                        <TableHead
+                          key={column.key}
+                          className={`${column.className || ""} text-xs sm:text-sm lg:text-base`}
                         >
-                          {actionLabel}
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          {column.header}
+                        </TableHead>
+                      ))}
+                      {onRowAction && (
+                        <TableHead className="text-right text-xs sm:text-sm lg:text-base">
+                          Actions
+                        </TableHead>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredData.map((item, index) => (
+                      <TableRow key={item.id || index}>
+                        {columns.map((column) => (
+                          <TableCell
+                            key={column.key}
+                            className={`${column.className || ""} text-xs sm:text-sm lg:text-base p-2 lg:p-3`}
+                          >
+                            {column.render(item)}
+                          </TableCell>
+                        ))}
+                        {onRowAction && (
+                          <TableCell className="text-right p-2 lg:p-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onRowAction(item)}
+                              className="text-xs sm:text-sm"
+                            >
+                              {actionLabel}
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
           </div>
 
           {filteredData.length === 0 && emptyState && (
-            <div className="text-center py-12">
+            <div className="text-center py-8 lg:py-12">
               {emptyState.icon || (
                 <svg
-                  className="mx-auto h-12 w-12 text-gray-400"
+                  className="mx-auto h-8 w-8 lg:h-12 lg:w-12 text-gray-400"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -198,10 +209,10 @@ export function DataTable<T extends Record<string, any>>({
                   />
                 </svg>
               )}
-              <h3 className="mt-2 text-sm font-medium text-gray-900">
+              <h3 className="mt-2 text-sm lg:text-base font-medium text-gray-900">
                 {emptyState.title}
               </h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-xs lg:text-sm text-gray-500">
                 {emptyState.description}
               </p>
             </div>
@@ -214,10 +225,10 @@ export function DataTable<T extends Record<string, any>>({
 
 function DataTableSkeleton() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 lg:space-y-6">
       {/* Search skeleton */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-4 lg:pt-6">
           <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
         </CardContent>
       </Card>

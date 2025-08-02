@@ -29,6 +29,10 @@ export default function QueryProvider({ children }: QueryProviderProps) {
             // Retry delay
             retryDelay: (attemptIndex) =>
               Math.min(1000 * 2 ** attemptIndex, 30000),
+            // Development-specific settings
+            refetchOnWindowFocus: process.env.NODE_ENV === "production",
+            refetchOnReconnect: true,
+            refetchOnMount: true,
           },
           mutations: {
             // Retry failed mutations

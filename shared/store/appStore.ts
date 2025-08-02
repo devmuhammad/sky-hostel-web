@@ -142,7 +142,7 @@ export const useAppStore = create<AppState>()(
         dashboard: false,
       },
 
-      sidebarCollapsed: false,
+      sidebarCollapsed: true, // Start closed on mobile
       lastDataFetch: 0,
 
       // Actions

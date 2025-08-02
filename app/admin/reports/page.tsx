@@ -486,7 +486,7 @@ function ReportsAnalytics() {
 export default function ReportsPage() {
   return (
     <div className="p-4 lg:p-6">
-      <div className="max-w-7xl mx-auto space-y-4 lg:space-y-6">
+      <div className="mx-auto space-y-4 lg:space-y-6">
         <Suspense fallback={<CardLoadingSkeleton cards={4} />}>
           <ReportsAnalytics />
         </Suspense>

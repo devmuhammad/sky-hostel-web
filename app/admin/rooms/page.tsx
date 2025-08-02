@@ -14,15 +14,24 @@ import { useAppStore, Room, Student } from "@/shared/store/appStore";
 import { useRooms, useStudents } from "@/shared/hooks/useAppData";
 import { useToast } from "@/shared/hooks/useToast";
 
-function RoomsStats({ rooms }: { rooms: Room[] }) {
+function RoomsStats({
+  rooms,
+  students,
+}: {
+  rooms: Room[];
+  students: Student[];
+}) {
   const getOccupancyStats = () => {
     const totalRooms = rooms.length;
     const totalBeds = rooms.reduce((sum, room) => sum + room.total_beds, 0);
-    const availableBeds = rooms.reduce(
-      (sum, room) => sum + room.available_beds.length,
-      0
-    );
-    const occupiedBeds = totalBeds - availableBeds;
+
+    // Calculate occupied beds by counting students with bed assignments
+    const occupiedBeds = students.filter(
+      (student) => student.block && student.room && student.bedspace_label
+    ).length;
+
+    // Available beds = total beds - occupied beds
+    const availableBeds = totalBeds - occupiedBeds;
     const occupancyRate =
       totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
 
@@ -38,7 +47,7 @@ function RoomsStats({ rooms }: { rooms: Room[] }) {
   const stats = getOccupancyStats();
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-4 lg:mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-6 mb-4 lg:mb-6">
       <CardContainer>
         <div className="flex items-center">
           <div className="p-2 bg-blue-100 rounded-lg">
@@ -86,6 +95,32 @@ function RoomsStats({ rooms }: { rooms: Room[] }) {
             <p className="text-sm font-medium text-gray-600">Total Beds</p>
             <p className="text-2xl font-semibold text-gray-900">
               {stats.totalBeds}
+            </p>
+          </div>
+        </div>
+      </CardContainer>
+
+      <CardContainer>
+        <div className="flex items-center">
+          <div className="p-2 bg-red-100 rounded-lg">
+            <svg
+              className="w-6 h-6 text-red-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              />
+            </svg>
+          </div>
+          <div className="ml-4">
+            <p className="text-sm font-medium text-gray-600">Occupied Beds</p>
+            <p className="text-2xl font-semibold text-gray-900">
+              {stats.occupiedBeds}
             </p>
           </div>
         </div>
@@ -259,7 +294,7 @@ function RoomsManagement() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <RoomsStats rooms={rooms} />
+      <RoomsStats rooms={rooms} students={students} />
 
       {/* Add Room Button */}
       <div className="flex justify-between items-center">
@@ -630,7 +665,7 @@ export default function RoomsPage() {
       </div>
 
       <div className="p-4 lg:p-6">
-        <div className="max-w-7xl mx-auto space-y-4 lg:space-y-6">
+        <div className="mx-auto space-y-4 lg:space-y-6">
           <Suspense fallback={<CardLoadingSkeleton cards={4} />}>
             <RoomsManagement />
           </Suspense>

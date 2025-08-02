@@ -248,7 +248,7 @@ export default function Sidebar({
       <div
         className={cn(
           "fixed lg:relative flex flex-col h-full bg-white border-r border-gray-200 shadow-sm transition-all duration-300 z-40",
-          // Mobile: slide in from left when open
+          // Mobile: slide in from left when open (sidebarCollapsed = true means open on mobile)
           sidebarCollapsed
             ? "translate-x-0 w-64"
             : "-translate-x-full w-64 lg:translate-x-0",
