@@ -40,6 +40,7 @@ function StudentsTable() {
   });
   const [filterFaculty, setFilterFaculty] = useState("");
   const [filterLevel, setFilterLevel] = useState("");
+  const [isResendingEmail, setIsResendingEmail] = useState<string | null>(null);
 
   // Use store and hooks instead of local state
   const { students, loading } = useAppStore();
@@ -87,6 +88,33 @@ function StudentsTable() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setEditForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleResendEmail = async (studentId: string) => {
+    setIsResendingEmail(studentId);
+
+    try {
+      const response = await fetch("/api/email/resend-registration", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ studentId }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success("Registration email sent successfully!");
+      } else {
+        toast.error(result.error || "Failed to send email");
+      }
+    } catch (error) {
+      console.error("Error resending email:", error);
+      toast.error("Failed to send email");
+    } finally {
+      setIsResendingEmail(null);
+    }
   };
 
   // Filter students based on faculty and level
@@ -147,9 +175,7 @@ function StudentsTable() {
     {
       key: "phone",
       header: "Phone",
-      render: (student) => (
-        <div className="text-sm">{student.phone}</div>
-      ),
+      render: (student) => <div className="text-sm">{student.phone}</div>,
     },
     {
       key: "actions",
@@ -169,6 +195,14 @@ function StudentsTable() {
             onClick={() => handleEditStudent(student)}
           >
             Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleResendEmail(student.id)}
+            disabled={isResendingEmail === student.id}
+          >
+            {isResendingEmail === student.id ? "Sending..." : "Resend Email"}
           </Button>
         </div>
       ),
@@ -308,10 +342,7 @@ function StudentsTable() {
               />
             </div>
             <div className="flex justify-end space-x-2 pt-4">
-              <Button
-                variant="outline"
-                onClick={() => setEditingStudent(null)}
-              >
+              <Button variant="outline" onClick={() => setEditingStudent(null)}>
                 Cancel
               </Button>
               <Button
@@ -332,12 +363,21 @@ const getStudentDetailSections = (student: Student) => [
   {
     title: "Personal Information",
     items: [
-      { label: "Full Name", value: `${student.first_name} ${student.last_name}` },
+      {
+        label: "Full Name",
+        value: `${student.first_name} ${student.last_name}`,
+      },
       { label: "Email", value: student.email },
       { label: "Phone", value: student.phone },
       { label: "Matric Number", value: student.matric_number },
-      { label: "Date of Birth", value: student.date_of_birth || "Not provided" },
-      { label: "Marital Status", value: student.marital_status || "Not provided" },
+      {
+        label: "Date of Birth",
+        value: student.date_of_birth || "Not provided",
+      },
+      {
+        label: "Marital Status",
+        value: student.marital_status || "Not provided",
+      },
       { label: "Religion", value: student.religion || "Not provided" },
     ],
   },
@@ -362,7 +402,10 @@ const getStudentDetailSections = (student: Student) => [
     items: [
       { label: "Block", value: student.block },
       { label: "Room", value: student.room },
-      { label: "Registration Date", value: new Date(student.created_at).toLocaleDateString() },
+      {
+        label: "Registration Date",
+        value: new Date(student.created_at).toLocaleDateString(),
+      },
     ],
   },
   {
@@ -371,7 +414,10 @@ const getStudentDetailSections = (student: Student) => [
       { label: "Name", value: student.next_of_kin_name || "Not provided" },
       { label: "Phone", value: student.next_of_kin_phone || "Not provided" },
       { label: "Email", value: student.next_of_kin_email || "Not provided" },
-      { label: "Relationship", value: student.next_of_kin_relationship || "Not provided" },
+      {
+        label: "Relationship",
+        value: student.next_of_kin_relationship || "Not provided",
+      },
     ],
   },
 ];

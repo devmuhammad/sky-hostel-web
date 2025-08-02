@@ -7,6 +7,7 @@ import { CardContainer } from "@/shared/components/ui/card-container";
 import { Button } from "@/shared/components/ui/button";
 import { Modal } from "@/shared/components/ui/modal";
 import { TableLoadingSkeleton } from "@/shared/components/ui/loading-skeleton";
+import { StatusBadge } from "@/shared/components/ui/status-badge";
 import { Payment } from "@/shared/store/appStore";
 import { useToast } from "@/shared/hooks/useToast";
 import { useAppData } from "@/shared/hooks/useAppData";
@@ -253,11 +254,13 @@ export default function PaymentsPage() {
         if (paycashlessData.isFullyPaid) {
           needsUpdate = true;
           updateMessage = `Paycashless shows fully paid (₦${paycashlessData.totalPaid.toLocaleString()})`;
-          cleanupAction = "Keep one invoice, mark as completed, delete duplicates";
+          cleanupAction =
+            "Keep one invoice, mark as completed, delete duplicates";
         } else if (paycashlessData.hasPartialPayment) {
           needsUpdate = true;
           updateMessage = `Paycashless shows partial payment (₦${paycashlessData.totalPaid.toLocaleString()})`;
-          cleanupAction = "Keep one invoice, mark as partially paid, delete duplicates";
+          cleanupAction =
+            "Keep one invoice, mark as partially paid, delete duplicates";
         } else {
           updateMessage = "No payments found on Paycashless";
           cleanupAction = "Keep most recent invoice, delete others";
@@ -306,14 +309,15 @@ export default function PaymentsPage() {
       }
 
       // Keep the most recent invoice
-      invoiceToKeep = manualCheckResult.localPayments.sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      invoiceToKeep = manualCheckResult.localPayments.sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       )[0];
 
       // Get IDs of invoices to delete (all except the one to keep)
       const invoicesToDelete = manualCheckResult.localPayments
-        .filter(p => p.id !== invoiceToKeep?.id)
-        .map(p => p.id);
+        .filter((p) => p.id !== invoiceToKeep?.id)
+        .map((p) => p.id);
 
       // Call the cleanup API
       const response = await fetch("/api/admin/cleanup-duplicates", {
@@ -327,7 +331,8 @@ export default function PaymentsPage() {
           updateData: {
             status: newStatus,
             amount_paid: newAmountPaid,
-            paid_at: newStatus === "completed" ? new Date().toISOString() : null,
+            paid_at:
+              newStatus === "completed" ? new Date().toISOString() : null,
           },
         }),
       });
@@ -460,17 +465,7 @@ export default function PaymentsPage() {
       key: "status",
       header: "Status",
       render: (payment: Payment) => (
-        <div
-          className={`px-2 py-1 rounded-full text-xs font-medium ${
-            payment.status === "completed"
-              ? "bg-green-100 text-green-800"
-              : payment.status === "partially_paid"
-                ? "bg-yellow-100 text-yellow-800"
-                : "bg-gray-100 text-gray-800"
-          }`}
-        >
-          {payment.status}
-        </div>
+        <StatusBadge status={payment.status} variant="payment" />
       ),
     },
     {
@@ -633,11 +628,15 @@ export default function PaymentsPage() {
             <div className="p-4 bg-blue-50 rounded-lg">
               <h4 className="font-medium mb-2">Local Invoices Found</h4>
               <p className="text-sm text-gray-600 mb-2">
-                {manualCheckResult.localPayments.length} invoice(s) found for this email
+                {manualCheckResult.localPayments.length} invoice(s) found for
+                this email
               </p>
               {manualCheckResult.localPayments.length > 0 && (
                 <div className="text-sm">
-                  <p><strong>Action Required:</strong> {manualCheckResult.cleanupAction}</p>
+                  <p>
+                    <strong>Action Required:</strong>{" "}
+                    {manualCheckResult.cleanupAction}
+                  </p>
                 </div>
               )}
             </div>
@@ -651,7 +650,8 @@ export default function PaymentsPage() {
                   {manualCheckResult.updateMessage}
                 </p>
                 <p className="text-yellow-700 mt-2">
-                  <strong>Recommended Action:</strong> {manualCheckResult.cleanupAction}
+                  <strong>Recommended Action:</strong>{" "}
+                  {manualCheckResult.cleanupAction}
                 </p>
               </div>
             )}
@@ -669,9 +669,7 @@ export default function PaymentsPage() {
                   disabled={isManualChecking}
                   className="bg-green-600 hover:bg-green-700"
                 >
-                  {isManualChecking
-                    ? "Cleaning up..."
-                    : "🧹 Cleanup & Update"}
+                  {isManualChecking ? "Cleaning up..." : "🧹 Cleanup & Update"}
                 </Button>
               )}
             </div>
@@ -820,17 +818,10 @@ export default function PaymentsPage() {
                               </div>
                             </div>
                           </div>
-                          <div
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              payment.status === "completed"
-                                ? "bg-green-100 text-green-800"
-                                : payment.status === "partially_paid"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-gray-100 text-gray-800"
-                            }`}
-                          >
-                            {payment.status}
-                          </div>
+                          <StatusBadge
+                            status={payment.status}
+                            variant="payment"
+                          />
                         </div>
                       );
                     })}
