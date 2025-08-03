@@ -16,8 +16,8 @@ interface DetailGridProps {
 export function DetailGrid({ sections, columns = 2 }: DetailGridProps) {
   const gridCols = {
     1: "grid-cols-1",
-    2: "grid-cols-1 md:grid-cols-2",
-    3: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
+    2: "grid-cols-1 lg:grid-cols-2",
+    3: "grid-cols-1 lg:grid-cols-2 xl:grid-cols-3",
   };
 
   return (
@@ -25,16 +25,21 @@ export function DetailGrid({ sections, columns = 2 }: DetailGridProps) {
       {sections.map((section, index) => (
         <div
           key={index}
-          className={section.items.length > 4 ? "md:col-span-2" : ""}
+          className={section.items.length > 4 ? "lg:col-span-2" : ""}
         >
-          <h4 className="font-medium text-gray-900 mb-3">{section.title}</h4>
-          <div className="space-y-2 text-sm">
+          <h4 className="font-semibold text-gray-900 mb-4 text-base">
+            {section.title}
+          </h4>
+          <div className="space-y-3">
             {section.items.map((item, itemIndex) => (
-              <div key={itemIndex} className="flex flex-col sm:flex-row">
-                <span className="text-gray-500 sm:w-1/3 flex-shrink-0">
+              <div
+                key={itemIndex}
+                className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-2"
+              >
+                <span className="text-gray-600 font-medium text-sm sm:w-1/3 flex-shrink-0">
                   {item.label}:
                 </span>
-                <span className="text-gray-900 sm:w-2/3 break-words">
+                <span className="text-gray-900 text-sm sm:w-2/3 break-words pl-1">
                   {item.value}
                 </span>
               </div>

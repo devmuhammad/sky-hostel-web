@@ -280,6 +280,7 @@ function StudentsTable() {
           isOpen={!!selectedStudent}
           onClose={() => setSelectedStudent(null)}
           title={`Student Details - ${selectedStudent.first_name} ${selectedStudent.last_name}`}
+          size="lg"
         >
           <DetailGrid sections={getStudentDetailSections(selectedStudent)} />
         </Modal>

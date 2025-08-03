@@ -40,20 +40,22 @@ export function Modal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className={sizeClasses[size]}
+        className={`${sizeClasses[size]} max-h-[90vh] sm:max-h-[85vh] overflow-y-auto flex flex-col`}
         showCloseButton={showCloseButton}
       >
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle className="text-lg sm:text-xl">{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
 
-        <div className="py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto py-4 min-h-0">{children}</div>
 
-        {footer && <DialogFooter>{footer}</DialogFooter>}
+        {footer && (
+          <DialogFooter className="flex-shrink-0">{footer}</DialogFooter>
+        )}
 
         {!footer && (
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0">
             <Button variant="outline" onClick={onClose}>
               Close
             </Button>
