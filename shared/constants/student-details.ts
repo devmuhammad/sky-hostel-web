@@ -1,4 +1,6 @@
-import { Student } from "@/shared/types/database";
+import { Database } from "@/shared/types/database";
+
+type Student = Database["public"]["Tables"]["students"]["Row"];
 
 export interface DetailSection {
   title: string;
