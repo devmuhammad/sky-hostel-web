@@ -10,7 +10,34 @@ export interface DetailSection {
   }>;
 }
 
-export const getStudentDetailSections = (student: Student): DetailSection[] => [
+export const getStudentDetailSections = (student: {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  matric_number: string;
+  date_of_birth?: string;
+  address?: string;
+  state_of_origin: string;
+  lga?: string;
+  marital_status?: string;
+  religion?: string;
+  faculty?: string;
+  level?: string;
+  course?: string;
+  block?: string;
+  room?: string;
+  bedspace_label?: string;
+  next_of_kin_name?: string;
+  next_of_kin_phone?: string;
+  next_of_kin_email?: string;
+  next_of_kin_relationship?: string;
+  passport_photo_url?: string | null;
+  payment_id: string;
+  created_at: string;
+  updated_at: string;
+}): DetailSection[] => [
   {
     title: "Personal Information",
     items: [
@@ -35,8 +62,8 @@ export const getStudentDetailSections = (student: Student): DetailSection[] => [
   {
     title: "Academic Information",
     items: [
-      { label: "Faculty", value: student.faculty },
-      { label: "Level", value: student.level },
+      { label: "Faculty", value: student.faculty || "Not provided" },
+      { label: "Level", value: student.level || "Not provided" },
       { label: "Course", value: student.course || "Not provided" },
     ],
   },
@@ -51,8 +78,8 @@ export const getStudentDetailSections = (student: Student): DetailSection[] => [
   {
     title: "Hostel Information",
     items: [
-      { label: "Block", value: student.block },
-      { label: "Room", value: student.room },
+      { label: "Block", value: student.block || "Not provided" },
+      { label: "Room", value: student.room || "Not provided" },
       {
         label: "Registration Date",
         value: new Date(student.created_at).toLocaleDateString(),
@@ -71,4 +98,4 @@ export const getStudentDetailSections = (student: Student): DetailSection[] => [
       },
     ],
   },
-]; 
+];

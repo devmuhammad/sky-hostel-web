@@ -50,6 +50,7 @@ export interface Room {
   name: string;
   block: string;
   total_beds: number;
+  bed_type: "4_bed" | "6_bed";
   available_beds: string[];
   created_at: string;
   updated_at: string;
