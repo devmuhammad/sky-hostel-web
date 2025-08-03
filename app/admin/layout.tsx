@@ -40,19 +40,19 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="h-screen flex bg-gray-50">
+    <div className="h-screen flex bg-gray-50 overflow-hidden">
       {/* Sidebar - Let it fetch its own admin user data */}
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile Header - Only visible on mobile */}
         <div className="lg:hidden">
           <MobileHeader />
         </div>
 
-        {/* Content area - proper spacing for mobile header and consistent layout */}
-        <div className="flex-1 pt-20 lg:pt-6 min-h-0">{children}</div>
+        {/* Content area - proper spacing for mobile header and scrollable content */}
+        <div className="flex-1 pt-20 overflow-y-auto">{children}</div>
       </div>
     </div>
   );
