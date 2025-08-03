@@ -655,22 +655,20 @@ function RoomsManagement() {
 
 export default function RoomsPage() {
   return (
-    <>
-      {/* Removed Header component */}
-      <div className="mb-4 lg:mb-6">
-        <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Rooms</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Manage hostel rooms and bed assignments.
-        </p>
-      </div>
-
-      <div className="p-4 lg:p-6">
-        <div className="mx-auto space-y-4 lg:space-y-6">
-          <Suspense fallback={<CardLoadingSkeleton cards={4} />}>
-            <RoomsManagement />
-          </Suspense>
+    <div className="p-4 lg:p-6">
+      <div className="mx-auto space-y-4 lg:space-y-6">
+        {/* Page Header */}
+        <div className="mb-4 lg:mb-6">
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Rooms</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Manage hostel rooms and bed assignments.
+          </p>
         </div>
+
+        <Suspense fallback={<CardLoadingSkeleton cards={4} />}>
+          <RoomsManagement />
+        </Suspense>
       </div>
-    </>
+    </div>
   );
 }
