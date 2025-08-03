@@ -10,7 +10,7 @@ import {
 
 async function getCurrentUserRole() {
   const supabase = await createServerSupabaseClient();
-  
+
   const {
     data: { user },
     error: userError,
@@ -135,7 +135,7 @@ async function AdminUsersList() {
 export default async function AdminUsersPage() {
   // Check admin access
   await requireAdminAccess();
-  
+
   // Get current user role
   const userRole = await getCurrentUserRole();
   const isSuperAdmin = userRole === "super_admin";

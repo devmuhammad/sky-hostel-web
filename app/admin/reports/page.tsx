@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 async function checkSuperAdminAccess() {
   const supabase = await createServerSupabaseClient();
-  
+
   const {
     data: { user },
     error: userError,
