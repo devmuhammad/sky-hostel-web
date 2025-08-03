@@ -4,7 +4,6 @@ import { ToastProvider } from "@/shared/components/ui/toast-provider";
 import QueryProvider from "@/shared/providers/QueryProvider";
 import Header from "@/shared/components/layout/Header";
 import DataInitializer from "@/shared/components/DataInitializer";
-import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,12 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <Script
-          src="https://remitademo.net/payment/v1/remita-pay-inline.bundle.js"
-          strategy="afterInteractive"
-        />
-      </head>
+      <head></head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
       >

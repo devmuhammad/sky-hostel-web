@@ -11,6 +11,28 @@ import {
 } from "@/shared/components/ui/loading-skeleton";
 import { createServerSupabaseClient } from "@/shared/config/auth";
 
+async function getCurrentUserRole() {
+  const supabase = await createServerSupabaseClient();
+  
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return null;
+  }
+
+  const { data: adminUser } = await supabase
+    .from("admin_users")
+    .select("role")
+    .eq("email", user.email)
+    .eq("is_active", true)
+    .single();
+
+  return adminUser?.role || null;
+}
+
 async function getDashboardStats() {
   const supabase = await createServerSupabaseClient();
 
@@ -64,35 +86,31 @@ async function getDashboardStats() {
 async function getRecentActivity() {
   const supabase = await createServerSupabaseClient();
 
-  // Get recent students (last 5)
   const { data: recentStudents } = await supabase
     .from("students")
-    .select("first_name, last_name, block, room, created_at")
+    .select("*")
     .order("created_at", { ascending: false })
     .limit(5);
 
-  // Get recent payments (last 5)
   const { data: recentPayments } = await supabase
     .from("payments")
-    .select("email, amount_paid, status, created_at")
+    .select("*")
     .order("created_at", { ascending: false })
     .limit(5);
 
-  const formattedStudents = (recentStudents || []).map((student) => ({
-    name: `${student.first_name} ${student.last_name}`,
-    block: student.block,
-    room: student.room,
-    created_at: student.created_at,
-  }));
-
   return {
-    recentStudents: formattedStudents,
+    recentStudents: recentStudents || [],
     recentPayments: recentPayments || [],
   };
 }
 
 async function DashboardStats() {
-  const stats = await getDashboardStats();
+  const [stats, userRole] = await Promise.all([
+    getDashboardStats(),
+    getCurrentUserRole(),
+  ]);
+
+  const isSuperAdmin = userRole === "super_admin";
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -116,10 +134,32 @@ async function DashboardStats() {
           </svg>
         }
       />
+      {isSuperAdmin && (
+        <StatsCard
+          title="Total Revenue"
+          value={`₦${stats.totalRevenue.toLocaleString()}`}
+          change={{ value: 8.2, type: "increase" }}
+          icon={
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+              />
+            </svg>
+          }
+        />
+      )}
       <StatsCard
-        title="Total Revenue"
-        value={`₦${stats.totalRevenue.toLocaleString()}`}
-        change={{ value: 8.2, type: "increase" }}
+        title="Total Payments"
+        value={stats.totalPayments}
+        change={{ value: 5.4, type: "increase" }}
         icon={
           <svg
             className="w-6 h-6"
@@ -131,7 +171,7 @@ async function DashboardStats() {
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+              d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2.5 2.5 0 014 0z"
             />
           </svg>
         }
@@ -152,26 +192,6 @@ async function DashboardStats() {
               strokeLinejoin="round"
               strokeWidth={2}
               d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-            />
-          </svg>
-        }
-      />
-      <StatsCard
-        title="Completed Payments"
-        value={stats.completedPayments}
-        change={{ value: 15.3, type: "increase" }}
-        icon={
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
         }

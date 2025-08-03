@@ -49,6 +49,7 @@ const navigation = [
         />
       </svg>
     ),
+    roles: ["admin", "super_admin"],
   },
   {
     name: "Students",
@@ -68,6 +69,7 @@ const navigation = [
         />
       </svg>
     ),
+    roles: ["admin", "super_admin"],
   },
   {
     name: "Payments",
@@ -87,6 +89,7 @@ const navigation = [
         />
       </svg>
     ),
+    roles: ["admin", "super_admin"],
   },
   {
     name: "Rooms",
@@ -106,6 +109,7 @@ const navigation = [
         />
       </svg>
     ),
+    roles: ["admin", "super_admin"],
   },
   {
     name: "Reports",
@@ -125,6 +129,7 @@ const navigation = [
         />
       </svg>
     ),
+    roles: ["super_admin"],
   },
   {
     name: "Admin Users",
@@ -144,6 +149,7 @@ const navigation = [
         />
       </svg>
     ),
+    roles: ["super_admin"],
   },
 ];
 
@@ -333,6 +339,7 @@ export default function Sidebar({
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           {navigation.map((item) => {
             const isActive = pathname === item.href;
+            const isVisible = item.roles.includes(adminUser?.role || "admin");
             return (
               <Link
                 key={item.name}
@@ -348,7 +355,8 @@ export default function Sidebar({
                   isActive
                     ? "bg-blue-50 text-blue-700 shadow-sm border border-blue-100"
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                  !isCollapsed || sidebarCollapsed ? "" : "justify-center"
+                  !isCollapsed || sidebarCollapsed ? "" : "justify-center",
+                  !isVisible && "hidden" // Hide items not visible to the user
                 )}
               >
                 <span

@@ -8,6 +8,28 @@ import {
   requireAdminAccess,
 } from "@/shared/config/auth";
 
+async function getCurrentUserRole() {
+  const supabase = await createServerSupabaseClient();
+  
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return null;
+  }
+
+  const { data: adminUser } = await supabase
+    .from("admin_users")
+    .select("role")
+    .eq("email", user.email)
+    .eq("is_active", true)
+    .single();
+
+  return adminUser?.role || null;
+}
+
 async function getAdminUsers() {
   const supabase = await createServerSupabaseClient();
 
@@ -113,6 +135,10 @@ async function AdminUsersList() {
 export default async function AdminUsersPage() {
   // Check admin access
   await requireAdminAccess();
+  
+  // Get current user role
+  const userRole = await getCurrentUserRole();
+  const isSuperAdmin = userRole === "super_admin";
 
   return (
     <div className="p-4 lg:p-6">
@@ -125,7 +151,7 @@ export default async function AdminUsersPage() {
               Manage system administrators
             </p>
           </div>
-          <CreateAdminButton />
+          {isSuperAdmin && <CreateAdminButton />}
         </div>
 
         <Suspense
