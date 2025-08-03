@@ -9,7 +9,10 @@ import {
   CardLoadingSkeleton,
   TableLoadingSkeleton,
 } from "@/shared/components/ui/loading-skeleton";
-import { getDashboardStats, getCurrentUserRole } from "@/shared/utils/dashboard-stats";
+import {
+  getDashboardStats,
+  getCurrentUserRole,
+} from "@/shared/utils/dashboard-stats";
 import { createServerSupabaseClient } from "@/shared/config/auth";
 import { Database } from "@/shared/types/database";
 
