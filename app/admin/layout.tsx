@@ -51,8 +51,8 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
           <MobileHeader />
         </div>
 
-        {/* Content area - removed fixed height and overflow constraints */}
-        <div className="flex-1 pt-16 lg:pt-6 min-h-0">{children}</div>
+        {/* Content area - proper spacing for mobile header and consistent layout */}
+        <div className="flex-1 pt-20 lg:pt-6 min-h-0">{children}</div>
       </div>
     </div>
   );
