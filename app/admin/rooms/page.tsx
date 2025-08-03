@@ -655,7 +655,7 @@ function RoomsManagement() {
 
 export default function RoomsPage() {
   return (
-    <div className="p-4 lg:p-6">
+    <div className="p-4 lg:p-6 pb-8 lg:pb-12">
       <div className="mx-auto space-y-4 lg:space-y-6">
         {/* Page Header */}
         <div className="mb-4 lg:mb-6">

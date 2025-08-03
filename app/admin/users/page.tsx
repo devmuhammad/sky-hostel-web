@@ -141,7 +141,7 @@ export default async function AdminUsersPage() {
   const isSuperAdmin = userRole === "super_admin";
 
   return (
-    <div className="p-4 lg:p-6">
+    <div className="p-4 lg:p-6 pb-8 lg:pb-12">
       <div className="mx-auto space-y-4 lg:space-y-6">
         {/* Action Bar */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

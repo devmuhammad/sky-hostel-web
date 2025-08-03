@@ -381,19 +381,21 @@ function StudentsTable() {
 
 export default function StudentsPage() {
   return (
-    <div className="p-2 sm:p-4 lg:p-6 mx-auto space-y-3 sm:space-y-4 lg:space-y-6 w-full max-w-full">
-      <div>
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
-          Students
-        </h1>
-        <p className="text-gray-600 mt-1 sm:mt-2 text-xs sm:text-sm lg:text-base">
-          Manage and view all registered students in the hostel.
-        </p>
-      </div>
+    <div className="p-4 lg:p-6 pb-8 lg:pb-12">
+      <div className="mx-auto space-y-4 lg:space-y-6">
+        <div>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
+            Students
+          </h1>
+          <p className="text-gray-600 mt-1 sm:mt-2 text-xs sm:text-sm lg:text-base">
+            Manage and view all registered students in the hostel.
+          </p>
+        </div>
 
-      <Suspense fallback={<TableLoadingSkeleton rows={8} columns={6} />}>
-        <StudentsTable />
-      </Suspense>
+        <Suspense fallback={<TableLoadingSkeleton rows={8} columns={6} />}>
+          <StudentsTable />
+        </Suspense>
+      </div>
     </div>
   );
 }

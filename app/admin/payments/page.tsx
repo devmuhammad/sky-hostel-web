@@ -489,7 +489,7 @@ export default function PaymentsPage() {
   }
 
   return (
-    <div className="p-4 lg:p-6">
+    <div className="p-4 lg:p-6 pb-8 lg:pb-12">
       <div className="mx-auto space-y-4 lg:space-y-6">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
@@ -509,7 +509,6 @@ export default function PaymentsPage() {
             <p className="text-sm text-gray-600 mb-4">
               Check and update payment status for a specific email address
             </p>
-
             <div className="flex flex-col sm:flex-row gap-4 items-end">
               <div className="flex-1">
                 <Label htmlFor="manual-email">Email Address</Label>
@@ -531,8 +530,7 @@ export default function PaymentsPage() {
               </Button>
             </div>
 
-            {/* Webhook Simulation Buttons */}
-            <div className="mt-4 pt-4 border-t border-gray-200">
+            {/* <div className="mt-4 pt-4 border-t border-gray-200">
               <p className="text-sm text-gray-600 mb-3">
                 Simulate webhook payments (for testing):
               </p>
@@ -560,14 +558,14 @@ export default function PaymentsPage() {
                     : "✅ Simulate Full Payment"}
                 </Button>
               </div>
-            </div>
+            </div> */}
           </div>
         </CardContainer>
 
         {/* Duplicate Payments Cleanup */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h2 className="text-xl font-semibold">All Payments</h2>
-          <Button
+          {/* <Button
             onClick={() => {
               const duplicates = findDuplicatePayments();
               setDuplicatePayments(duplicates);
@@ -576,7 +574,7 @@ export default function PaymentsPage() {
             className="bg-orange-600 hover:bg-orange-700 w-full sm:w-auto"
           >
             🧹 Cleanup Duplicates
-          </Button>
+          </Button> */}
         </div>
 
         <DataTable
