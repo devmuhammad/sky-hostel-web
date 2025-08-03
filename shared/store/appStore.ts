@@ -26,6 +26,8 @@ export interface Student {
   next_of_kin_phone?: string;
   next_of_kin_email?: string;
   next_of_kin_relationship?: string;
+  passport_photo_url?: string | null;
+  payment_id: string;
   created_at: string;
   updated_at: string;
 }
