@@ -118,7 +118,7 @@ export default async function AdminUsersPage() {
     <div className="p-4 lg:p-6">
       <div className="mx-auto space-y-4 lg:space-y-6">
         {/* Action Bar */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-40">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Admin Users</h2>
             <p className="text-sm text-gray-600">
@@ -150,4 +150,4 @@ export default async function AdminUsersPage() {
       </div>
     </div>
   );
-}
+} 
