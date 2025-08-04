@@ -220,7 +220,9 @@ export default function CheckPaymentPage() {
                   <div className="bg-gray-50 rounded-lg p-3">
                     <p className="text-sm text-gray-600">Amount</p>
                     <p className="font-semibold">
-                      ₦{result.payment.amount_paid?.toLocaleString()}
+                      ₦{result.payment.amount_paid?.toLocaleString()} of ₦
+                      {result.payment.amount_to_pay?.toLocaleString() ||
+                        "219,000"}
                     </p>
                   </div>
 

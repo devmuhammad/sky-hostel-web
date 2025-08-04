@@ -308,6 +308,14 @@ export async function getPaycashlessPaymentStatus(
       paymentsCount: payments.length,
     });
 
+    // If not fully paid, return error
+    if (!isFullyPaid && totalPaid > 0) {
+      return {
+        success: false,
+        error: `Payment incomplete. You have paid ₦${totalPaid.toLocaleString()} out of ₦${PAYMENT_CONFIG.amount.toLocaleString()}. Please complete your payment before registering.`,
+      };
+    }
+
     return {
       success: true,
       data: {
@@ -374,77 +382,12 @@ export async function verifyPaycashlessPayment(
     const paycashlessResult = await getPaycashlessPaymentStatus(email, phone);
 
     if (!paycashlessResult.success) {
-      // If Paycashless API fails, fall back to local database
-      console.log(
-        "Paycashless API failed, falling back to local data:",
-        paycashlessResult.error
-      );
-
-      // Get local payments as fallback
-      const { data: localPayments, error: dbError } = await supabaseAdmin
-        .from("payments")
-        .select("*")
-        .or(`email.eq.${email}${phone ? `,phone.eq.${phone}` : ""}`)
-        .order("created_at", { ascending: false });
-
-      if (dbError) {
-        throw new Error("Failed to fetch payment records");
-      }
-
-      if (!localPayments || localPayments.length === 0) {
-        return {
-          success: true,
-          data: {
-            totalPaid: 0,
-            remainingAmount: PAYMENT_CONFIG.amount,
-            isFullyPaid: false,
-            payment_id: undefined,
-            payments: [],
-          },
-        };
-      }
-
-      // Calculate totals from local payments
-      let totalPaid = 0;
-      let payment_id: string | undefined;
-      const completedPayments = localPayments
-        .filter(
-          (payment) =>
-            payment.status === "completed" ||
-            (payment.status === "pending" && payment.amount_paid > 0)
-        )
-        .map((payment) => {
-          const paymentAmount =
-            payment.amount_paid > 0
-              ? payment.amount_paid
-              : PAYMENT_CONFIG.amount;
-          totalPaid += paymentAmount;
-
-          if (!payment_id) {
-            payment_id = payment.id;
-          }
-
-          return {
-            id: payment.id,
-            reference: payment.invoice_id,
-            amount: paymentAmount,
-            status: payment.status,
-            paidAt: payment.paid_at,
-          };
-        });
-
-      const remainingAmount = Math.max(0, PAYMENT_CONFIG.amount - totalPaid);
-      const isFullyPaid = totalPaid >= PAYMENT_CONFIG.amount;
-
+      // No fallback - only use real-time Paycashless data
+      console.log("Paycashless API failed:", paycashlessResult.error);
       return {
-        success: true,
-        data: {
-          totalPaid,
-          remainingAmount,
-          isFullyPaid,
-          payment_id,
-          payments: completedPayments,
-        },
+        success: false,
+        error:
+          "Payment verification temporarily unavailable. Please try again later or contact support if the issue persists.",
       };
     }
 
@@ -458,6 +401,207 @@ export async function verifyPaycashlessPayment(
         error instanceof Error ? error.message : "Payment verification failed",
     };
   }
+}
+
+export async function getAllPaycashlessInvoices(params?: {
+  limit?: number;
+  cursor?: string;
+  status?: string[];
+  currency?: string[];
+  reference?: string;
+  acceptPartialPayments?: boolean | null;
+  number?: string;
+  createdAtGte?: number;
+  createdAtLte?: number;
+  createdAtLt?: number;
+  createdAtGt?: number;
+}): Promise<{
+  success: boolean;
+  data?: {
+    hasMore: boolean;
+    cursor: string | null;
+    invoices: Array<{
+      id: string;
+      reference: string;
+      number: string;
+      status: string;
+      currency: string;
+      amount: number;
+      totalPaid: number;
+      remainingAmount: number;
+      customer: {
+        email?: string;
+        phoneNumber?: string;
+        name?: string;
+      };
+      createdAt: string;
+      dueDate: string;
+      acceptPartialPayments: boolean;
+    }>;
+  };
+  error?: string;
+}> {
+  try {
+    if (!PAYCASHLESS_API_KEY || !PAYCASHLESS_API_SECRET) {
+      return {
+        success: false,
+        error:
+          "Paycashless API credentials are not configured. Please check your environment variables.",
+      };
+    }
+
+    console.log("Paycashless API Config:", {
+      apiUrl: PAYCASHLESS_API_URL,
+      apiKey: PAYCASHLESS_API_KEY?.substring(0, 10) + "...",
+      hasSecret: !!PAYCASHLESS_API_SECRET,
+    });
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    const requestPath = "/v1/invoices";
+
+    // Build query parameters
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.cursor) queryParams.append("cursor", params.cursor);
+    if (params?.status)
+      params.status.forEach((s) => queryParams.append("status", s));
+    if (params?.currency)
+      params.currency.forEach((c) => queryParams.append("currency", c));
+    if (params?.reference) queryParams.append("reference", params.reference);
+    if (params?.acceptPartialPayments !== undefined)
+      queryParams.append(
+        "acceptPartialPayments",
+        params.acceptPartialPayments?.toString() || "false"
+      );
+    if (params?.number) queryParams.append("number", params.number);
+    if (params?.createdAtGte)
+      queryParams.append("createdAt.gte", params.createdAtGte.toString());
+    if (params?.createdAtLte)
+      queryParams.append("createdAt.lte", params.createdAtLte.toString());
+    if (params?.createdAtLt)
+      queryParams.append("createdAt.lt", params.createdAtLt.toString());
+    if (params?.createdAtGt)
+      queryParams.append("createdAt.gt", params.createdAtGt.toString());
+
+    const queryString = queryParams.toString();
+    const fullPath = queryString
+      ? `${requestPath}?${queryString}`
+      : requestPath;
+
+    console.log("Request details:", {
+      fullPath,
+      timestamp,
+      queryString,
+    });
+
+    // Use the same process as POST: ${urlPath}${bodyHash}${timestamp}
+    // For GET: use base path without query params, empty object for bodyHash
+    const basePath = "/v1/invoices"; // Don't include search params
+    const signature = generateRequestSignature(basePath, {}, timestamp);
+
+    console.log("Using POST-style signature with base path and empty body");
+    console.log("Base path:", basePath);
+    console.log("Generated signature:", signature.substring(0, 20) + "...");
+
+    const response = await fetch(`${PAYCASHLESS_API_URL}${fullPath}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${PAYCASHLESS_API_KEY}`,
+        "Request-Signature": signature,
+        "Request-Timestamp": timestamp.toString(),
+      },
+    });
+
+    console.log("Response status:", response.status);
+    console.log(
+      "Response headers:",
+      Object.fromEntries(response.headers.entries())
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Paycashless API error response:", errorData);
+
+      if (response.status === 401) {
+        return {
+          success: false,
+          error:
+            "Paycashless API authentication failed. Please check your API key and secret.",
+        };
+      }
+
+      throw new Error(
+        `Paycashless API error: ${response.status} - ${errorData.message || response.statusText}`
+      );
+    }
+
+    const data = await response.json();
+    console.log(
+      "Paycashless API success, invoices count:",
+      data.data?.length || 0
+    );
+
+    return {
+      success: true,
+      data: {
+        hasMore: data.hasMore,
+        cursor: data.cursor,
+        invoices: data.data.map((invoice: any) => ({
+          id: invoice.id,
+          reference: invoice.reference,
+          number: invoice.number,
+          status: invoice.status,
+          currency: invoice.currency,
+          amount: (invoice.amountDue || invoice.amount || 0) / 100,
+          totalPaid: (invoice.amountPaid || invoice.totalPaid || 0) / 100,
+          remainingAmount:
+            (invoice.amountRemaining || invoice.remainingAmount || 0) / 100,
+          customer: {
+            email:
+              extractEmailFromReturnUrl(invoice.returnUrl) ||
+              invoice.customer?.email,
+            phoneNumber:
+              invoice.metadata?.phone || invoice.customer?.phoneNumber,
+            name: extractNameFromMetadata(invoice.metadata),
+          },
+          createdAt: invoice.createdAt,
+          dueDate: invoice.dueDate,
+          acceptPartialPayments: invoice.acceptPartialPayments,
+        })),
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching Paycashless invoices:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+// Helper function to extract email from returnUrl
+function extractEmailFromReturnUrl(returnUrl?: string): string | undefined {
+  if (!returnUrl) return undefined;
+
+  try {
+    const url = new URL(returnUrl);
+    const email = url.searchParams.get("email");
+    return email ? decodeURIComponent(email) : undefined;
+  } catch (error) {
+    console.error("Error parsing returnUrl:", error);
+    return undefined;
+  }
+}
+
+// Helper function to extract and format name from metadata
+function extractNameFromMetadata(metadata?: any): string | undefined {
+  if (!metadata) return undefined;
+
+  const firstName = metadata.firstName?.trim() || "";
+  const lastName = metadata.lastName?.trim() || "";
+
+  return firstName || lastName ? `${firstName} ${lastName}`.trim() : undefined;
 }
 
 export function validatePaycashlessWebhook(payload: any): boolean {

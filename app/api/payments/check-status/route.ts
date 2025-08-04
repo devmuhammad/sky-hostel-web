@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
         email,
         phone,
         amount_paid,
+        amount_to_pay,
         invoice_id,
         status,
         created_at,
@@ -59,6 +60,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check Paycashless for actual payment status
+    const paycashlessResult = await verifyPaycashlessPayment(
+      email || "",
+      phone
+    );
+
+    // If no local payments found, but we have Paycashless data, return that
+    if (
+      (!payments || payments.length === 0) &&
+      paycashlessResult.success &&
+      paycashlessResult.data
+    ) {
+      return NextResponse.json({
+        success: true,
+        payment: null, // No local payment record
+        paycashless: paycashlessResult.data,
+        message: "Payment found on Paycashless but not in local database",
+        hasPaycashlessOnly: true,
+      });
+    }
+
+    // If no local payments and no Paycashless data, return not found
     if (!payments || payments.length === 0) {
       return NextResponse.json(
         {
@@ -68,9 +91,6 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
-
-    // Check Paycashless for actual payment status
-    const paycashlessResult = await verifyPaycashlessPayment(email || "", phone);
 
     // Return the most recent payment with Paycashless data
     const latestPayment = payments[0];

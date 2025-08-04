@@ -139,7 +139,8 @@ async function handlePOST(request: NextRequest) {
         .insert({
           email: data.email,
           phone: data.phone,
-          amount_paid: amount,
+          amount_to_pay: amount,
+          amount_paid: 0, // Start with 0 paid
           invoice_id: invoice.reference,
           status: "pending",
         })

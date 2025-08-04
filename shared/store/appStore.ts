@@ -36,6 +36,7 @@ export interface Payment {
   id: string;
   email: string;
   phone: string;
+  amount_to_pay: number;
   amount_paid: number;
   invoice_id: string;
   status: "pending" | "completed" | "failed" | "partially_paid";

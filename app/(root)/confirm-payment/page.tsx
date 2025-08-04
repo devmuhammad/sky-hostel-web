@@ -143,7 +143,8 @@ export default function ConfirmPaymentPage() {
                 </p>
                 <p className="text-sm text-gray-600 mt-2">Amount:</p>
                 <p className="font-semibold">
-                  ₦{paymentDetails.amount_paid?.toLocaleString()}
+                  ₦{paymentDetails.amount_paid?.toLocaleString()} of ₦
+                  {paymentDetails.amount_to_pay?.toLocaleString() || "219,000"}
                 </p>
               </div>
             )}

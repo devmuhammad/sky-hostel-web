@@ -6,9 +6,10 @@ export interface Database {
           id: string;
           email: string;
           phone: string;
+          amount_to_pay: number;
           amount_paid: number;
           invoice_id: string;
-          status: "pending" | "completed" | "failed";
+          status: "pending" | "completed" | "failed" | "partially_paid";
           paid_at: string | null;
           created_at: string;
           updated_at: string;
@@ -17,9 +18,10 @@ export interface Database {
           id?: string;
           email: string;
           phone: string;
-          amount_paid: number;
+          amount_to_pay: number;
+          amount_paid?: number;
           invoice_id: string;
-          status?: "pending" | "completed" | "failed";
+          status?: "pending" | "completed" | "failed" | "partially_paid";
           paid_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -28,9 +30,10 @@ export interface Database {
           id?: string;
           email?: string;
           phone?: string;
+          amount_to_pay?: number;
           amount_paid?: number;
           invoice_id?: string;
-          status?: "pending" | "completed" | "failed";
+          status?: "pending" | "completed" | "failed" | "partially_paid";
           paid_at?: string | null;
           created_at?: string;
           updated_at?: string;

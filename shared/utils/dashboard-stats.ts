@@ -32,7 +32,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   // Get total revenue
   const { data: revenueData } = await supabase
     .from("payments")
-    .select("amount_paid")
+    .select("amount_paid, amount_to_pay")
     .eq("status", "completed");
 
   const totalRevenue =
@@ -80,4 +80,4 @@ export async function getCurrentUserRole() {
     .single();
 
   return adminUser?.role || null;
-} 
+}

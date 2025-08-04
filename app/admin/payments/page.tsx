@@ -40,6 +40,7 @@ interface ManualCheckResult {
   needsUpdate: boolean;
   updateMessage: string;
   cleanupAction: string;
+  hasPaycashlessOnly?: boolean;
 }
 
 export default function PaymentsPage() {
@@ -65,6 +66,44 @@ export default function PaymentsPage() {
   const [manualCheckResult, setManualCheckResult] =
     useState<ManualCheckResult | null>(null);
   const [showManualCheckModal, setShowManualCheckModal] = useState(false);
+
+  // Paycashless invoices debug states
+  const [paycashlessInvoices, setPaycashlessInvoices] = useState<any[]>([]);
+  const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
+
+  // Fetch Paycashless invoices for debugging
+  const fetchPaycashlessInvoices = async () => {
+    setIsLoadingInvoices(true);
+    try {
+      const response = await fetch("/api/payments/get-invoices?limit=50");
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        setPaycashlessInvoices(result.data.invoices || []);
+        toast.success(
+          `Loaded ${result.data.invoices?.length || 0} invoices from Paycashless`
+        );
+      } else {
+        const errorMessage =
+          result.message || "Failed to load Paycashless invoices";
+        toast.error(errorMessage);
+
+        // Show specific message for missing credentials
+        if (
+          errorMessage.includes("credentials") ||
+          errorMessage.includes("authentication")
+        ) {
+          toast.error(
+            "Paycashless API credentials not configured. Check your environment variables."
+          );
+        }
+      }
+    } catch (error) {
+      toast.error("Error loading Paycashless invoices");
+    } finally {
+      setIsLoadingInvoices(false);
+    }
+  };
 
   // Find duplicate payments by email
   const findDuplicatePayments = () => {
@@ -242,15 +281,33 @@ export default function PaymentsPage() {
             }
           : null;
 
+      // Check if payment exists only on Paycashless (not in local database)
+      const hasPaycashlessOnly = paycashlessResult.hasPaycashlessOnly || false;
+
       // Find local payments for this email
       const localPayments = payments.filter((p) => p.email === manualEmail);
 
-      // Determine cleanup action based on Paycashless data
+      // Check for partially_paid status in local payments
+      const hasLocalPartialPayment = localPayments.some(
+        (p) => p.status === "partially_paid"
+      );
+      const hasLocalCompletedPayment = localPayments.some(
+        (p) => p.status === "completed"
+      );
+      const hasLocalPendingPayment = localPayments.some(
+        (p) => p.status === "pending"
+      );
+
+      // Determine cleanup action based on Paycashless data and local status
       let needsUpdate = false;
       let updateMessage = "";
       let cleanupAction = "";
 
-      if (paycashlessData) {
+      if (hasPaycashlessOnly) {
+        needsUpdate = true;
+        updateMessage = `Payment found on Paycashless but not in local database. Total paid: ₦${paycashlessData?.totalPaid.toLocaleString() || "0"}`;
+        cleanupAction = "Create local payment record from Paycashless data";
+      } else if (paycashlessData) {
         if (paycashlessData.isFullyPaid) {
           needsUpdate = true;
           updateMessage = `Paycashless shows fully paid (₦${paycashlessData.totalPaid.toLocaleString()})`;
@@ -258,9 +315,9 @@ export default function PaymentsPage() {
             "Keep one invoice, mark as completed, delete duplicates";
         } else if (paycashlessData.hasPartialPayment) {
           needsUpdate = true;
-          updateMessage = `Paycashless shows partial payment (₦${paycashlessData.totalPaid.toLocaleString()})`;
+          updateMessage = `Paycashless shows partial payment (₦${paycashlessData.totalPaid.toLocaleString()}) from INVOICE_PAYMENT_SUCCEEDED event`;
           cleanupAction =
-            "Keep one invoice, mark as partially paid, delete duplicates";
+            "Keep one invoice, mark as partially_paid, delete duplicates";
         } else {
           updateMessage = "No payments found on Paycashless";
           cleanupAction = "Keep most recent invoice, delete others";
@@ -270,6 +327,17 @@ export default function PaymentsPage() {
         cleanupAction = "Keep most recent invoice, delete others";
       }
 
+      // Add local status information
+      if (hasLocalPartialPayment) {
+        updateMessage += " | Local: Has partially_paid status";
+      }
+      if (hasLocalCompletedPayment) {
+        updateMessage += " | Local: Has completed payment";
+      }
+      if (hasLocalPendingPayment) {
+        updateMessage += " | Local: Has pending payments";
+      }
+
       setManualCheckResult({
         email: manualEmail,
         paycashlessData,
@@ -277,6 +345,7 @@ export default function PaymentsPage() {
         needsUpdate,
         updateMessage,
         cleanupAction,
+        hasPaycashlessOnly,
       });
 
       setShowManualCheckModal(true);
@@ -331,6 +400,7 @@ export default function PaymentsPage() {
           updateData: {
             status: newStatus,
             amount_paid: newAmountPaid,
+            amount_to_pay: PAYMENT_CONFIG.amount,
             paid_at:
               newStatus === "completed" ? new Date().toISOString() : null,
           },
@@ -390,7 +460,8 @@ export default function PaymentsPage() {
       if (action === "simulate_partial_payment") {
         const partialAmount = Math.min(
           50000,
-          PAYMENT_CONFIG.amount - (payment.amount_paid || 0)
+          (payment.amount_to_pay || PAYMENT_CONFIG.amount) -
+            (payment.amount_paid || 0)
         );
         if (partialAmount <= 0) {
           toast.error("Payment is already fully paid");
@@ -427,6 +498,7 @@ export default function PaymentsPage() {
             needsUpdate: false,
             updateMessage: result.message || "Webhook simulation completed",
             cleanupAction: "Webhook simulation completed",
+            hasPaycashlessOnly: false, // Reset this flag for webhook simulation
           });
           setShowManualCheckModal(true);
         }
@@ -458,7 +530,14 @@ export default function PaymentsPage() {
       key: "amount_paid",
       header: "Amount Paid",
       render: (payment: Payment) => (
-        <div>₦{payment.amount_paid?.toLocaleString() || "0"}</div>
+        <div>
+          <div className="font-medium">
+            ₦{payment.amount_paid?.toLocaleString() || "0"}
+          </div>
+          <div className="text-xs text-gray-500">
+            of ₦{payment.amount_to_pay?.toLocaleString() || "219,000"}
+          </div>
+        </div>
       ),
     },
     {
@@ -507,7 +586,9 @@ export default function PaymentsPage() {
               Manual Payment Status Checker
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Check and update payment status for a specific email address
+              Check and update payment status for a specific email address. This
+              tool helps verify Paycashless payments including partial payments
+              from INVOICE_PAYMENT_SUCCEEDED events.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 items-end">
               <div className="flex-1">
@@ -561,6 +642,87 @@ export default function PaymentsPage() {
             </div> */}
           </div>
         </CardContainer>
+
+        {/* Paycashless Invoices Debug - Commented out for now */}
+        {/* <CardContainer>
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">
+                Paycashless Invoices Debug
+              </h3>
+              <Button
+                onClick={() => fetchPaycashlessInvoices()}
+                disabled={isLoadingInvoices}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                {isLoadingInvoices ? "Loading..." : "🔄 Refresh Invoices"}
+              </Button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              View all Paycashless invoices to debug payment issues. This helps
+              identify payments that exist on Paycashless but not in the local
+              database.
+            </p>
+
+            {paycashlessInvoices.length > 0 && (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {paycashlessInvoices.map((invoice) => (
+                  <div
+                    key={invoice.id}
+                    className="p-3 bg-gray-50 rounded-lg border"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">
+                          {invoice.customer?.name || "No Name"} -{" "}
+                          {invoice.customer?.email || "No Email"}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Phone: {invoice.customer?.phoneNumber || "No Phone"}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Reference: {invoice.reference} | Number:{" "}
+                          {invoice.number}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">
+                          ₦{invoice.amount.toLocaleString()}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Paid: ₦{invoice.totalPaid.toLocaleString()}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Remaining: ₦{invoice.remainingAmount.toLocaleString()}
+                        </p>
+                        <span
+                          className={`text-xs px-2 py-1 rounded ${
+                            invoice.status === "paid"
+                              ? "bg-green-100 text-green-800"
+                              : invoice.status === "partially_paid"
+                                ? "bg-orange-100 text-orange-800"
+                                : invoice.status === "open"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {invoice.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {paycashlessInvoices.length === 0 && !isLoadingInvoices && (
+              <p className="text-gray-500 text-center py-4">
+                No invoices found. Click &quot;Refresh Invoices&quot; to load
+                Paycashless data.
+              </p>
+            )}
+          </div>
+        </CardContainer> */}
 
         {/* Duplicate Payments Cleanup */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -632,14 +794,111 @@ export default function PaymentsPage() {
                 this email
               </p>
               {manualCheckResult.localPayments.length > 0 && (
-                <div className="text-sm">
-                  <p>
-                    <strong>Action Required:</strong>{" "}
-                    {manualCheckResult.cleanupAction}
-                  </p>
+                <div className="text-sm space-y-2">
+                  {manualCheckResult.localPayments.map((payment, index) => (
+                    <div
+                      key={payment.id}
+                      className="p-2 bg-white rounded border"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p>
+                            <strong>Invoice:</strong> {payment.invoice_id}
+                          </p>
+                          <p>
+                            <strong>Status:</strong>
+                            <span
+                              className={`ml-1 px-2 py-1 rounded text-xs ${
+                                payment.status === "completed"
+                                  ? "bg-green-100 text-green-800"
+                                  : payment.status === "partially_paid"
+                                    ? "bg-orange-100 text-orange-800"
+                                    : payment.status === "pending"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {payment.status}
+                            </span>
+                          </p>
+                          <p>
+                            <strong>Amount:</strong> ₦
+                            {payment.amount_paid?.toLocaleString() || "0"}
+                          </p>
+                          <p>
+                            <strong>Date:</strong>{" "}
+                            {new Date(payment.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {payment.paid_at && (
+                            <p>
+                              Paid:{" "}
+                              {new Date(payment.paid_at).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
+
+            {manualCheckResult.paycashlessData && (
+              <div className="p-4 bg-green-50 rounded-lg">
+                <h4 className="font-medium mb-2">Paycashless Payment Data</h4>
+                <div className="space-y-2 text-sm">
+                  <p>
+                    <strong>Status:</strong>{" "}
+                    <span
+                      className={`px-2 py-1 rounded text-xs ${
+                        manualCheckResult.paycashlessData.isFullyPaid
+                          ? "bg-green-100 text-green-800"
+                          : manualCheckResult.paycashlessData.hasPartialPayment
+                            ? "bg-orange-100 text-orange-800"
+                            : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {manualCheckResult.paycashlessData.status}
+                    </span>
+                  </p>
+                  <p>
+                    <strong>Total Paid:</strong> ₦
+                    {manualCheckResult.paycashlessData.totalPaid.toLocaleString()}
+                  </p>
+                  <p>
+                    <strong>Remaining Amount:</strong> ₦
+                    {manualCheckResult.paycashlessData.remainingAmount.toLocaleString()}
+                  </p>
+                  <p>
+                    <strong>Invoice ID:</strong>{" "}
+                    {manualCheckResult.paycashlessData.invoiceId}
+                  </p>
+                  {manualCheckResult.paycashlessData.hasPartialPayment && (
+                    <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                      <p className="text-orange-800 text-xs">
+                        <strong>⚠️ Partial Payment Detected:</strong> This
+                        indicates an INVOICE_PAYMENT_SUCCEEDED event where the
+                        customer made a partial payment. The payment should be
+                        marked as &quot;partially_paid&quot; in the local
+                        database.
+                      </p>
+                    </div>
+                  )}
+                  {manualCheckResult.hasPaycashlessOnly && (
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                      <p className="text-blue-800 text-xs">
+                        <strong>ℹ️ Paycashless Only:</strong> This payment
+                        exists on Paycashless but not in the local database. You
+                        may want to create a local payment record to sync the
+                        data.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {manualCheckResult.needsUpdate && (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">

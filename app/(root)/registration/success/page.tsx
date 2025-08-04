@@ -24,6 +24,7 @@ interface StudentData {
     price_per_year?: number;
   };
   amount_paid?: number;
+  amount_to_pay?: number;
   payment_status?: string;
   registration_date?: string;
   check_in_date?: string;
@@ -322,7 +323,8 @@ export default function RegistrationSuccess() {
                   Amount Paid
                 </label>
                 <p className="mt-1 text-sm text-gray-900">
-                  ₦{studentData.amount_paid?.toLocaleString() || "0"}
+                  ₦{studentData.amount_paid?.toLocaleString() || "0"} of ₦
+                  {studentData.amount_to_pay?.toLocaleString() || "219,000"}
                 </p>
               </div>
               <div>

@@ -218,7 +218,8 @@ async function RecentActivity() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">
-                    ₦{payment.amount_paid?.toLocaleString()}
+                    ₦{payment.amount_paid?.toLocaleString()} of ₦
+                    {payment.amount_to_pay?.toLocaleString() || "219,000"}
                   </p>
                   <StatusBadge status={payment.status} />
                 </div>
@@ -276,7 +277,9 @@ export default function AdminDashboard() {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900">View Students</p>
+                <p className="text-sm font-medium text-gray-900">
+                  View Students
+                </p>
                 <p className="text-xs text-gray-500">Manage student records</p>
               </div>
             </Link>
@@ -301,7 +304,9 @@ export default function AdminDashboard() {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900">View Payments</p>
+                <p className="text-sm font-medium text-gray-900">
+                  View Payments
+                </p>
                 <p className="text-xs text-gray-500">Track payment status</p>
               </div>
             </Link>

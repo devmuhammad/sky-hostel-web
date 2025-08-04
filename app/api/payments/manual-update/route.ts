@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
       const newPayment = {
         email,
         phone: "", // We don't have phone from Paycashless data
+        amount_to_pay: PAYMENT_CONFIG.amount, // Set the required amount
         amount_paid: paycashlessData.totalPaid,
         invoice_id: paycashlessData.invoiceId,
         status: paycashlessData.isFullyPaid ? "completed" : "partially_paid",

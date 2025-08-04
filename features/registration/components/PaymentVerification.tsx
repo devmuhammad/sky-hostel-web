@@ -104,25 +104,40 @@ export default function PaymentVerification({
     toast.dismiss(loadingToastId);
 
     if (result.success) {
-      toast.success("Payment verified successfully!", {
-        description: "You can now proceed with your registration",
-      });
+      // Check if payment is fully paid
+      if (result.data?.isFullyPaid) {
+        toast.success("Payment verified successfully!", {
+          description: "You can now proceed with your registration",
+        });
 
-      // Debug: Log what we're passing
-      const verifiedData = {
-        ...result.data,
-        email: preFilledData?.email || data.email || "",
-        phone: preFilledData?.phone || data.phone || "",
-        firstName: preFilledData?.firstName || "",
-        lastName: preFilledData?.lastName || "",
-        payment_id: result.data?.payment_id,
-      };
-      console.log("PaymentVerification - preFilledData:", preFilledData);
-      console.log("PaymentVerification - form data:", data);
-      console.log("PaymentVerification - verifiedData:", verifiedData);
+        // Debug: Log what we're passing
+        const verifiedData = {
+          ...result.data,
+          email: preFilledData?.email || data.email || "",
+          phone: preFilledData?.phone || data.phone || "",
+          firstName: preFilledData?.firstName || "",
+          lastName: preFilledData?.lastName || "",
+          payment_id: result.data?.payment_id,
+        };
+        console.log("PaymentVerification - preFilledData:", preFilledData);
+        console.log("PaymentVerification - form data:", data);
+        console.log("PaymentVerification - verifiedData:", verifiedData);
 
-      // Pass along all the pre-filled data
-      onVerified(verifiedData);
+        // Pass along all the pre-filled data
+        onVerified(verifiedData);
+      } else {
+        // Payment is not fully paid
+        toast.error("Payment incomplete", {
+          description: `You have paid ₦${result.data?.totalPaid?.toLocaleString() || 0} out of ₦${PAYMENT_CONFIG.amount.toLocaleString()}. Please complete your payment before registering.`,
+        });
+        
+        setPartialPaymentInfo({
+          totalPaid: result.data?.totalPaid || 0,
+          remainingAmount: result.data?.remainingAmount || PAYMENT_CONFIG.amount,
+          isFullyPaid: false,
+          payments: result.data?.payments || [],
+        });
+      }
     } else if (
       result.error?.message &&
       result.error.message.includes("Payment incomplete")

@@ -82,15 +82,18 @@ async function handlePaymentSucceeded(webhookData: any) {
   // Update payment with partial payment amount
   const currentAmountPaid = existingPayment.amount_paid || 0;
   const newAmountPaid = currentAmountPaid + paymentAmount;
+  const totalAmount = existingPayment.amount_to_pay || PAYMENT_CONFIG.amount;
 
   // Determine status based on total amount
-  const totalAmount = PAYMENT_CONFIG.amount; // This is the original invoice amount
   let newStatus = "pending";
 
   if (newAmountPaid >= totalAmount) {
     newStatus = "completed";
   } else if (newAmountPaid > 0) {
     newStatus = "partially_paid";
+    console.log(
+      `Partial payment received: ₦${newAmountPaid} out of ₦${totalAmount}`
+    );
   }
 
   const updateData = {

@@ -23,7 +23,8 @@ CREATE TABLE payments (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   email VARCHAR(255) NOT NULL,
   phone VARCHAR(20) NOT NULL,
-  amount_paid DECIMAL(10,2) NOT NULL,
+  amount_to_pay DECIMAL(10,2) NOT NULL,  -- Total amount required for registration
+  amount_paid DECIMAL(10,2) DEFAULT 0,   -- Actual amount paid so far
   invoice_id VARCHAR(255) UNIQUE NOT NULL,
   status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'partially_paid')),
   paid_at TIMESTAMP,

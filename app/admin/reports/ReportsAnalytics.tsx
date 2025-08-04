@@ -197,7 +197,8 @@ export default function ReportsAnalytics() {
       });
     } else {
       filename = `payments_${dateRange.from}_to_${dateRange.to}.csv`;
-      csvContent = "Email,Phone,Amount,Status,Invoice ID,Date\n";
+      csvContent =
+        "Email,Phone,Amount Paid,Amount To Pay,Status,Invoice ID,Date\n";
 
       const filteredPayments = (paymentsData as any[]).filter(
         (payment: any) =>
@@ -206,7 +207,7 @@ export default function ReportsAnalytics() {
       );
 
       filteredPayments.forEach((payment: any) => {
-        csvContent += `"${payment.email}","${payment.phone}","${payment.amount_paid}","${payment.status}","${payment.invoice_id}","${payment.created_at}"\n`;
+        csvContent += `"${payment.email}","${payment.phone}","${payment.amount_paid}","${payment.amount_to_pay}","${payment.status}","${payment.invoice_id}","${payment.created_at}"\n`;
       });
     }
 
@@ -479,4 +480,4 @@ export default function ReportsAnalytics() {
       </CardContainer>
     </div>
   );
-} 
+}

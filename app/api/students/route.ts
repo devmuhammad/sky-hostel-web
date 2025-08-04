@@ -324,6 +324,7 @@ async function handleGET(request: NextRequest) {
         created_at,
         payments(
           amount_paid,
+          amount_to_pay,
           status,
           paid_at
         )
@@ -395,6 +396,7 @@ async function handleGET(request: NextRequest) {
         bedspace: student.bedspace_label,
       },
       amount_paid: finalPayment?.amount_paid || 0,
+      amount_to_pay: finalPayment?.amount_to_pay || 219000,
       payment_status: finalPayment?.status || "pending",
       registration_date: student.created_at,
       passport_photo_url: student.passport_photo_url,
