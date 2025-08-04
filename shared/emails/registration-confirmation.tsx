@@ -126,7 +126,9 @@ export const RegistrationConfirmationEmail = ({
                   <Text style={label}>Amount Paid:</Text>
                 </Column>
                 <Column style={detailValue}>
-                  <Text style={value}>{formattedAmountPaid} of {formattedAmountToPay}</Text>
+                  <Text style={value}>
+                    {formattedAmountPaid} of {formattedAmountToPay}
+                  </Text>
                 </Column>
               </Row>
             </Section>

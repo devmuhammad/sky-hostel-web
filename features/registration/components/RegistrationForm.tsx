@@ -165,6 +165,7 @@ export default function RegistrationForm({
             bedspace: roomSelection.bedspace,
             block: roomSelection.block,
             amountPaid: paymentData?.totalPaid || 0,
+            amountToPay: 219000, // Fixed amount for hostel fee
             registrationDate: new Date().toISOString(),
             passportPhotoUrl: passportPhotoUrl,
           };
