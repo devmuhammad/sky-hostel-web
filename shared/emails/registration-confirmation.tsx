@@ -25,6 +25,7 @@ interface RegistrationConfirmationEmailProps {
   bedspace: string;
   block: string;
   amountPaid: number;
+  amountToPay: number;
   registrationDate: string;
   checkInDate?: string;
   passportPhotoUrl?: string;
@@ -43,6 +44,7 @@ export const RegistrationConfirmationEmail = ({
   bedspace,
   block,
   amountPaid,
+  amountToPay,
   registrationDate,
   checkInDate,
 }: RegistrationConfirmationEmailProps) => {
@@ -52,10 +54,15 @@ export const RegistrationConfirmationEmail = ({
     day: "numeric",
   });
 
-  const formattedAmount = new Intl.NumberFormat("en-NG", {
+  const formattedAmountPaid = new Intl.NumberFormat("en-NG", {
     style: "currency",
     currency: "NGN",
   }).format(amountPaid);
+
+  const formattedAmountToPay = new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+  }).format(amountToPay);
 
   return (
     <Html>
@@ -119,7 +126,7 @@ export const RegistrationConfirmationEmail = ({
                   <Text style={label}>Amount Paid:</Text>
                 </Column>
                 <Column style={detailValue}>
-                  <Text style={value}>{formattedAmount}</Text>
+                  <Text style={value}>{formattedAmountPaid} of {formattedAmountToPay}</Text>
                 </Column>
               </Row>
             </Section>
