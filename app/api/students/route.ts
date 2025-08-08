@@ -370,7 +370,7 @@ async function handleGET(request: NextRequest) {
     if (!payment && student.payment_id) {
       const { data: directPayment, error: paymentError } = await supabaseAdmin
         .from("payments")
-        .select("amount_paid, status, paid_at")
+        .select("amount_paid, amount_to_pay, status, paid_at")
         .eq("id", student.payment_id)
         .single();
 
