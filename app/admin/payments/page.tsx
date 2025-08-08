@@ -52,7 +52,6 @@ export default function PaymentsPage() {
   const [selectedPaymentsToDelete, setSelectedPaymentsToDelete] = useState<
     string[]
   >([]);
-  const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [isCheckingPaycashless, setIsCheckingPaycashless] = useState(false);
   const [paycashlessData, setPaycashlessData] = useState<
     Record<string, PaycashlessPaymentInfo>
@@ -66,6 +65,9 @@ export default function PaymentsPage() {
   const [manualCheckResult, setManualCheckResult] =
     useState<ManualCheckResult | null>(null);
   const [showManualCheckModal, setShowManualCheckModal] = useState(false);
+
+  // Cleanup states
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
 
   // Paycashless invoices debug states
   const [paycashlessInvoices, setPaycashlessInvoices] = useState<any[]>([]);
@@ -513,6 +515,98 @@ export default function PaymentsPage() {
     }
   };
 
+  const handleCleanupPayment = async (email: string) => {
+    if (!email.trim()) {
+      toast.error("Please enter an email address");
+      return;
+    }
+
+    setIsCleaningUp(true);
+    try {
+      const response = await fetch("/api/payments/cleanup-duplicates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          adminKey: "admin123",
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success("Payment cleanup completed", {
+          description: `Updated ${result.data.payments_found} payment(s) for ${email}`,
+        });
+
+        // Refresh the payments data
+        await refetch();
+      } else {
+        toast.error("Cleanup failed", {
+          description: result.message || "An error occurred during cleanup",
+        });
+      }
+    } catch (error) {
+      console.error("Cleanup error:", error);
+      toast.error("Cleanup failed", {
+        description: "An unexpected error occurred",
+      });
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
+
+  const handleSyncPaycashless = async (email: string) => {
+    if (!email.trim()) {
+      toast.error("Please enter an email address");
+      return;
+    }
+
+    setIsCleaningUp(true);
+    try {
+      const response = await fetch("/api/payments/sync-paycashless", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          adminKey: "admin123",
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        if (result.data.oldStatus !== result.data.newStatus) {
+          toast.success("Payment status synced!", {
+            description: `Updated from ${result.data.oldStatus} to ${result.data.newStatus}`,
+          });
+        } else {
+          toast.success("Payment status checked", {
+            description: "Status is already correct",
+          });
+        }
+
+        // Refresh the payments data
+        await refetch();
+      } else {
+        toast.error("Sync failed", {
+          description: result.message || "An error occurred during sync",
+        });
+      }
+    } catch (error) {
+      console.error("Sync error:", error);
+      toast.error("Sync failed", {
+        description: "An unexpected error occurred",
+      });
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
+
   const columns = [
     {
       key: "email",
@@ -932,6 +1026,13 @@ export default function PaymentsPage() {
                   {isManualChecking ? "Cleaning up..." : "🧹 Cleanup & Update"}
                 </Button>
               )}
+              <Button
+                onClick={() => handleSyncPaycashless(manualCheckResult.email)}
+                disabled={isCleaningUp}
+                className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
+              >
+                {isCleaningUp ? "Syncing..." : "🔄 Sync with Paycashless"}
+              </Button>
             </div>
           </div>
         )}

@@ -242,17 +242,45 @@ export async function getPaycashlessPaymentStatus(
     // Filter for invoices related to this email
     const relevantInvoices = invoices.filter((invoice: any) => {
       // Check various fields where email might be stored
+      const metadataEmail = invoice.metadata?.email;
+      const customerEmail = invoice.customer?.email;
+      const returnUrlEmail = extractEmailFromReturnUrl(invoice.returnUrl);
+
+      // Debug log for email matching
+      console.log(`Checking invoice ${invoice.reference}:`, {
+        metadataEmail,
+        customerEmail,
+        returnUrlEmail,
+        searchEmail: email,
+        matches:
+          metadataEmail === email ||
+          customerEmail === email ||
+          returnUrlEmail === email,
+      });
+
       return (
-        invoice.metadata?.email === email ||
-        invoice.customer?.email === email ||
-        invoice.reference?.includes(email.split("@")[0]) ||
-        invoice.customerId?.includes(email.split("@")[0])
+        metadataEmail === email ||
+        customerEmail === email ||
+        returnUrlEmail === email
       );
     });
 
     console.log(
       `Found ${relevantInvoices.length} relevant invoices for ${email}`
     );
+
+    // Debug: Log each invoice status
+    relevantInvoices.forEach((invoice: any, index: number) => {
+      console.log(`Invoice ${index + 1}:`, {
+        id: invoice.id,
+        reference: invoice.reference,
+        status: invoice.status,
+        amountPaid: invoice.amountPaid,
+        amountDue: invoice.amountDue,
+        isActuallyPaid:
+          invoice.status === "paid" || invoice.status === "completed",
+      });
+    });
 
     if (relevantInvoices.length === 0) {
       return {
@@ -279,7 +307,14 @@ export async function getPaycashlessPaymentStatus(
     }> = [];
 
     relevantInvoices.forEach((invoice: any) => {
-      const amountPaid = invoice.amountPaid || 0;
+      // Only count as paid if the invoice status indicates actual payment
+      // Check if the invoice is actually paid, not just created
+      const isActuallyPaid =
+        invoice.status === "paid" ||
+        invoice.status === "completed" ||
+        invoice.status === "succeeded" ||
+        (invoice.amountPaid > 0 && invoice.amountPaid >= invoice.amountDue);
+      const amountPaid = isActuallyPaid ? invoice.amountPaid || 0 : 0;
       totalPaid += amountPaid;
 
       if (amountPaid > 0) {
