@@ -109,7 +109,9 @@ export function sanitizeNumber(input: string | number): number {
 /**
  * Sanitize object by applying appropriate sanitization to each field
  */
-export function sanitizeStudentData(data: any): any {
+export function sanitizeStudentData(
+  data: Record<string, unknown>
+): Record<string, unknown> {
   if (!data || typeof data !== "object") {
     throw new Error("Data must be an object");
   }
@@ -183,7 +185,9 @@ export function sanitizeStudentData(data: any): any {
 /**
  * Sanitize payment data
  */
-export function sanitizePaymentData(data: any): any {
+export function sanitizePaymentData(
+  data: Record<string, unknown>
+): Record<string, unknown> {
   if (!data || typeof data !== "object") {
     throw new Error("Payment data must be an object");
   }
@@ -206,7 +210,9 @@ export function sanitizePaymentData(data: any): any {
 /**
  * Generic object sanitizer - recursively sanitizes string values
  */
-export function sanitizeObject(obj: any): any {
+export function sanitizeObject(
+  obj: Record<string, unknown>
+): Record<string, unknown> {
   if (obj === null || obj === undefined) {
     return obj;
   }
@@ -224,7 +230,7 @@ export function sanitizeObject(obj: any): any {
   }
 
   if (typeof obj === "object") {
-    const sanitized: any = {};
+    const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       sanitized[key] = sanitizeObject(value);
     }

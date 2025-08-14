@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    console.log("Email API - Received request body:", body);
+    // Email API - Request received
 
     const {
       studentName,
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     for (const field of requiredFields) {
       if (!body[field]) {
-        console.log(`Email API - Missing required field: ${field}`);
+        // Email API - Missing required field
         return NextResponse.json(
           { success: false, error: `Missing required field: ${field}` },
           { status: 400 }
@@ -55,9 +55,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log("Email API - All required fields present");
-    console.log(
-      "Email API - RESEND_API_KEY present:",
+    // Email API - All required fields present
       !!process.env.RESEND_API_KEY
     );
 
@@ -88,14 +86,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      console.log("Email API - Resend error:", error);
+      // Email API - Resend error occurred
       return NextResponse.json(
         { success: false, error: "Failed to send confirmation email" },
         { status: 500 }
       );
     }
 
-    console.log("Email API - Email sent successfully:", data?.id);
+    // Email API - Email sent successfully
 
     return NextResponse.json({
       success: true,
@@ -105,7 +103,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.log("Email API - Exception:", error);
+    // Email API - Exception occurred
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 }

@@ -32,11 +32,11 @@ export async function POST(request: NextRequest) {
 
     // Find invoices for this email
     const relevantInvoices = paycashlessResult.data.invoices.filter(
-      (invoice: any) => {
+              (invoice: Record<string, unknown>) => {
         const metadataEmail = invoice.customer?.email;
         const returnUrlEmail = extractEmailFromReturnUrl(invoice.returnUrl);
 
-        console.log(`Checking invoice ${invoice.reference}:`, {
+        // Checking invoice
           metadataEmail,
           returnUrlEmail,
           searchEmail: email,
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    console.log(`Found ${relevantInvoices.length} invoices for ${email}`);
+    // Found relevant invoices
 
     return NextResponse.json({
       success: true,
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
         email,
         totalInvoices: paycashlessResult.data.invoices.length,
         relevantInvoices: relevantInvoices.length,
-        invoices: relevantInvoices.map((inv: any) => ({
+        invoices: relevantInvoices.map((inv: Record<string, unknown>) => ({
           reference: inv.reference,
           status: inv.status,
           totalPaid: inv.totalPaid,

@@ -41,11 +41,11 @@ export async function POST(request: NextRequest) {
 
     // Find invoices for this email
     const relevantInvoices = paycashlessResult.data.invoices.filter(
-      (invoice: any) => {
+              (invoice: Record<string, unknown>) => {
         const metadataEmail = invoice.customer?.email;
         const returnUrlEmail = extractEmailFromReturnUrl(invoice.returnUrl);
 
-        console.log(`Checking invoice ${invoice.reference}:`, {
+        // Checking invoice
           metadataEmail,
           returnUrlEmail,
           searchEmail: email,
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    console.log(`Found ${relevantInvoices.length} invoices for ${email}`);
+    // Found relevant invoices
 
     if (relevantInvoices.length === 0) {
       return NextResponse.json(
@@ -91,13 +91,13 @@ export async function POST(request: NextRequest) {
 
     // Check if any invoice is actually paid
     const paidInvoices = relevantInvoices.filter(
-      (invoice: any) =>
+              (invoice: Record<string, unknown>) =>
         invoice.status === "paid" ||
         invoice.status === "completed" ||
         (invoice.totalPaid > 0 && invoice.totalPaid >= invoice.amount)
     );
 
-    console.log(`Found ${paidInvoices.length} paid invoices for ${email}`);
+    // Found paid invoices
 
     if (paidInvoices.length === 0) {
       return NextResponse.json({
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
           email,
           localStatus: localPayment.status,
           localAmountPaid: localPayment.amount_paid,
-          paycashlessInvoices: relevantInvoices.map((inv: any) => ({
+          paycashlessInvoices: relevantInvoices.map((inv: Record<string, unknown>) => ({
             reference: inv.reference,
             status: inv.status,
             totalPaid: inv.totalPaid,
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
 
     // Update local payment status based on Paycashless data
     const totalPaid = paidInvoices.reduce(
-      (sum: number, invoice: any) => sum + invoice.totalPaid,
+              (sum: number, invoice: Record<string, unknown>) => sum + (invoice.totalPaid as number),
       0
     );
 
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
         new_status: newStatus,
         old_amount_paid: localPayment.amount_paid,
         new_amount_paid: totalPaid,
-        paycashless_invoices: paidInvoices.map((inv: any) => ({
+        paycashless_invoices: paidInvoices.map((inv: Record<string, unknown>) => ({
           reference: inv.reference,
           status: inv.status,
           totalPaid: inv.totalPaid,
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
         newStatus,
         oldAmountPaid: localPayment.amount_paid,
         newAmountPaid: totalPaid,
-        paycashlessInvoices: paidInvoices.map((inv: any) => ({
+        paycashlessInvoices: paidInvoices.map((inv: Record<string, unknown>) => ({
           reference: inv.reference,
           status: inv.status,
           totalPaid: inv.totalPaid,

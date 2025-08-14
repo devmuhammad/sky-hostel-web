@@ -75,7 +75,7 @@ async function handlePOST(request: NextRequest) {
       }
 
       // If there are old pending payments, we can proceed but log it
-      console.log(
+      // Creating new payment
         `Creating new payment for ${data.email} - ${existingPayments.length} existing payments found`
       );
     }
@@ -178,7 +178,7 @@ async function handlePOST(request: NextRequest) {
           due_date: invoice.dueDate,
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Payment creation error:", error);
       throw error;
     }

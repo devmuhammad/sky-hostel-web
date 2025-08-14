@@ -110,7 +110,6 @@ export default function PaymentVerification({
           description: "You can now proceed with your registration",
         });
 
-        // Debug: Log what we're passing
         const verifiedData = {
           ...result.data,
           email: preFilledData?.email || data.email || "",
@@ -119,9 +118,6 @@ export default function PaymentVerification({
           lastName: preFilledData?.lastName || "",
           payment_id: result.data?.payment_id,
         };
-        console.log("PaymentVerification - preFilledData:", preFilledData);
-        console.log("PaymentVerification - form data:", data);
-        console.log("PaymentVerification - verifiedData:", verifiedData);
 
         // Pass along all the pre-filled data
         onVerified(verifiedData);

@@ -9,11 +9,11 @@ function sha512Sign(message: string, secret: string): string {
   return crypto.createHmac("sha512", secret).update(message).digest("hex");
 }
 
-function sortObjectAlphabetically(obj: any): any {
+function sortObjectAlphabetically(obj: unknown): unknown {
   if (Array.isArray(obj)) {
     return obj.map(sortObjectAlphabetically);
   } else if (obj !== null && typeof obj === "object") {
-    const sorted: any = {};
+    const sorted: Record<string, unknown> = {};
     Object.keys(obj)
       .sort()
       .forEach((key) => {
@@ -26,7 +26,7 @@ function sortObjectAlphabetically(obj: any): any {
 
 function generateRequestSignature(
   requestPath: string,
-  body: any,
+  body: Record<string, unknown>,
   timestamp: number
 ): string {
   if (!PAYCASHLESS_API_SECRET) {

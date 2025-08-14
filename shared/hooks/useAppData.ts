@@ -192,7 +192,7 @@ export const useCreateStudent = () => {
   const toast = useToast();
 
   const mutation = useMutation({
-    mutationFn: async (studentData: any) => {
+          mutationFn: async (studentData: Record<string, unknown>) => {
       const supabase = createClientSupabaseClient();
       const { data, error } = await supabase
         .from("students")
@@ -233,7 +233,7 @@ export const useUpdateStudent = () => {
   const toast = useToast();
 
   const mutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+    mutationFn: async ({ id, updates }: { id: string; updates: Record<string, unknown> }) => {
       const supabase = createClientSupabaseClient();
       const { data, error } = await supabase
         .from("students")
@@ -275,7 +275,7 @@ export const useCreatePayment = () => {
   const toast = useToast();
 
   const mutation = useMutation({
-    mutationFn: async (paymentData: any) => {
+    mutationFn: async (paymentData: Record<string, unknown>) => {
       const supabase = createClientSupabaseClient();
       const { data, error } = await supabase
         .from("payments")
@@ -316,7 +316,7 @@ export const useUpdatePayment = () => {
   const toast = useToast();
 
   const mutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+    mutationFn: async ({ id, updates }: { id: string; updates: Record<string, unknown> }) => {
       const supabase = createClientSupabaseClient();
       const { data, error } = await supabase
         .from("payments")
@@ -408,9 +408,7 @@ export const useAppData = () => {
   // Handle errors silently for now since database is not accessible
   React.useEffect(() => {
     if (isError) {
-      console.log(
-        "Database queries failed - this is expected since database is not accessible"
-      );
+      // Database queries failed - this is expected since database is not accessible
     }
   }, [isError]);
 

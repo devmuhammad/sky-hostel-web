@@ -146,11 +146,11 @@ export function getClientIP(request: Request): string {
 /**
  * Rate limit middleware for API routes
  */
-export function withRateLimit<T extends any[]>(
+export function withRateLimit<T extends unknown[]>(
   rateLimiter: ReturnType<typeof createRateLimit>,
-  handler: (request: any, ...args: T) => Promise<any>
+  handler: (request: Request, ...args: T) => Promise<Response>
 ) {
-  return async (request: any, ...args: T): Promise<any> => {
+  return async (request: Request, ...args: T): Promise<Response> => {
     try {
       const clientIP = getClientIP(request);
       const result = rateLimiter.check(clientIP);

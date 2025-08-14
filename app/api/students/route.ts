@@ -248,11 +248,11 @@ async function handlePOST(request: NextRequest) {
           message: "Registration successful",
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Registration error:", error);
       throw error;
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Student registration error:", error);
 
     // Handle database constraint violations

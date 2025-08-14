@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validatePaycashlessWebhook } from "@/shared/utils/paycashless";
 import { supabaseAdmin } from "@/shared/config/supabase";
-import { PaycashlessWebhookPayload } from "@/shared/types/payment";
+import { PaycashlessWebhookData } from "@/shared/types/payment";
 import { PAYMENT_CONFIG } from "@/shared/config/constants";
 
 export async function GET() {
@@ -19,13 +19,12 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const payload = await request.json();
-    console.log("Webhook received:", JSON.stringify(payload, null, 2));
+    // Webhook received
 
     const webhookData = payload.data || payload;
     const eventType = payload.event || "payment.updated";
 
-    console.log("Event type:", eventType);
-    console.log("Webhook data:", JSON.stringify(webhookData, null, 2));
+      // Event type and webhook data processed
 
     // Handle different event types
     if (eventType === "INVOICE_PAYMENT_SUCCEEDED") {
@@ -33,7 +32,7 @@ export async function POST(request: NextRequest) {
     } else if (eventType === "INVOICE_PAID") {
       return await handleInvoicePaid(webhookData);
     } else {
-      console.log("Unhandled event type:", eventType);
+      // Unhandled event type
       return NextResponse.json({
         success: true,
         message: "Event type not handled",
@@ -49,8 +48,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handlePaymentSucceeded(webhookData: any) {
-  console.log("Handling INVOICE_PAYMENT_SUCCEEDED");
+async function handlePaymentSucceeded(webhookData: PaycashlessWebhookData) {
+  // Handling INVOICE_PAYMENT_SUCCEEDED
 
   // Extract payment details
   const paymentAmount = webhookData.amount || webhookData.payment_amount || 0;
@@ -59,13 +58,7 @@ async function handlePaymentSucceeded(webhookData: any) {
   const customerEmail = webhookData.customer?.email || webhookData.email;
   const customerPhone = webhookData.customer?.phoneNumber || webhookData.phone;
 
-  console.log("Payment details:", {
-    amount: paymentAmount,
-    invoiceId,
-    customerEmail,
-    customerPhone,
-    totalAmount: PAYMENT_CONFIG.amount,
-  });
+  // Payment details extracted
 
   // Find existing payment
   const existingPayment = await findPaymentByInvoiceId(
@@ -75,7 +68,7 @@ async function handlePaymentSucceeded(webhookData: any) {
   );
 
   if (!existingPayment) {
-    console.log("Payment not found for invoice:", invoiceId);
+    // Payment not found for invoice
     return NextResponse.json({ error: "Payment not found" }, { status: 404 });
   }
 
@@ -91,9 +84,7 @@ async function handlePaymentSucceeded(webhookData: any) {
     newStatus = "completed";
   } else if (newAmountPaid > 0) {
     newStatus = "partially_paid";
-    console.log(
-      `Partial payment received: ₦${newAmountPaid} out of ₦${totalAmount}`
-    );
+    // Partial payment received
   }
 
   const updateData = {
@@ -105,12 +96,7 @@ async function handlePaymentSucceeded(webhookData: any) {
         : existingPayment.paid_at,
   };
 
-  console.log("Updating payment:", {
-    paymentId: existingPayment.id,
-    currentAmount: currentAmountPaid,
-    newAmount: newAmountPaid,
-    newStatus,
-  });
+  // Updating payment
 
   const { data: updatedPayment, error: updateError } = await supabaseAdmin
     .from("payments")
@@ -156,8 +142,8 @@ async function handlePaymentSucceeded(webhookData: any) {
   });
 }
 
-async function handleInvoicePaid(webhookData: any) {
-  console.log("Handling INVOICE_PAID");
+async function handleInvoicePaid(webhookData: PaycashlessWebhookData) {
+  // Handling INVOICE_PAID
 
   // Extract payment details
   const invoiceId =
@@ -165,11 +151,7 @@ async function handleInvoicePaid(webhookData: any) {
   const customerEmail = webhookData.customer?.email || webhookData.email;
   const customerPhone = webhookData.customer?.phoneNumber || webhookData.phone;
 
-  console.log("Invoice paid details:", {
-    invoiceId,
-    customerEmail,
-    customerPhone,
-  });
+  // Invoice paid details extracted
 
   // Find existing payment
   const existingPayment = await findPaymentByInvoiceId(
@@ -179,7 +161,7 @@ async function handleInvoicePaid(webhookData: any) {
   );
 
   if (!existingPayment) {
-    console.log("Payment not found for invoice:", invoiceId);
+    // Payment not found for invoice
     return NextResponse.json({ error: "Payment not found" }, { status: 404 });
   }
 
@@ -189,9 +171,7 @@ async function handleInvoicePaid(webhookData: any) {
     paid_at: new Date().toISOString(),
   };
 
-  console.log("Marking payment as completed:", {
-    paymentId: existingPayment.id,
-    oldStatus: existingPayment.status,
+  // Marking payment as completed
   });
 
   const { data: updatedPayment, error: updateError } = await supabaseAdmin

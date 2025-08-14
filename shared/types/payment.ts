@@ -21,27 +21,85 @@ export interface PaycashlessCheckoutResponse {
   message: string;
 }
 
+// Paycashless API Response Types
+export interface PaycashlessInvoice {
+  id: string;
+  reference: string;
+  number: string;
+  status: string;
+  currency: string;
+  amountDue: number;
+  amountPaid: number;
+  amountRemaining: number;
+  amount?: number;
+  totalPaid?: number;
+  remainingAmount?: number;
+  customer?: {
+    email?: string;
+    phoneNumber?: string;
+    name?: string;
+  };
+  metadata?: {
+    email?: string;
+    phone?: string;
+    firstName?: string;
+    lastName?: string;
+    orderType?: string;
+  };
+  returnUrl?: string;
+  createdAt: string;
+  dueDate: string;
+  acceptPartialPayments: boolean;
+  paidAt?: string;
+}
+
+export interface PaycashlessListResponse {
+  success: boolean;
+  data: PaycashlessInvoice[];
+  hasMore?: boolean;
+  cursor?: string;
+  message?: string;
+}
+
+export interface PaycashlessWebhookData {
+  id?: string;
+  invoice_id?: string;
+  invoiceId?: string;
+  amount?: number;
+  payment_amount?: number;
+  status: string;
+  customer?: {
+    email?: string;
+    phoneNumber?: string;
+    phone?: string;
+  };
+  email?: string;
+  phone?: string;
+  paidAt?: string;
+  event?: string;
+}
+
 export interface PaycashlessInvoiceRequest {
   reference: string;
   description: string;
-  currency: "NGN" | "USD";
+  currency: string;
   customer: {
     email: string;
     name: string;
-    address?: string;
+    address: string;
   };
   items: Array<{
     name: string;
-    quantity: number;
     description: string;
-    price: number; // Amount in kobo (smallest currency unit)
+    price: number;
+    quantity: number;
   }>;
   daysUntilDue: number;
   acceptPartialPayments?: boolean;
   sendEmail?: boolean;
   autoFinalize?: boolean;
-  callbackUrl?: string;
-  returnUrl?: string;
+  callbackUrl: string;
+  returnUrl: string;
   maxInstallments?: number;
   metadata?: Record<string, any>;
 }
@@ -51,26 +109,12 @@ export interface PaycashlessInvoiceResponse {
   data: {
     id: string;
     reference: string;
-    status: "draft" | "open" | "paid" | "partially_paid" | "cancelled";
-    customerId: string;
-    description: string;
+    paymentUrl: string;
+    amount: number;
     currency: string;
+    status: string;
     dueDate: string;
-    liveMode: boolean;
     number: string;
-    amountDue: number;
-    amountPaid: number;
-    totalInclusiveTaxAmount: number;
-    totalExclusiveTaxAmount: number;
-    taxRateIds: string[];
-    items: Array<{
-      name: string;
-      quantity: number;
-      description: string;
-      price: number;
-    }>;
-    hostedInvoiceUrl: string;
-    maxInstallments?: number;
   };
   message: string;
 }

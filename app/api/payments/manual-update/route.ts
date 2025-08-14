@@ -12,7 +12,7 @@ interface ManualUpdateRequest {
     hasPartialPayment: boolean;
     status: string;
   } | null;
-  localPayments: any[];
+  localPayments: Record<string, unknown>[];
 }
 
 export async function POST(request: NextRequest) {
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
-    console.log("Manual payment update request:", {
+    // Manual payment update request
       email,
       paycashlessData,
       localPaymentsCount: localPayments.length,

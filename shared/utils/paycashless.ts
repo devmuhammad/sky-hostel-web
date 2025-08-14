@@ -1,5 +1,11 @@
 import crypto from "crypto";
-import { PaycashlessInvoiceRequest } from "@/shared/types/payment";
+import {
+  PaycashlessInvoiceRequest,
+  PaycashlessInvoiceResponse,
+  PaycashlessListResponse,
+  PaycashlessInvoice,
+  PaycashlessWebhookData,
+} from "@/shared/types/payment";
 import { supabaseAdmin } from "@/shared/config/supabase";
 
 import { paycashlessConfig } from "@/shared/config/env";
@@ -13,15 +19,17 @@ function sha512Sign(message: string, secret: string): string {
   return crypto.createHmac("sha512", secret).update(message).digest("hex");
 }
 
-function sortObjectAlphabetically(obj: any): any {
+function sortObjectAlphabetically(obj: unknown): unknown {
   if (Array.isArray(obj)) {
     return obj.map(sortObjectAlphabetically);
   } else if (obj !== null && typeof obj === "object") {
-    const sorted: any = {};
-    Object.keys(obj)
+    const sorted: Record<string, unknown> = {};
+    Object.keys(obj as Record<string, unknown>)
       .sort()
       .forEach((key) => {
-        sorted[key] = sortObjectAlphabetically(obj[key]);
+        sorted[key] = sortObjectAlphabetically(
+          (obj as Record<string, unknown>)[key]
+        );
       });
     return sorted;
   }
@@ -30,7 +38,7 @@ function sortObjectAlphabetically(obj: any): any {
 
 function generateRequestSignature(
   requestPath: string,
-  body: any,
+  body: Record<string, unknown>,
   timestamp: number
 ): string {
   if (!PAYCASHLESS_API_SECRET) {
@@ -55,20 +63,7 @@ function generateRequestSignature(
 
 export async function createPaycashlessInvoice(
   data: PaycashlessInvoiceRequest
-): Promise<{
-  success: boolean;
-  data: {
-    id: string;
-    reference: string;
-    paymentUrl: string;
-    amount: number;
-    currency: string;
-    status: string;
-    dueDate: string;
-    number: string;
-  };
-  message: string;
-}> {
+): Promise<PaycashlessInvoiceResponse> {
   if (!PAYCASHLESS_API_KEY || !PAYCASHLESS_API_SECRET) {
     throw new Error("Paycashless API credentials are not configured");
   }
@@ -189,7 +184,7 @@ export async function getPaycashlessPaymentStatus(
       throw new Error("Paycashless API credentials are not configured");
     }
 
-    console.log("🔍 Calling Paycashless API for email:", email);
+    // Calling Paycashless API for payment status
 
     // First, try to list all invoices to find ones related to this email
     const timestamp = Math.floor(Date.now() / 1000);
@@ -224,11 +219,8 @@ export async function getPaycashlessPaymentStatus(
       throw new Error(`Paycashless API error: ${listResponse.status}`);
     }
 
-    const listResult = await listResponse.json();
-    console.log(
-      "Paycashless list response:",
-      JSON.stringify(listResult, null, 2)
-    );
+    const listResult: PaycashlessListResponse = await listResponse.json();
+    // Paycashless list response received
 
     if (!listResult.success || !listResult.data) {
       return {
@@ -237,26 +229,16 @@ export async function getPaycashlessPaymentStatus(
       };
     }
 
-    const invoices = listResult.data || [];
+    const invoices: PaycashlessInvoice[] = listResult.data || [];
 
     // Filter for invoices related to this email
-    const relevantInvoices = invoices.filter((invoice: any) => {
+    const relevantInvoices = invoices.filter((invoice: PaycashlessInvoice) => {
       // Check various fields where email might be stored
       const metadataEmail = invoice.metadata?.email;
       const customerEmail = invoice.customer?.email;
       const returnUrlEmail = extractEmailFromReturnUrl(invoice.returnUrl);
 
-      // Debug log for email matching
-      console.log(`Checking invoice ${invoice.reference}:`, {
-        metadataEmail,
-        customerEmail,
-        returnUrlEmail,
-        searchEmail: email,
-        matches:
-          metadataEmail === email ||
-          customerEmail === email ||
-          returnUrlEmail === email,
-      });
+      // Email matching check completed
 
       return (
         metadataEmail === email ||
@@ -265,22 +247,9 @@ export async function getPaycashlessPaymentStatus(
       );
     });
 
-    console.log(
-      `Found ${relevantInvoices.length} relevant invoices for ${email}`
-    );
+    // Relevant invoices found
 
-    // Debug: Log each invoice status
-    relevantInvoices.forEach((invoice: any, index: number) => {
-      console.log(`Invoice ${index + 1}:`, {
-        id: invoice.id,
-        reference: invoice.reference,
-        status: invoice.status,
-        amountPaid: invoice.amountPaid,
-        amountDue: invoice.amountDue,
-        isActuallyPaid:
-          invoice.status === "paid" || invoice.status === "completed",
-      });
-    });
+    // Invoice status analysis completed
 
     if (relevantInvoices.length === 0) {
       return {
@@ -306,7 +275,7 @@ export async function getPaycashlessPaymentStatus(
       paidAt?: string;
     }> = [];
 
-    relevantInvoices.forEach((invoice: any) => {
+    relevantInvoices.forEach((invoice: PaycashlessInvoice) => {
       // Only count as paid if the invoice status indicates actual payment
       // Check if the invoice is actually paid, not just created
       const isActuallyPaid =
@@ -335,13 +304,7 @@ export async function getPaycashlessPaymentStatus(
     const remainingAmount = Math.max(0, PAYMENT_CONFIG.amount - totalPaid);
     const isFullyPaid = totalPaid >= PAYMENT_CONFIG.amount;
 
-    console.log("Paycashless payment analysis:", {
-      totalPaid,
-      remainingAmount,
-      isFullyPaid,
-      payment_id,
-      paymentsCount: payments.length,
-    });
+    // Paycashless payment analysis completed
 
     // If not fully paid, return error
     if (!isFullyPaid && totalPaid > 0) {
@@ -418,7 +381,7 @@ export async function verifyPaycashlessPayment(
 
     if (!paycashlessResult.success) {
       // No fallback - only use real-time Paycashless data
-      console.log("Paycashless API failed:", paycashlessResult.error);
+      // Paycashless API call failed
       return {
         success: false,
         error:
@@ -485,11 +448,7 @@ export async function getAllPaycashlessInvoices(params?: {
       };
     }
 
-    console.log("Paycashless API Config:", {
-      apiUrl: PAYCASHLESS_API_URL,
-      apiKey: PAYCASHLESS_API_KEY?.substring(0, 10) + "...",
-      hasSecret: !!PAYCASHLESS_API_SECRET,
-    });
+    // Paycashless API configuration verified
 
     const timestamp = Math.floor(Date.now() / 1000);
     const requestPath = "/v1/invoices";
@@ -529,8 +488,6 @@ export async function getAllPaycashlessInvoices(params?: {
       queryString,
     });
 
-    // Use the same process as POST: ${urlPath}${bodyHash}${timestamp}
-    // For GET: use base path without query params, empty object for bodyHash
     const basePath = "/v1/invoices"; // Don't include search params
     const signature = generateRequestSignature(basePath, {}, timestamp);
 
@@ -548,11 +505,7 @@ export async function getAllPaycashlessInvoices(params?: {
       },
     });
 
-    console.log("Response status:", response.status);
-    console.log(
-      "Response headers:",
-      Object.fromEntries(response.headers.entries())
-    );
+    // Response received
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -572,17 +525,14 @@ export async function getAllPaycashlessInvoices(params?: {
     }
 
     const data = await response.json();
-    console.log(
-      "Paycashless API success, invoices count:",
-      data.data?.length || 0
-    );
+    // Paycashless API success
 
     return {
       success: true,
       data: {
         hasMore: data.hasMore,
         cursor: data.cursor,
-        invoices: data.data.map((invoice: any) => ({
+        invoices: data.data.map((invoice: PaycashlessInvoice) => ({
           id: invoice.id,
           reference: invoice.reference,
           number: invoice.number,
@@ -630,15 +580,19 @@ function extractEmailFromReturnUrl(returnUrl?: string): string | undefined {
 }
 
 // Helper function to extract and format name from metadata
-function extractNameFromMetadata(metadata?: any): string | undefined {
+function extractNameFromMetadata(
+  metadata?: Record<string, unknown>
+): string | undefined {
   if (!metadata) return undefined;
 
-  const firstName = metadata.firstName?.trim() || "";
-  const lastName = metadata.lastName?.trim() || "";
+  const firstName = (metadata.firstName as string)?.trim() || "";
+  const lastName = (metadata.lastName as string)?.trim() || "";
 
   return firstName || lastName ? `${firstName} ${lastName}`.trim() : undefined;
 }
 
-export function validatePaycashlessWebhook(payload: any): boolean {
-  return payload && (payload.invoice_id || payload.id) && payload.status;
+export function validatePaycashlessWebhook(
+  payload: PaycashlessWebhookData
+): boolean {
+  return !!(payload && (payload.invoice_id || payload.id) && payload.status);
 }

@@ -57,7 +57,7 @@ export async function GET(
       success: true,
       data: student,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Fetch student error:", error);
     return NextResponse.json(
       { success: false, error: { message: "Failed to fetch student data" } },

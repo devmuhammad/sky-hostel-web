@@ -35,7 +35,7 @@ export default function AdminLogin() {
     setIsLoading(true);
     setError(null);
 
-    console.log("Login attempt for:", email);
+    // Login attempt logged
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -43,14 +43,14 @@ export default function AdminLogin() {
         password,
       });
 
-      console.log("Sign in result:", { data: !!data, error: error?.message });
+      // Sign in result processed
 
       if (error) {
-        console.log("Sign in error:", error);
+        // Sign in error occurred
         setError(error.message);
         toast.error("Login failed. Please check your credentials.");
       } else if (data.user) {
-        console.log("User authenticated, checking admin status...");
+        // User authenticated, checking admin status
 
         // Check if user is an admin
         const { data: adminUser, error: adminError } = await supabase
@@ -60,13 +60,13 @@ export default function AdminLogin() {
           .eq("is_active", true)
           .single();
 
-        console.log("Admin check result:", {
+        // Admin check completed
           adminUser: !!adminUser,
           error: adminError?.message,
         });
 
         if (adminError || !adminUser) {
-          console.log("Admin check failed:", adminError);
+          // Admin check failed
           setError(
             "You don't have admin privileges. Please contact your administrator."
           );
@@ -74,7 +74,7 @@ export default function AdminLogin() {
           // Sign out the user since they're not an admin
           await supabase.auth.signOut();
         } else {
-          console.log("Admin check successful, redirecting...");
+          // Admin check successful, redirecting
 
           // Show success message
           toast.success(`Welcome back, ${adminUser.first_name}!`);
@@ -82,13 +82,13 @@ export default function AdminLogin() {
           // Get the redirect URL from query params or default to admin
           const urlParams = new URLSearchParams(window.location.search);
           const redirectTo = urlParams.get("redirectedFrom") || "/admin";
-          console.log("Redirecting to:", redirectTo);
+          // Redirecting to admin dashboard
           router.push(redirectTo);
           router.refresh();
         }
       }
     } catch (err) {
-      console.log("Login error:", err);
+      // Login error occurred
       setError("An unexpected error occurred");
       toast.error("An unexpected error occurred. Please try again.");
     } finally {

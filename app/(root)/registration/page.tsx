@@ -20,7 +20,7 @@ export default function RegistrationPage() {
   // Debug: Log paymentData changes
   useEffect(() => {
     if (paymentData) {
-      console.log("PaymentData updated:", paymentData);
+      // PaymentData updated
     }
   }, [paymentData]);
 
@@ -160,7 +160,7 @@ export default function RegistrationPage() {
         (!paymentData || !paymentData.payment_id ? (
           <PaymentVerification
             onVerified={(data) => {
-              console.log("RegistrationPage - Payment verified, data:", data);
+              // Payment verified successfully
               setPaymentData(data);
               setCurrentStep("photo");
             }}
@@ -195,7 +195,7 @@ export default function RegistrationPage() {
       {currentStep === "payment" && (
         <script
           dangerouslySetInnerHTML={{
-            __html: `console.log('URL Parameters:', window.location.search); console.log('Email from URL:', new URLSearchParams(window.location.search).get("email")); console.log('Phone from URL:', new URLSearchParams(window.location.search).get("phone"));`,
+            __html: `// URL parameters processed`,
           }}
         />
       )}
@@ -219,7 +219,7 @@ export default function RegistrationPage() {
       {currentStep === "photo" && (
         <script
           dangerouslySetInnerHTML={{
-            __html: `console.log('PaymentData:', ${JSON.stringify(paymentData)});`,
+            __html: `// PaymentData processed`,
           }}
         />
       )}
@@ -228,7 +228,7 @@ export default function RegistrationPage() {
         <>
           <script
             dangerouslySetInnerHTML={{
-              __html: `console.log('RegistrationForm - paymentData:', ${JSON.stringify(paymentData)});`,
+              __html: `// RegistrationForm paymentData processed`,
             }}
           />
           <RegistrationForm

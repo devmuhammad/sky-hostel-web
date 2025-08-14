@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("Cleaning up duplicate payments:", {
+    // Cleaning up duplicate payments
       paymentIds,
       keepPaymentId,
       updateData,
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      console.log("Updated kept payment:", updatedPayment);
+      // Updated kept payment
     }
 
     // Delete the selected payments

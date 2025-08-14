@@ -90,7 +90,10 @@ export const getInputType = (fieldName: string): string => {
   return "text";
 };
 
-export const getInputProps = (fieldName: string, field: any) => {
+export const getInputProps = (
+  fieldName: string,
+  field: Record<string, unknown>
+) => {
   const baseProps = {
     required: true,
     className:
