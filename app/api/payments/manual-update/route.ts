@@ -25,10 +25,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Manual payment update request
-      email,
-      paycashlessData,
-      localPaymentsCount: localPayments.length,
-    });
 
     // If no Paycashless data, we can't update
     if (!paycashlessData) {
