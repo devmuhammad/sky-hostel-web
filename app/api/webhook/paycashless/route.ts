@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const webhookData = payload.data || payload;
     const eventType = payload.event || "payment.updated";
 
-      // Event type and webhook data processed
+    // Event type and webhook data processed
 
     // Handle different event types
     if (eventType === "INVOICE_PAYMENT_SUCCEEDED") {

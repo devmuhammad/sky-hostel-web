@@ -68,7 +68,7 @@ function StudentsTable() {
     try {
       await updateStudentMutation.mutateAsync({
         id: editingStudent.id,
-        updates: editForm,
+        updates: editForm as Record<string, unknown>,
       });
 
       setEditingStudent(null);
