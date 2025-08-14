@@ -61,9 +61,6 @@ export default function AdminLogin() {
           .single();
 
         // Admin check completed
-          adminUser: !!adminUser,
-          error: adminError?.message,
-        });
 
         if (adminError || !adminUser) {
           // Admin check failed

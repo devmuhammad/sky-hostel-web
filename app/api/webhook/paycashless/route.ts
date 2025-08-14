@@ -62,7 +62,7 @@ async function handlePaymentSucceeded(webhookData: PaycashlessWebhookData) {
 
   // Find existing payment
   const existingPayment = await findPaymentByInvoiceId(
-    invoiceId,
+    invoiceId!,
     customerEmail,
     customerPhone
   );
@@ -155,7 +155,7 @@ async function handleInvoicePaid(webhookData: PaycashlessWebhookData) {
 
   // Find existing payment
   const existingPayment = await findPaymentByInvoiceId(
-    invoiceId,
+    invoiceId!,
     customerEmail,
     customerPhone
   );
@@ -172,7 +172,6 @@ async function handleInvoicePaid(webhookData: PaycashlessWebhookData) {
   };
 
   // Marking payment as completed
-  });
 
   const { data: updatedPayment, error: updateError } = await supabaseAdmin
     .from("payments")

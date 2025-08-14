@@ -42,17 +42,10 @@ export async function POST(request: NextRequest) {
     // Find invoices for this email
     const relevantInvoices = paycashlessResult.data.invoices.filter(
               (invoice: Record<string, unknown>) => {
-        const metadataEmail = invoice.customer?.email;
-        const returnUrlEmail = extractEmailFromReturnUrl(invoice.returnUrl);
+        const metadataEmail = (invoice.customer as Record<string, unknown>)?.email as string;
+        const returnUrlEmail = extractEmailFromReturnUrl(invoice.returnUrl as string);
 
         // Checking invoice
-          metadataEmail,
-          returnUrlEmail,
-          searchEmail: email,
-          status: invoice.status,
-          amountPaid: invoice.totalPaid,
-          amountDue: invoice.amount,
-        });
 
         return metadataEmail === email || returnUrlEmail === email;
       }
@@ -94,7 +87,7 @@ export async function POST(request: NextRequest) {
               (invoice: Record<string, unknown>) =>
         invoice.status === "paid" ||
         invoice.status === "completed" ||
-        (invoice.totalPaid > 0 && invoice.totalPaid >= invoice.amount)
+        ((invoice.totalPaid as number) > 0 && (invoice.totalPaid as number) >= (invoice.amount as number))
     );
 
     // Found paid invoices
