@@ -25,6 +25,7 @@ interface EditStudentForm {
   matric_number: string;
   address: string;
   state_of_origin: string;
+  [key: string]: string; // Add index signature
 }
 
 function StudentsTable() {
@@ -68,7 +69,7 @@ function StudentsTable() {
     try {
       await updateStudentMutation.mutateAsync({
         id: editingStudent.id,
-        updates: editForm as Record<string, unknown>,
+        updates: editForm,
       });
 
       setEditingStudent(null);
