@@ -13,10 +13,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Cleaning up duplicate payments
-      paymentIds,
-      keepPaymentId,
-      updateData,
-    });
 
     // Update the payment to keep if updateData is provided
     if (keepPaymentId && updateData) {

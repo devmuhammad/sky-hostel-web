@@ -56,8 +56,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Email API - All required fields present
-      !!process.env.RESEND_API_KEY
-    );
 
     // Send email using Resend
     const { data, error } = await resend.emails.send({
