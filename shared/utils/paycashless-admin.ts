@@ -14,10 +14,11 @@ function sortObjectAlphabetically(obj: unknown): unknown {
     return obj.map(sortObjectAlphabetically);
   } else if (obj !== null && typeof obj === "object") {
     const sorted: Record<string, unknown> = {};
-    Object.keys(obj)
+    const objRecord = obj as Record<string, unknown>;
+    Object.keys(objRecord)
       .sort()
       .forEach((key) => {
-        sorted[key] = sortObjectAlphabetically(obj[key]);
+        sorted[key] = sortObjectAlphabetically(objRecord[key] as Record<string, unknown>);
       });
     return sorted;
   }

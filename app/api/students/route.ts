@@ -256,16 +256,17 @@ async function handlePOST(request: NextRequest) {
     console.error("Student registration error:", error);
 
     // Handle database constraint violations
-    if (error?.code === "23505") {
+    const dbError = error as { code?: string; constraint?: string };
+    if (dbError?.code === "23505") {
       // PostgreSQL unique constraint violation
       let message = "Registration failed - duplicate data found";
 
       // Check which constraint was violated
-      if (error.constraint?.includes("email")) {
+      if (dbError.constraint?.includes("email")) {
         message = "Email address already registered";
-      } else if (error.constraint?.includes("phone")) {
+      } else if (dbError.constraint?.includes("phone")) {
         message = "Phone number already registered";
-      } else if (error.constraint?.includes("matric")) {
+      } else if (dbError.constraint?.includes("matric")) {
         message = "Matric number already registered";
       }
 
