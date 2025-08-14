@@ -75,9 +75,7 @@ async function handlePOST(request: NextRequest) {
       }
 
       // If there are old pending payments, we can proceed but log it
-      // Creating new payment
-        `Creating new payment for ${data.email} - ${existingPayments.length} existing payments found`
-      );
+      // Creating new payment for existing user
     }
 
     // Generate unique reference
