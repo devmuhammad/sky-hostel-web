@@ -1,3 +1,5 @@
+import { NextRequest } from "next/server";
+
 // Rate limiting utility using in-memory storage
 // For production, consider using Redis or similar persistent storage
 
@@ -148,9 +150,9 @@ export function getClientIP(request: Request): string {
  */
 export function withRateLimit<T extends unknown[]>(
   rateLimiter: ReturnType<typeof createRateLimit>,
-  handler: (request: Request, ...args: T) => Promise<Response>
+  handler: (request: NextRequest, ...args: T) => Promise<Response>
 ) {
-  return async (request: Request, ...args: T): Promise<Response> => {
+  return async (request: NextRequest, ...args: T): Promise<Response> => {
     try {
       const clientIP = getClientIP(request);
       const result = rateLimiter.check(clientIP);
