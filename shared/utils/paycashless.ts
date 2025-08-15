@@ -184,8 +184,6 @@ export async function getPaycashlessPaymentStatus(
       throw new Error("Paycashless API credentials are not configured");
     }
 
-    // Calling Paycashless API for payment status
-
     // First, try to list all invoices to find ones related to this email
     const timestamp = Math.floor(Date.now() / 1000);
     const listRequestPath = "/v1/invoices";
@@ -197,7 +195,7 @@ export async function getPaycashlessPaymentStatus(
     );
 
     const listResponse = await fetch(
-      `${PAYCASHLESS_API_URL}${listRequestPath}`,
+      `${PAYCASHLESS_API_URL}${listRequestPath}`, // No limit - get ALL invoices
       {
         method: "GET",
         headers: {
@@ -222,7 +220,8 @@ export async function getPaycashlessPaymentStatus(
     const listResult: PaycashlessListResponse = await listResponse.json();
     // Paycashless list response received
 
-    if (!listResult.success || !listResult.data) {
+    // Check if we have data (Paycashless might not return a success field)
+    if (!listResult.data) {
       return {
         success: false,
         error: listResult.message || "No invoice data found on Paycashless",
@@ -230,6 +229,8 @@ export async function getPaycashlessPaymentStatus(
     }
 
     const invoices: PaycashlessInvoice[] = listResult.data || [];
+
+
 
     // Filter for invoices related to this email
     const relevantInvoices = invoices.filter((invoice: PaycashlessInvoice) => {
@@ -239,12 +240,14 @@ export async function getPaycashlessPaymentStatus(
       const returnUrlEmail = extractEmailFromReturnUrl(invoice.returnUrl);
 
       // Email matching check completed
-
-      return (
+      const isRelevant =
         metadataEmail === email ||
         customerEmail === email ||
-        returnUrlEmail === email
-      );
+        returnUrlEmail === email;
+
+
+
+      return isRelevant;
     });
 
     // Relevant invoices found
@@ -303,8 +306,6 @@ export async function getPaycashlessPaymentStatus(
 
     const remainingAmount = Math.max(0, PAYMENT_CONFIG.amount - totalPaid);
     const isFullyPaid = totalPaid >= PAYMENT_CONFIG.amount;
-
-    // Paycashless payment analysis completed
 
     // If not fully paid, return error
     if (!isFullyPaid && totalPaid > 0) {
