@@ -195,7 +195,7 @@ export async function getPaycashlessPaymentStatus(
     );
 
     const listResponse = await fetch(
-      `${PAYCASHLESS_API_URL}${listRequestPath}`, // No limit - get ALL invoices
+      `${PAYCASHLESS_API_URL}${listRequestPath}`,
       {
         method: "GET",
         headers: {
@@ -230,8 +230,6 @@ export async function getPaycashlessPaymentStatus(
 
     const invoices: PaycashlessInvoice[] = listResult.data || [];
 
-
-
     // Filter for invoices related to this email
     const relevantInvoices = invoices.filter((invoice: PaycashlessInvoice) => {
       // Check various fields where email might be stored
@@ -245,12 +243,8 @@ export async function getPaycashlessPaymentStatus(
         customerEmail === email ||
         returnUrlEmail === email;
 
-
-
       return isRelevant;
     });
-
-    // Relevant invoices found
 
     // Invoice status analysis completed
 
@@ -285,8 +279,8 @@ export async function getPaycashlessPaymentStatus(
         invoice.status === "paid" ||
         invoice.status === "completed" ||
         invoice.status === "succeeded" ||
-        (invoice.amountPaid > 0 && invoice.amountPaid >= invoice.amountDue);
-      const amountPaid = isActuallyPaid ? invoice.amountPaid || 0 : 0;
+        ((invoice.totalPaid || 0) > 0 && (invoice.totalPaid || 0) >= invoice.amountDue);
+      const amountPaid = isActuallyPaid ? (invoice.totalPaid || 0) : 0;
       totalPaid += amountPaid;
 
       if (amountPaid > 0) {
