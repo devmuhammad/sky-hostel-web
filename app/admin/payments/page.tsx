@@ -73,6 +73,43 @@ export default function PaymentsPage() {
   const [paycashlessInvoices, setPaycashlessInvoices] = useState<any[]>([]);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
 
+  // Sync All states
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const [syncResults, setSyncResults] = useState<any>(null);
+  const [showSyncModal, setShowSyncModal] = useState(false);
+
+  // Sync All Payments with Paycashless
+  const syncAllPayments = async () => {
+    setIsSyncingAll(true);
+    try {
+      const response = await fetch("/api/payments/sync-all", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ adminKey: "admin123" }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSyncResults(result.data);
+        setShowSyncModal(true);
+        toast.success("Sync completed successfully!");
+        
+        // Refresh payments list
+        await refetch();
+      } else {
+        toast.error(result.message || "Sync failed");
+      }
+    } catch (error) {
+      console.error("Sync error:", error);
+      toast.error("Error during sync");
+    } finally {
+      setIsSyncingAll(false);
+    }
+  };
+
   // Fetch Paycashless invoices for debugging
   const fetchPaycashlessInvoices = async () => {
     setIsLoadingInvoices(true);
@@ -448,7 +485,7 @@ export default function PaymentsPage() {
       let webhookPayload: any = {
         event:
           action === "simulate_partial_payment"
-            ? "INVOICE_PAYMENT_SUCCEEDED"
+            ? "INVOICE_PAYMENT"
             : "INVOICE_PAID",
         data: {
           invoice_id: payment.invoice_id,
@@ -821,16 +858,25 @@ export default function PaymentsPage() {
         {/* Duplicate Payments Cleanup */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h2 className="text-xl font-semibold">All Payments</h2>
-          {/* <Button
-            onClick={() => {
-              const duplicates = findDuplicatePayments();
-              setDuplicatePayments(duplicates);
-              setShowCleanupModal(true);
-            }}
-            className="bg-orange-600 hover:bg-orange-700 w-full sm:w-auto"
-          >
-            🧹 Cleanup Duplicates
-          </Button> */}
+          <div className="flex gap-2">
+            <Button
+              onClick={syncAllPayments}
+              disabled={isSyncingAll}
+              className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
+            >
+              {isSyncingAll ? "🔄 Syncing..." : "🔄 Sync All"}
+            </Button>
+            {/* <Button
+              onClick={() => {
+                const duplicates = findDuplicatePayments();
+                setDuplicatePayments(duplicates);
+                setShowCleanupModal(true);
+              }}
+              className="bg-orange-600 hover:bg-orange-700 w-full sm:w-auto"
+            >
+              🧹 Cleanup Duplicates
+            </Button> */}
+          </div>
         </div>
 
         <DataTable
@@ -1211,6 +1257,102 @@ export default function PaymentsPage() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Sync Results Modal */}
+      <Modal
+        isOpen={showSyncModal}
+        onClose={() => setShowSyncModal(false)}
+        title="Sync Results"
+        size="lg"
+      >
+        {syncResults && (
+          <div className="space-y-4">
+            <div className="p-4 bg-green-50 rounded-lg">
+              <h4 className="font-medium text-green-800 mb-2">
+                ✅ Sync Completed Successfully
+              </h4>
+              <p className="text-sm text-green-700">
+                Found {syncResults.totalPaycashlessInvoices} invoices on Paycashless
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <h5 className="font-medium text-blue-800 mb-2">
+                  📊 Summary
+                </h5>
+                <div className="text-sm space-y-1">
+                  <p><strong>Total Paycashless Invoices:</strong> {syncResults.totalPaycashlessInvoices}</p>
+                  <p><strong>Matching Records:</strong> {syncResults.matchingRecords}</p>
+                  <p><strong>Updated Records:</strong> {syncResults.updatedRecords}</p>
+                  <p><strong>New Records Created:</strong> {syncResults.newRecordsCreated}</p>
+                  <p><strong>Records Needing Update:</strong> {syncResults.recordsNeedingUpdate}</p>
+                </div>
+              </div>
+
+              {syncResults.updatedPayments && syncResults.updatedPayments.length > 0 && (
+                <div className="p-3 bg-yellow-50 rounded-lg">
+                  <h5 className="font-medium text-yellow-800 mb-2">
+                    🔄 Updated Payments
+                  </h5>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {syncResults.updatedPayments.map((payment: any, index: number) => (
+                      <div key={index} className="text-sm p-2 bg-white rounded border">
+                        <p><strong>{payment.email}</strong></p>
+                        <p>Old: ₦{payment.oldAmountPaid?.toLocaleString() || 0} ({payment.oldStatus})</p>
+                        <p>New: ₦{payment.newAmountPaid?.toLocaleString() || 0} ({payment.newStatus})</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {syncResults.newPayments && syncResults.newPayments.length > 0 && (
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <h5 className="font-medium text-green-800 mb-2">
+                    ➕ New Payments Created
+                  </h5>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {syncResults.newPayments.map((payment: any, index: number) => (
+                      <div key={index} className="text-sm p-2 bg-white rounded border">
+                        <p><strong>{payment.email}</strong></p>
+                        <p>Amount: ₦{payment.amountPaid?.toLocaleString() || 0}</p>
+                        <p>Status: {payment.status}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {syncResults.mismatches && syncResults.mismatches.length > 0 && (
+                <div className="p-3 bg-red-50 rounded-lg">
+                  <h5 className="font-medium text-red-800 mb-2">
+                    ⚠️ Mismatches Found
+                  </h5>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {syncResults.mismatches.map((mismatch: any, index: number) => (
+                      <div key={index} className="text-sm p-2 bg-white rounded border">
+                        <p><strong>{mismatch.email}</strong></p>
+                        <p>Paycashless: ₦{mismatch.paycashlessAmount?.toLocaleString() || 0} ({mismatch.paycashlessStatus})</p>
+                        <p>Local DB: ₦{mismatch.localAmount?.toLocaleString() || 0} ({mismatch.localStatus})</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-4 border-t">
+              <Button
+                onClick={() => setShowSyncModal(false)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

@@ -27,12 +27,13 @@ export async function POST(request: NextRequest) {
     // Event type and webhook data processed
 
     // Handle different event types
-    if (eventType === "INVOICE_PAYMENT_SUCCEEDED") {
-      return await handlePaymentSucceeded(webhookData);
+    if (eventType === "INVOICE_PAYMENT") {
+      return await handlePaymentSucceeded(webhookData, eventType);
     } else if (eventType === "INVOICE_PAID") {
       return await handleInvoicePaid(webhookData);
     } else {
-      // Unhandled event type
+      // Log unhandled event types for monitoring
+      console.log("Unhandled webhook event type:", eventType, webhookData);
       return NextResponse.json({
         success: true,
         message: "Event type not handled",
@@ -48,8 +49,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handlePaymentSucceeded(webhookData: PaycashlessWebhookData) {
-  // Handling INVOICE_PAYMENT_SUCCEEDED
+async function handlePaymentSucceeded(
+  webhookData: PaycashlessWebhookData,
+  eventType: string
+) {
+  // Handling INVOICE_PAYMENT (partial payments)
 
   // Extract payment details
   const paymentAmount = webhookData.amount || webhookData.payment_amount || 0;
@@ -125,7 +129,7 @@ async function handlePaymentSucceeded(webhookData: PaycashlessWebhookData) {
       old_status: existingPayment.status,
       new_status: newStatus,
       webhook_data: webhookData,
-      event_type: "INVOICE_PAYMENT_SUCCEEDED",
+      event_type: eventType, // Use the actual event type received
     },
   });
 
@@ -138,7 +142,7 @@ async function handlePaymentSucceeded(webhookData: PaycashlessWebhookData) {
     old_status: existingPayment.status,
     new_status: newStatus,
     updated_at: updatedPayment.updated_at,
-    event_type: "INVOICE_PAYMENT_SUCCEEDED",
+    event_type: eventType, // Use the actual event type received
   });
 }
 
@@ -165,8 +169,10 @@ async function handleInvoicePaid(webhookData: PaycashlessWebhookData) {
     return NextResponse.json({ error: "Payment not found" }, { status: 404 });
   }
 
-  // Update payment status to completed
+  // FIXED: Update payment with full amount and completed status
+  const totalAmount = existingPayment.amount_to_pay || PAYMENT_CONFIG.amount;
   const updateData = {
+    amount_paid: totalAmount, // Set to full amount when invoice is fully paid
     status: "completed",
     paid_at: new Date().toISOString(),
   };
@@ -194,6 +200,8 @@ async function handleInvoicePaid(webhookData: PaycashlessWebhookData) {
     resource_type: "payment",
     resource_id: existingPayment.id,
     metadata: {
+      old_amount_paid: existingPayment.amount_paid,
+      new_amount_paid: totalAmount,
       old_status: existingPayment.status,
       new_status: "completed",
       webhook_data: webhookData,
@@ -204,6 +212,8 @@ async function handleInvoicePaid(webhookData: PaycashlessWebhookData) {
   return NextResponse.json({
     success: true,
     payment_id: existingPayment.id,
+    old_amount_paid: existingPayment.amount_paid,
+    new_amount_paid: totalAmount,
     old_status: existingPayment.status,
     new_status: "completed",
     updated_at: updatedPayment.updated_at,
