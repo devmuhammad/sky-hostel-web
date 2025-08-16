@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     // Group invoices by email and keep only the most recent one for each email
     const emailToInvoiceMap = new Map<string, any>();
-    
+
     for (const paycashlessInvoice of paycashlessInvoices) {
       const email = paycashlessInvoice.customer?.email;
       if (!email) {
@@ -74,17 +74,44 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Keep only the most recent invoice for each email
+      // Keep the invoice with the highest payment amount for each email
+      // If same amount, keep the most recent one
       const existingInvoice = emailToInvoiceMap.get(email);
-      if (!existingInvoice || new Date(paycashlessInvoice.createdAt) > new Date(existingInvoice.createdAt)) {
+      if (!existingInvoice) {
         emailToInvoiceMap.set(email, paycashlessInvoice);
+      } else {
+        const existingAmount = existingInvoice.totalPaid || 0;
+        const currentAmount = paycashlessInvoice.totalPaid || 0;
+        
+        if (currentAmount > existingAmount) {
+          // Current invoice has higher payment amount
+          emailToInvoiceMap.set(email, paycashlessInvoice);
+        } else if (currentAmount === existingAmount) {
+          // Same amount, keep the most recent one
+          if (new Date(paycashlessInvoice.createdAt) > new Date(existingInvoice.createdAt)) {
+            emailToInvoiceMap.set(email, paycashlessInvoice);
+          }
+        }
+        // If current amount is less, keep the existing one
       }
     }
 
-    console.log(`📋 Processing ${emailToInvoiceMap.size} unique emails from ${paycashlessInvoices.length} invoices`);
+    console.log(
+      `📋 Processing ${emailToInvoiceMap.size} unique emails from ${paycashlessInvoices.length} invoices`
+    );
+
+    // Log which invoice was selected for each email
+    for (const [email, invoice] of emailToInvoiceMap) {
+      console.log(`✅ Selected for ${email}:`, {
+        invoiceId: invoice.id,
+        reference: invoice.reference,
+        status: invoice.status,
+        totalPaid: invoice.totalPaid,
+        createdAt: invoice.createdAt,
+      });
+    }
 
     for (const [email, paycashlessInvoice] of emailToInvoiceMap) {
-
       // Debug: Log the raw Paycashless data
       console.log(`🔍 Processing Paycashless invoice for ${email}:`, {
         id: paycashlessInvoice.id,
@@ -230,22 +257,22 @@ export async function POST(request: NextRequest) {
         const localAmount = localPayment.amount_paid || 0;
         const localStatus = localPayment.status;
 
-                  // Only update if there's an actual difference
-          const needsUpdate =
-            localAmount !== paycashlessAmount || localStatus !== correctStatus;
+        // Only update if there's an actual difference
+        const needsUpdate =
+          localAmount !== paycashlessAmount || localStatus !== correctStatus;
 
-          // Debug: Log the comparison
-          console.log(`🔄 Comparison for ${email}:`, {
-            localAmount,
-            localStatus,
-            paycashlessAmount,
-            correctStatus,
-            needsUpdate,
-            amountMatch: localAmount === paycashlessAmount,
-            statusMatch: localStatus === correctStatus,
-          });
+        // Debug: Log the comparison
+        console.log(`🔄 Comparison for ${email}:`, {
+          localAmount,
+          localStatus,
+          paycashlessAmount,
+          correctStatus,
+          needsUpdate,
+          amountMatch: localAmount === paycashlessAmount,
+          statusMatch: localStatus === correctStatus,
+        });
 
-          if (needsUpdate) {
+        if (needsUpdate) {
           // Update payment with correct Paycashless data
           const updateData = {
             amount_paid: paycashlessAmount,
