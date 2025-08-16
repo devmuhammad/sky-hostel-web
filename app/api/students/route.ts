@@ -44,6 +44,7 @@ interface StudentRegistrationData {
 async function handlePOST(request: NextRequest) {
   try {
     const data: StudentRegistrationData = await request.json();
+    console.log("Registration attempt for:", data.email);
 
     // Validate required fields
     const requiredFields = [
@@ -60,12 +61,12 @@ async function handlePOST(request: NextRequest) {
       "block",
       "room",
       "bedspace_label",
-      "payment_id",
       "room_id",
     ];
 
     for (const field of requiredFields) {
       if (!data[field as keyof StudentRegistrationData]) {
+        console.log("Missing required field:", field);
         return NextResponse.json(
           { success: false, error: { message: `${field} is required` } },
           { status: 400 }
@@ -73,9 +74,30 @@ async function handlePOST(request: NextRequest) {
       }
     }
 
+    console.log("All required fields present, connecting to database...");
     const supabaseAdmin = await createServerSupabaseClient();
 
+    // Validate payment_id if provided
+    if (data.payment_id) {
+      console.log("Validating payment_id:", data.payment_id);
+      // Check if payment exists
+      const { data: paymentExists, error: paymentError } = await supabaseAdmin
+        .from("payments")
+        .select("id")
+        .eq("id", data.payment_id)
+        .single();
+
+      if (paymentError || !paymentExists) {
+        console.error("Invalid payment_id:", data.payment_id);
+        return NextResponse.json(
+          { success: false, error: { message: "Invalid payment reference" } },
+          { status: 400 }
+        );
+      }
+    }
+
     try {
+      console.log("Checking for existing matric number...");
       // Check if matric number already exists
       const { data: existingStudent, error: checkError } = await supabaseAdmin
         .from("students")
@@ -84,10 +106,12 @@ async function handlePOST(request: NextRequest) {
         .single();
 
       if (checkError && checkError.code !== "PGRST116") {
+        console.error("Error checking existing student:", checkError);
         throw new Error("Error checking existing student");
       }
 
       if (existingStudent) {
+        console.log("Matric number already exists:", data.matric_number);
         return NextResponse.json(
           {
             success: false,
@@ -97,6 +121,7 @@ async function handlePOST(request: NextRequest) {
         );
       }
 
+      console.log("Checking for existing email...");
       // Check if email already exists
       const { data: existingEmail, error: emailError } = await supabaseAdmin
         .from("students")
@@ -105,10 +130,12 @@ async function handlePOST(request: NextRequest) {
         .single();
 
       if (emailError && emailError.code !== "PGRST116") {
+        console.error("Error checking existing email:", emailError);
         throw new Error("Error checking existing email");
       }
 
       if (existingEmail) {
+        console.log("Email already exists:", data.email);
         return NextResponse.json(
           {
             success: false,
@@ -118,6 +145,7 @@ async function handlePOST(request: NextRequest) {
         );
       }
 
+      console.log("Checking for existing phone...");
       // Check if phone already exists
       const { data: existingPhone, error: phoneError } = await supabaseAdmin
         .from("students")
@@ -126,10 +154,12 @@ async function handlePOST(request: NextRequest) {
         .single();
 
       if (phoneError && phoneError.code !== "PGRST116") {
+        console.error("Error checking existing phone:", phoneError);
         throw new Error("Error checking existing phone");
       }
 
       if (existingPhone) {
+        console.log("Phone already exists:", data.phone);
         return NextResponse.json(
           {
             success: false,
@@ -139,6 +169,7 @@ async function handlePOST(request: NextRequest) {
         );
       }
 
+      console.log("Verifying bedspace availability...");
       // Verify bedspace is still available
       const { data: roomData, error: roomError } = await supabaseAdmin
         .from("rooms")
@@ -147,6 +178,7 @@ async function handlePOST(request: NextRequest) {
         .single();
 
       if (roomError || !roomData) {
+        console.error("Room not found or error:", roomError);
         return NextResponse.json(
           { success: false, error: "Room not found" },
           { status: 404 }
@@ -155,12 +187,14 @@ async function handlePOST(request: NextRequest) {
 
       // Check if bedspace is still available
       if (!roomData.available_beds.includes(data.bedspace_label)) {
+        console.log("Bedspace no longer available:", data.bedspace_label);
         return NextResponse.json(
           { success: false, error: "Bedspace no longer available" },
           { status: 409 }
         );
       }
 
+      console.log("Creating student record...");
       // Remove bedspace from available beds
       const updatedBeds = roomData.available_beds.filter(
         (bed: string) => bed !== data.bedspace_label
@@ -173,10 +207,8 @@ async function handlePOST(request: NextRequest) {
         .eq("id", data.room_id);
 
       if (updateRoomError) {
-        return NextResponse.json(
-          { success: false, error: "Failed to update room availability" },
-          { status: 500 }
-        );
+        console.error("Error updating room availability:", updateRoomError);
+        throw new Error("Failed to update room availability");
       }
 
       // Create student record with all new fields
@@ -227,6 +259,8 @@ async function handlePOST(request: NextRequest) {
         throw new Error("Failed to create student record");
       }
 
+      console.log("Student created successfully:", student.id);
+
       // Log the registration activity
       await supabaseAdmin.from("activity_logs").insert({
         action: "student_registered",
@@ -241,6 +275,7 @@ async function handlePOST(request: NextRequest) {
         },
       });
 
+      console.log("Registration completed successfully for:", data.email);
       return NextResponse.json({
         success: true,
         data: {
@@ -256,7 +291,11 @@ async function handlePOST(request: NextRequest) {
     console.error("Student registration error:", error);
 
     // Handle database constraint violations
-    const dbError = error as { code?: string; constraint?: string };
+    const dbError = error as {
+      code?: string;
+      constraint?: string;
+      detail?: string;
+    };
     if (dbError?.code === "23505") {
       // PostgreSQL unique constraint violation
       let message = "Registration failed - duplicate data found";
@@ -273,6 +312,35 @@ async function handlePOST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: { message } },
         { status: 400 }
+      );
+    }
+
+    // Handle foreign key constraint violations
+    if (dbError?.code === "23503") {
+      console.error("Foreign key constraint violation:", dbError);
+      if (dbError.detail?.includes("payment_id")) {
+        return NextResponse.json(
+          { success: false, error: { message: "Invalid payment reference" } },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json(
+        { success: false, error: { message: "Invalid reference data" } },
+        { status: 400 }
+      );
+    }
+
+    // Handle other database errors
+    if (dbError?.code) {
+      console.error(
+        "Database error code:",
+        dbError.code,
+        "Detail:",
+        dbError.detail
+      );
+      return NextResponse.json(
+        { success: false, error: { message: "Database error occurred" } },
+        { status: 500 }
       );
     }
 

@@ -96,11 +96,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-
-
     for (const [email, paycashlessInvoice] of emailToInvoiceMap) {
-
-
       // Find matching local payment by invoice_id first, then by email
       let localPayment = localPayments?.find(
         (p) => p.invoice_id === paycashlessInvoice.id
@@ -113,8 +109,6 @@ export async function POST(request: NextRequest) {
       const paycashlessAmount = paycashlessInvoice.totalPaid || 0;
       const paycashlessStatus = paycashlessInvoice.status;
       const isFullyPaid = paycashlessAmount >= PAYMENT_CONFIG.amount;
-
-
 
       // Determine the correct status based on Paycashless data
       let correctStatus = "pending";
@@ -213,8 +207,6 @@ export async function POST(request: NextRequest) {
           amountPaid: paycashlessAmount,
           status: newPayment.status,
         });
-
-
       } else {
         // Check if update is needed - only update if Paycashless data is different
         const localAmount = localPayment.amount_paid || 0;
@@ -223,8 +215,6 @@ export async function POST(request: NextRequest) {
         // Only update if there's an actual difference
         const needsUpdate =
           localAmount !== paycashlessAmount || localStatus !== correctStatus;
-
-
 
         if (needsUpdate) {
           // Update payment with correct Paycashless data
