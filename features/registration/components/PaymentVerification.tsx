@@ -126,10 +126,11 @@ export default function PaymentVerification({
         toast.error("Payment incomplete", {
           description: `You have paid ₦${result.data?.totalPaid?.toLocaleString() || 0} out of ₦${PAYMENT_CONFIG.amount.toLocaleString()}. Please complete your payment before registering.`,
         });
-        
+
         setPartialPaymentInfo({
           totalPaid: result.data?.totalPaid || 0,
-          remainingAmount: result.data?.remainingAmount || PAYMENT_CONFIG.amount,
+          remainingAmount:
+            result.data?.remainingAmount || PAYMENT_CONFIG.amount,
           isFullyPaid: false,
           payments: result.data?.payments || [],
         });

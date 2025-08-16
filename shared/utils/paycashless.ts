@@ -262,21 +262,8 @@ export async function getPaycashlessPaymentStatus(
     const remainingAmount = Math.max(0, PAYMENT_CONFIG.amount - totalPaid);
     const isFullyPaid = totalPaid >= PAYMENT_CONFIG.amount;
 
-    // DEBUG: Log final calculation
-    console.log("🔍 DEBUG: Final payment calculation for", email, {
-      totalPaid,
-      remainingAmount,
-      isFullyPaid,
-      requiredAmount: PAYMENT_CONFIG.amount,
-      payment_id,
-    });
-
     // If not fully paid, return error
     if (!isFullyPaid && totalPaid > 0) {
-      console.log("❌ DEBUG: Payment incomplete for", email, {
-        totalPaid,
-        requiredAmount: PAYMENT_CONFIG.amount,
-      });
       return {
         success: false,
         error: `Payment incomplete. You have paid ₦${totalPaid.toLocaleString()} out of ₦${PAYMENT_CONFIG.amount.toLocaleString()}. Please complete your payment before registering.`,
@@ -358,8 +345,46 @@ export async function verifyPaycashlessPayment(
       };
     }
 
-    // Return the real Paycashless data
-    return paycashlessResult;
+    // If payment is not fully paid, return the error
+    if (!paycashlessResult.data?.isFullyPaid) {
+      return paycashlessResult;
+    }
+
+    // Payment is fully paid, now find the local payment record
+
+    // Look up local payment record by email
+    const { data: localPayment, error: localPaymentError } = await supabaseAdmin
+      .from("payments")
+      .select("id, email, amount_paid, status, invoice_id")
+      .eq("email", email)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (localPaymentError && localPaymentError.code !== "PGRST116") {
+      console.error("Error looking up local payment:", localPaymentError);
+      return {
+        success: false,
+        error: "Payment lookup failed",
+      };
+    }
+
+    if (!localPayment) {
+      console.error("No local payment record found for email:", email);
+      return {
+        success: false,
+        error: "No payment record found for this email",
+      };
+    }
+
+    // Return the Paycashless data but with the local payment UUID
+    return {
+      success: true,
+      data: {
+        ...paycashlessResult.data,
+        payment_id: localPayment.id, // Use local payment UUID instead of Paycashless invoice ID
+      },
+    };
   } catch (error) {
     console.error("Payment verification error:", error);
     return {

@@ -191,22 +191,28 @@ export default function RegistrationSuccess() {
               {studentData.payment_status === "completed" ? "Paid" : "Pending"}
             </p>
           </div>
-          {studentData.passport_photo_url && (
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-sm font-medium text-gray-500 mb-3">
-                Passport Photo
-              </h3>
-              <div className="flex justify-center">
-                <Image
-                  src={studentData.passport_photo_url}
-                  alt="Passport photo"
-                  width={80}
-                  height={80}
-                  className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
-                />
+          {studentData.passport_photo_url &&
+            studentData.passport_photo_url.trim() !== "" && (
+              <div className="bg-white p-6 rounded-lg shadow">
+                <h3 className="text-sm font-medium text-gray-500 mb-3">
+                  Passport Photo
+                </h3>
+                <div className="flex justify-center">
+                  <Image
+                    src={studentData.passport_photo_url}
+                    alt="Passport photo"
+                    width={80}
+                    height={80}
+                    className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+                    onError={(e) => {
+                      // Hide the image if it fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = "none";
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-          )}
+            )}
         </div>
 
         {/* Detailed Information */}
@@ -214,40 +220,46 @@ export default function RegistrationSuccess() {
           {/* Personal Information */}
           <CardContainer title="Personal Information">
             <div className="space-y-4">
-              {studentData.passport_photo_url && (
-                <div className="flex items-center space-x-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Passport Photo
-                    </label>
-                    <Image
-                      src={studentData.passport_photo_url}
-                      alt="Passport photo"
-                      width={96}
-                      height={96}
-                      className="w-24 h-24 rounded-lg object-cover border-2 border-gray-200"
-                    />
-                  </div>
-                  <div className="flex-1">
+              {studentData.passport_photo_url &&
+                studentData.passport_photo_url.trim() !== "" && (
+                  <div className="flex items-center space-x-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Full Name
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Passport Photo
                       </label>
-                      <p className="mt-1 text-sm text-gray-900">
-                        {studentData.name}
-                      </p>
+                      <Image
+                        src={studentData.passport_photo_url}
+                        alt="Passport photo"
+                        width={96}
+                        height={96}
+                        className="w-24 h-24 rounded-lg object-cover border-2 border-gray-200"
+                        onError={(e) => {
+                          // Hide the image if it fails to load
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = "none";
+                        }}
+                      />
                     </div>
-                    <div className="mt-3">
-                      <label className="block text-sm font-medium text-gray-700">
-                        Email Address
-                      </label>
-                      <p className="mt-1 text-sm text-gray-900">
-                        {studentData.email}
-                      </p>
+                    <div className="flex-1">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Full Name
+                        </label>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {studentData.name}
+                        </p>
+                      </div>
+                      <div className="mt-3">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Email Address
+                        </label>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {studentData.email}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
               {!studentData.passport_photo_url && (
                 <>
                   <div>

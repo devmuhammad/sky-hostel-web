@@ -79,8 +79,41 @@ async function handlePOST(request: NextRequest) {
 
     // Validate payment_id if provided
     if (data.payment_id) {
-      console.log("Validating payment_id:", data.payment_id);
-      // Check if payment exists
+              // Check if this looks like a Paycashless invoice ID (starts with 'inv_')
+        if (data.payment_id.startsWith("inv_")) {
+          // Look up local payment record by email (since Paycashless invoice ID != our invoice_id)
+          const { data: paymentExists, error: paymentError } = await supabaseAdmin
+            .from("payments")
+            .select("id, email, amount_paid, status, invoice_id")
+            .eq("email", data.email)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single();
+
+          if (paymentError && paymentError.code !== "PGRST116") {
+            console.error("Error looking up local payment:", paymentError);
+            return NextResponse.json(
+              { success: false, error: { message: "Payment lookup failed" } },
+              { status: 500 }
+            );
+          }
+
+          if (!paymentExists) {
+            console.error("No local payment record found for email:", data.email);
+            return NextResponse.json(
+              {
+                success: false,
+                error: { message: "No payment record found for this email" },
+              },
+              { status: 400 }
+            );
+          }
+
+          // Use the local payment ID instead of the Paycashless invoice ID
+          data.payment_id = paymentExists.id;
+        }
+
+      // Now validate the payment UUID
       const { data: paymentExists, error: paymentError } = await supabaseAdmin
         .from("payments")
         .select("id")
@@ -97,7 +130,6 @@ async function handlePOST(request: NextRequest) {
     }
 
     try {
-      console.log("Checking for existing matric number...");
       // Check if matric number already exists
       const { data: existingStudent, error: checkError } = await supabaseAdmin
         .from("students")
@@ -111,7 +143,6 @@ async function handlePOST(request: NextRequest) {
       }
 
       if (existingStudent) {
-        console.log("Matric number already exists:", data.matric_number);
         return NextResponse.json(
           {
             success: false,
@@ -121,7 +152,6 @@ async function handlePOST(request: NextRequest) {
         );
       }
 
-      console.log("Checking for existing email...");
       // Check if email already exists
       const { data: existingEmail, error: emailError } = await supabaseAdmin
         .from("students")
@@ -135,7 +165,6 @@ async function handlePOST(request: NextRequest) {
       }
 
       if (existingEmail) {
-        console.log("Email already exists:", data.email);
         return NextResponse.json(
           {
             success: false,
@@ -145,7 +174,6 @@ async function handlePOST(request: NextRequest) {
         );
       }
 
-      console.log("Checking for existing phone...");
       // Check if phone already exists
       const { data: existingPhone, error: phoneError } = await supabaseAdmin
         .from("students")
@@ -159,7 +187,6 @@ async function handlePOST(request: NextRequest) {
       }
 
       if (existingPhone) {
-        console.log("Phone already exists:", data.phone);
         return NextResponse.json(
           {
             success: false,
@@ -169,8 +196,6 @@ async function handlePOST(request: NextRequest) {
         );
       }
 
-      console.log("Verifying bedspace availability...");
-      // Verify bedspace is still available
       const { data: roomData, error: roomError } = await supabaseAdmin
         .from("rooms")
         .select("available_beds")
@@ -187,14 +212,11 @@ async function handlePOST(request: NextRequest) {
 
       // Check if bedspace is still available
       if (!roomData.available_beds.includes(data.bedspace_label)) {
-        console.log("Bedspace no longer available:", data.bedspace_label);
         return NextResponse.json(
           { success: false, error: "Bedspace no longer available" },
           { status: 409 }
         );
       }
-
-      console.log("Creating student record...");
       // Remove bedspace from available beds
       const updatedBeds = roomData.available_beds.filter(
         (bed: string) => bed !== data.bedspace_label
@@ -259,8 +281,6 @@ async function handlePOST(request: NextRequest) {
         throw new Error("Failed to create student record");
       }
 
-      console.log("Student created successfully:", student.id);
-
       // Log the registration activity
       await supabaseAdmin.from("activity_logs").insert({
         action: "student_registered",
@@ -274,8 +294,6 @@ async function handlePOST(request: NextRequest) {
           full_name: `${data.first_name} ${data.last_name}`,
         },
       });
-
-      console.log("Registration completed successfully for:", data.email);
       return NextResponse.json({
         success: true,
         data: {
