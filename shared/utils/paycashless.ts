@@ -2,7 +2,6 @@ import crypto from "crypto";
 import {
   PaycashlessInvoiceRequest,
   PaycashlessInvoiceResponse,
-  PaycashlessListResponse,
   PaycashlessInvoice,
   PaycashlessWebhookData,
 } from "@/shared/types/payment";
@@ -184,69 +183,32 @@ export async function getPaycashlessPaymentStatus(
       throw new Error("Paycashless API credentials are not configured");
     }
 
-    // First, try to list all invoices to find ones related to this email
-    const timestamp = Math.floor(Date.now() / 1000);
-    const listRequestPath = "/v1/invoices";
+    // Use the working getAllPaycashlessInvoices function directly
+    const listResult = await getAllPaycashlessInvoices({
+      limit: 100,
+    });
 
-    const listSignature = generateRequestSignature(
-      listRequestPath,
-      {}, // Empty body for GET requests
-      timestamp
-    );
-
-    const listResponse = await fetch(
-      `${PAYCASHLESS_API_URL}${listRequestPath}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${PAYCASHLESS_API_KEY}`,
-          "Request-Timestamp": timestamp.toString(),
-          "Request-Signature": listSignature,
-        },
-      }
-    );
-
-    if (!listResponse.ok) {
-      const errorText = await listResponse.text();
-      console.error(
-        "Paycashless list API error:",
-        listResponse.status,
-        errorText
-      );
-      throw new Error(`Paycashless API error: ${listResponse.status}`);
-    }
-
-    const listResult: PaycashlessListResponse = await listResponse.json();
-    // Paycashless list response received
-
-    // Check if we have data (Paycashless might not return a success field)
-    if (!listResult.data) {
+    if (!listResult.success || !listResult.data) {
       return {
         success: false,
-        error: listResult.message || "No invoice data found on Paycashless",
+        error: listResult.error || "Failed to fetch invoices from Paycashless",
       };
     }
 
-    const invoices: PaycashlessInvoice[] = listResult.data || [];
+    const invoices = listResult.data.invoices || [];
 
     // Filter for invoices related to this email
-    const relevantInvoices = invoices.filter((invoice: PaycashlessInvoice) => {
-      // Check various fields where email might be stored
+    const relevantInvoices = invoices.filter((invoice: any) => {
       const metadataEmail = invoice.metadata?.email;
       const customerEmail = invoice.customer?.email;
       const returnUrlEmail = extractEmailFromReturnUrl(invoice.returnUrl);
 
-      // Email matching check completed
-      const isRelevant =
+      return (
         metadataEmail === email ||
         customerEmail === email ||
-        returnUrlEmail === email;
-
-      return isRelevant;
+        returnUrlEmail === email
+      );
     });
-
-    // Invoice status analysis completed
 
     if (relevantInvoices.length === 0) {
       return {
@@ -272,15 +234,14 @@ export async function getPaycashlessPaymentStatus(
       paidAt?: string;
     }> = [];
 
-    relevantInvoices.forEach((invoice: PaycashlessInvoice) => {
-      // Only count as paid if the invoice status indicates actual payment
-      // Check if the invoice is actually paid, not just created
+    relevantInvoices.forEach((invoice: any) => {
       const isActuallyPaid =
         invoice.status === "paid" ||
         invoice.status === "completed" ||
         invoice.status === "succeeded" ||
-        ((invoice.totalPaid || 0) > 0 && (invoice.totalPaid || 0) >= invoice.amountDue);
-      const amountPaid = isActuallyPaid ? (invoice.totalPaid || 0) : 0;
+        ((invoice.totalPaid || 0) > 0 &&
+          (invoice.totalPaid || 0) >= invoice.amountDue);
+      const amountPaid = isActuallyPaid ? invoice.totalPaid || 0 : 0;
       totalPaid += amountPaid;
 
       if (amountPaid > 0) {
@@ -301,8 +262,21 @@ export async function getPaycashlessPaymentStatus(
     const remainingAmount = Math.max(0, PAYMENT_CONFIG.amount - totalPaid);
     const isFullyPaid = totalPaid >= PAYMENT_CONFIG.amount;
 
+    // DEBUG: Log final calculation
+    console.log("🔍 DEBUG: Final payment calculation for", email, {
+      totalPaid,
+      remainingAmount,
+      isFullyPaid,
+      requiredAmount: PAYMENT_CONFIG.amount,
+      payment_id,
+    });
+
     // If not fully paid, return error
     if (!isFullyPaid && totalPaid > 0) {
+      console.log("❌ DEBUG: Payment incomplete for", email, {
+        totalPaid,
+        requiredAmount: PAYMENT_CONFIG.amount,
+      });
       return {
         success: false,
         error: `Payment incomplete. You have paid ₦${totalPaid.toLocaleString()} out of ₦${PAYMENT_CONFIG.amount.toLocaleString()}. Please complete your payment before registering.`,
