@@ -64,6 +64,9 @@ export async function POST(request: NextRequest) {
       mismatches: [] as any[],
     };
 
+    // Group invoices by email and keep only the most recent one for each email
+    const emailToInvoiceMap = new Map<string, any>();
+    
     for (const paycashlessInvoice of paycashlessInvoices) {
       const email = paycashlessInvoice.customer?.email;
       if (!email) {
@@ -71,11 +74,33 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // Keep only the most recent invoice for each email
+      const existingInvoice = emailToInvoiceMap.get(email);
+      if (!existingInvoice || new Date(paycashlessInvoice.createdAt) > new Date(existingInvoice.createdAt)) {
+        emailToInvoiceMap.set(email, paycashlessInvoice);
+      }
+    }
+
+    console.log(`📋 Processing ${emailToInvoiceMap.size} unique emails from ${paycashlessInvoices.length} invoices`);
+
+    for (const [email, paycashlessInvoice] of emailToInvoiceMap) {
+
+      // Debug: Log the raw Paycashless data
+      console.log(`🔍 Processing Paycashless invoice for ${email}:`, {
+        id: paycashlessInvoice.id,
+        reference: paycashlessInvoice.reference,
+        status: paycashlessInvoice.status,
+        amount: paycashlessInvoice.amount,
+        totalPaid: paycashlessInvoice.totalPaid,
+        remainingAmount: paycashlessInvoice.remainingAmount,
+        customer: paycashlessInvoice.customer,
+      });
+
       // Find matching local payment by invoice_id first, then by email
       let localPayment = localPayments?.find(
         (p) => p.invoice_id === paycashlessInvoice.id
       );
-      
+
       if (!localPayment) {
         localPayment = localPayments?.find((p) => p.email === email);
       }
@@ -83,7 +108,15 @@ export async function POST(request: NextRequest) {
       const paycashlessAmount = paycashlessInvoice.totalPaid || 0;
       const paycashlessStatus = paycashlessInvoice.status;
       const isFullyPaid = paycashlessAmount >= PAYMENT_CONFIG.amount;
-      
+
+      // Debug: Log the calculated values
+      console.log(`📊 Calculated values for ${email}:`, {
+        paycashlessAmount,
+        paycashlessStatus,
+        isFullyPaid,
+        requiredAmount: PAYMENT_CONFIG.amount,
+      });
+
       // Determine the correct status based on Paycashless data
       let correctStatus = "pending";
       if (isFullyPaid) {
@@ -94,16 +127,17 @@ export async function POST(request: NextRequest) {
 
       if (!localPayment) {
         // Check if we already have a payment for this email (to avoid duplicates)
-        const existingPaymentForEmail = localPayments?.find((p) => p.email === email);
-        
+        const existingPaymentForEmail = localPayments?.find(
+          (p) => p.email === email
+        );
+
         if (existingPaymentForEmail) {
           // Update existing payment instead of creating new one
           const localAmount = existingPaymentForEmail.amount_paid || 0;
           const localStatus = existingPaymentForEmail.status;
-          
+
           const needsUpdate =
-            localAmount !== paycashlessAmount ||
-            localStatus !== correctStatus;
+            localAmount !== paycashlessAmount || localStatus !== correctStatus;
 
           if (needsUpdate) {
             const updateData = {
@@ -122,7 +156,11 @@ export async function POST(request: NextRequest) {
                 .single();
 
             if (updateError) {
-              console.error("Error updating existing payment for", email, updateError);
+              console.error(
+                "Error updating existing payment for",
+                email,
+                updateError
+              );
               results.mismatches.push({
                 email,
                 paycashlessAmount,
@@ -191,13 +229,23 @@ export async function POST(request: NextRequest) {
         // Check if update is needed - only update if Paycashless data is different
         const localAmount = localPayment.amount_paid || 0;
         const localStatus = localPayment.status;
-        
-        // Only update if there's an actual difference
-        const needsUpdate =
-          localAmount !== paycashlessAmount ||
-          localStatus !== correctStatus;
 
-        if (needsUpdate) {
+                  // Only update if there's an actual difference
+          const needsUpdate =
+            localAmount !== paycashlessAmount || localStatus !== correctStatus;
+
+          // Debug: Log the comparison
+          console.log(`🔄 Comparison for ${email}:`, {
+            localAmount,
+            localStatus,
+            paycashlessAmount,
+            correctStatus,
+            needsUpdate,
+            amountMatch: localAmount === paycashlessAmount,
+            statusMatch: localStatus === correctStatus,
+          });
+
+          if (needsUpdate) {
           // Update payment with correct Paycashless data
           const updateData = {
             amount_paid: paycashlessAmount,
@@ -239,12 +287,12 @@ export async function POST(request: NextRequest) {
           console.log(
             `Updated payment for ${email}: ₦${localAmount.toLocaleString()} (${localStatus}) → ₦${paycashlessAmount.toLocaleString()} (${correctStatus})`
           );
-                  } else {
-            results.matchingRecords++;
-            console.log(
-              `No update needed for ${email}: ₦${localAmount.toLocaleString()} (${localStatus}) matches Paycashless`
-            );
-          }
+        } else {
+          results.matchingRecords++;
+          console.log(
+            `No update needed for ${email}: ₦${localAmount.toLocaleString()} (${localStatus}) matches Paycashless`
+          );
+        }
       }
     }
 
