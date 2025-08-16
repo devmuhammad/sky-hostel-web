@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
     }
 
     const paycashlessInvoices = paycashlessResult.data.invoices || [];
-    console.log(`Found ${paycashlessInvoices.length} invoices on Paycashless`);
 
     // Get all local payments
     const { data: localPayments, error: localError } = await supabaseAdmin
@@ -49,8 +48,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log(`Found ${localPayments?.length || 0} local payments`);
 
     // Process each Paycashless invoice
     const results = {
@@ -82,13 +79,16 @@ export async function POST(request: NextRequest) {
       } else {
         const existingAmount = existingInvoice.totalPaid || 0;
         const currentAmount = paycashlessInvoice.totalPaid || 0;
-        
+
         if (currentAmount > existingAmount) {
           // Current invoice has higher payment amount
           emailToInvoiceMap.set(email, paycashlessInvoice);
         } else if (currentAmount === existingAmount) {
           // Same amount, keep the most recent one
-          if (new Date(paycashlessInvoice.createdAt) > new Date(existingInvoice.createdAt)) {
+          if (
+            new Date(paycashlessInvoice.createdAt) >
+            new Date(existingInvoice.createdAt)
+          ) {
             emailToInvoiceMap.set(email, paycashlessInvoice);
           }
         }
@@ -96,32 +96,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(
-      `📋 Processing ${emailToInvoiceMap.size} unique emails from ${paycashlessInvoices.length} invoices`
-    );
 
-    // Log which invoice was selected for each email
-    for (const [email, invoice] of emailToInvoiceMap) {
-      console.log(`✅ Selected for ${email}:`, {
-        invoiceId: invoice.id,
-        reference: invoice.reference,
-        status: invoice.status,
-        totalPaid: invoice.totalPaid,
-        createdAt: invoice.createdAt,
-      });
-    }
 
     for (const [email, paycashlessInvoice] of emailToInvoiceMap) {
-      // Debug: Log the raw Paycashless data
-      console.log(`🔍 Processing Paycashless invoice for ${email}:`, {
-        id: paycashlessInvoice.id,
-        reference: paycashlessInvoice.reference,
-        status: paycashlessInvoice.status,
-        amount: paycashlessInvoice.amount,
-        totalPaid: paycashlessInvoice.totalPaid,
-        remainingAmount: paycashlessInvoice.remainingAmount,
-        customer: paycashlessInvoice.customer,
-      });
+
 
       // Find matching local payment by invoice_id first, then by email
       let localPayment = localPayments?.find(
@@ -136,13 +114,7 @@ export async function POST(request: NextRequest) {
       const paycashlessStatus = paycashlessInvoice.status;
       const isFullyPaid = paycashlessAmount >= PAYMENT_CONFIG.amount;
 
-      // Debug: Log the calculated values
-      console.log(`📊 Calculated values for ${email}:`, {
-        paycashlessAmount,
-        paycashlessStatus,
-        isFullyPaid,
-        requiredAmount: PAYMENT_CONFIG.amount,
-      });
+
 
       // Determine the correct status based on Paycashless data
       let correctStatus = "pending";
@@ -208,14 +180,7 @@ export async function POST(request: NextRequest) {
               newStatus: correctStatus,
             });
 
-            console.log(
-              `Updated existing payment for ${email}: ₦${localAmount.toLocaleString()} (${localStatus}) → ₦${paycashlessAmount.toLocaleString()} (${correctStatus})`
-            );
-          } else {
             results.matchingRecords++;
-            console.log(
-              `No update needed for existing payment ${email}: ₦${localAmount.toLocaleString()} (${localStatus}) matches Paycashless`
-            );
           }
           continue;
         }
@@ -249,9 +214,7 @@ export async function POST(request: NextRequest) {
           status: newPayment.status,
         });
 
-        console.log(
-          `Created new payment for ${email}: ₦${paycashlessAmount.toLocaleString()}`
-        );
+
       } else {
         // Check if update is needed - only update if Paycashless data is different
         const localAmount = localPayment.amount_paid || 0;
@@ -261,16 +224,7 @@ export async function POST(request: NextRequest) {
         const needsUpdate =
           localAmount !== paycashlessAmount || localStatus !== correctStatus;
 
-        // Debug: Log the comparison
-        console.log(`🔄 Comparison for ${email}:`, {
-          localAmount,
-          localStatus,
-          paycashlessAmount,
-          correctStatus,
-          needsUpdate,
-          amountMatch: localAmount === paycashlessAmount,
-          statusMatch: localStatus === correctStatus,
-        });
+
 
         if (needsUpdate) {
           // Update payment with correct Paycashless data
@@ -311,14 +265,7 @@ export async function POST(request: NextRequest) {
             newStatus: correctStatus,
           });
 
-          console.log(
-            `Updated payment for ${email}: ₦${localAmount.toLocaleString()} (${localStatus}) → ₦${paycashlessAmount.toLocaleString()} (${correctStatus})`
-          );
-        } else {
           results.matchingRecords++;
-          console.log(
-            `No update needed for ${email}: ₦${localAmount.toLocaleString()} (${localStatus}) matches Paycashless`
-          );
         }
       }
     }
