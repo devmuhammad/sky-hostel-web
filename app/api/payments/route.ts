@@ -54,28 +54,19 @@ async function handlePOST(request: NextRequest) {
         );
       }
 
-      // Check if there's a recent pending payment (within last 24 hours)
-      const recentPendingPayment = existingPayments.find((p) => {
-        if (p.status !== "pending") return false;
-        const paymentAge = Date.now() - new Date(p.created_at).getTime();
-        const hoursSincePayment = paymentAge / (1000 * 60 * 60);
-        return hoursSincePayment < 24;
-      });
-
-      if (recentPendingPayment) {
+      // Check if there's any existing payment (pending, partially_paid, etc.)
+      const anyExistingPayment = existingPayments[0];
+      if (anyExistingPayment) {
         return NextResponse.json(
           {
             success: false,
             error: {
-              message: `A payment is already in progress for this email (${data.email}). Please complete your existing payment or wait 24 hours before trying again.`,
+              message: `A payment already exists for this email (${data.email}). Please complete your existing payment before creating a new one.`,
             },
           },
           { status: 400 }
         );
       }
-
-      // If there are old pending payments, we can proceed but log it
-      // Creating new payment for existing user
     }
 
     // Generate unique reference
