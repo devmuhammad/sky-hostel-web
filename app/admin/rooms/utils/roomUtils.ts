@@ -66,9 +66,7 @@ export function getBedStatus(
   const topBedLabel = `Bed ${bedNumber} (Top)`;
   const downBedLabel = `Bed ${bedNumber} (Down)`;
 
-  const isTopAvailable = room.available_beds.includes(topBedLabel);
-  const isDownAvailable = room.available_beds.includes(downBedLabel);
-
+  // Check if students are assigned to these beds
   const studentInTop = getStudentInBed(
     students,
     room.block,
@@ -81,6 +79,14 @@ export function getBedStatus(
     room.name,
     downBedLabel
   );
+
+  // A bed is available ONLY if:
+  // 1. It's in the available_beds array AND
+  // 2. No student is assigned to it
+  const isTopAvailable =
+    room.available_beds.includes(topBedLabel) && !studentInTop;
+  const isDownAvailable =
+    room.available_beds.includes(downBedLabel) && !studentInDown;
 
   return {
     bedNumber,

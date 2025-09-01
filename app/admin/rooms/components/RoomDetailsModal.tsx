@@ -41,14 +41,34 @@ export function RoomDetailsModal({
             <label className="block text-sm font-medium text-gray-700">
               Total Beds
             </label>
-            <p className="text-sm text-gray-900">{room.total_beds}</p>
+            <p className="text-sm text-gray-900">
+              {room.total_beds} ({room.total_beds * 2} bedspaces)
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Available Beds
+              Available Bedspaces
             </label>
             <p className="text-sm text-gray-900">
-              {room.available_beds.length}
+              {(() => {
+                // Count beds that are actually available (not occupied)
+                const assignedStudents = students.filter(
+                  (student) =>
+                    student.block === room.block &&
+                    student.room === room.name &&
+                    student.bedspace_label
+                );
+                // Count available bedspaces by checking which ones are truly free
+                const availableBedspaces = room.available_beds.filter(
+                  (bedLabel) => {
+                    const isOccupied = assignedStudents.some(
+                      (student) => student.bedspace_label === bedLabel
+                    );
+                    return !isOccupied;
+                  }
+                );
+                return `${availableBedspaces.length} bedspaces available`;
+              })()}
             </p>
           </div>
         </div>

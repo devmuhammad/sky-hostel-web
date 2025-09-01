@@ -17,10 +17,28 @@ export function RoomCard({ room, students, onViewDetails }: RoomCardProps) {
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600">
-            {room.total_beds} beds total
+            {room.total_beds} beds ({room.total_beds * 2} bedspaces)
           </span>
           <span className="text-sm text-gray-600">
-            {room.available_beds.length} available
+            {(() => {
+              // Count beds that are actually available (not occupied)
+              const assignedStudents = students.filter(
+                (student) =>
+                  student.block === room.block &&
+                  student.room === room.name &&
+                  student.bedspace_label
+              );
+              // Count available bedspaces by checking which ones are truly free
+              const availableBedspaces = room.available_beds.filter(
+                (bedLabel) => {
+                  const isOccupied = assignedStudents.some(
+                    (student) => student.bedspace_label === bedLabel
+                  );
+                  return !isOccupied;
+                }
+              );
+              return `${availableBedspaces.length} bedspaces available`;
+            })()}
           </span>
         </div>
 

@@ -55,6 +55,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Determine bed type based on total_beds
+    const bed_type = total_beds === 6 ? "6_bed" : "4_bed";
+
     // Generate available beds based on total_beds
     const generateAvailableBeds = (totalBeds: number) => {
       const bedLabels = [];
@@ -73,6 +76,7 @@ export async function POST(request: NextRequest) {
         name,
         block,
         total_beds,
+        bed_type,
         available_beds,
       })
       .select()

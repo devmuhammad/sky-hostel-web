@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { CardLoadingSkeleton } from "@/shared/components/ui/loading-skeleton";
 import { EmptyState } from "@/shared/components/ui/empty-state";
@@ -15,17 +15,32 @@ import { AddRoomModal } from "./components/AddRoomModal";
 import { RoomDetailsModal } from "./components/RoomDetailsModal";
 
 function RoomsManagement() {
-  const { rooms, students } = useAppStore();
   const {
     data: roomsData,
     isLoading: roomsLoading,
     error: roomsError,
+    refetch: refetchRooms,
   } = useRooms();
   const {
     data: studentsData,
     isLoading: studentsLoading,
     error: studentsError,
+    refetch: refetchStudents,
   } = useStudents();
+
+  // Use fresh data from hooks instead of store
+  const rooms = roomsData || [];
+  const students = studentsData || [];
+
+  // Auto-refresh rooms data every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetchRooms();
+      refetchStudents();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [refetchRooms, refetchStudents]);
 
   const {
     showAddModal,
@@ -87,21 +102,63 @@ function RoomsManagement() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {rooms.map((room) => (
-          <RoomCard
-            key={room.id}
-            room={room}
-            students={students}
-            onViewDetails={setSelectedRoom}
-          />
-        ))}
+        {rooms
+          .filter(
+            (room) => room.available_beds && room.available_beds.length > 0
+          )
+          .map((room) => (
+            <RoomCard
+              key={room.id}
+              room={room}
+              students={students}
+              onViewDetails={setSelectedRoom}
+            />
+          ))}
       </div>
 
-      {rooms.length === 0 && (
+      {rooms.filter(
+        (room) => room.available_beds && room.available_beds.length > 0
+      ).length === 0 && (
         <EmptyState
-          title="No rooms found"
-          description="No rooms have been created yet. Add your first room to get started."
+          title="No available rooms found"
+          description="All rooms are currently full. Add a new room to get started."
+          action={
+            <Button onClick={() => setShowAddModal(true)}>Add Room</Button>
+          }
         />
+      )}
+
+      {/* Show full rooms separately */}
+      {rooms.filter(
+        (room) => !room.available_beds || room.available_beds.length === 0
+      ).length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Full Rooms (
+            {
+              rooms.filter(
+                (room) =>
+                  !room.available_beds || room.available_beds.length === 0
+              ).length
+            }
+            )
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {rooms
+              .filter(
+                (room) =>
+                  !room.available_beds || room.available_beds.length === 0
+              )
+              .map((room) => (
+                <RoomCard
+                  key={room.id}
+                  room={room}
+                  students={students}
+                  onViewDetails={setSelectedRoom}
+                />
+              ))}
+          </div>
+        </div>
       )}
 
       <AddRoomModal
