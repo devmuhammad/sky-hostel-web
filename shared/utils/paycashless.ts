@@ -4,6 +4,7 @@ import {
   PaycashlessInvoiceResponse,
   PaycashlessInvoice,
   PaycashlessWebhookData,
+  PaycashlessWebhookPayload,
 } from "@/shared/types/payment";
 import { supabaseAdmin } from "@/shared/config/supabase";
 
@@ -241,7 +242,7 @@ export async function getPaycashlessPaymentStatus(
         invoice.status === "succeeded" ||
         ((invoice.totalPaid || 0) > 0 &&
           (invoice.totalPaid || 0) >= invoice.amountDue);
-      const amountPaid = isActuallyPaid ? invoice.totalPaid || 0 : 0;
+      const amountPaid = isActuallyPaid ? (invoice.totalPaid || 0) / 100 : 0; // Convert from kobo to naira
       totalPaid += amountPaid;
 
       if (amountPaid > 0) {
@@ -442,91 +443,85 @@ export async function getAllPaycashlessInvoices(params?: {
       };
     }
 
-    // Paycashless API configuration verified
+    const allInvoices: any[] = [];
+    let hasMore = true;
+    let cursor: string | null = null;
+    let pageCount = 0;
+    const maxPages = 50;
 
-    const timestamp = Math.floor(Date.now() / 1000);
-    const requestPath = "/v1/invoices";
+    while (hasMore && pageCount < maxPages) {
+      pageCount++;
 
-    // Build query parameters
-    const queryParams = new URLSearchParams();
-    if (params?.limit) queryParams.append("limit", params.limit.toString());
-    if (params?.cursor) queryParams.append("cursor", params.cursor);
-    if (params?.status)
-      params.status.forEach((s) => queryParams.append("status", s));
-    if (params?.currency)
-      params.currency.forEach((c) => queryParams.append("currency", c));
-    if (params?.reference) queryParams.append("reference", params.reference);
-    if (params?.acceptPartialPayments !== undefined)
-      queryParams.append(
-        "acceptPartialPayments",
-        params.acceptPartialPayments?.toString() || "false"
-      );
-    if (params?.number) queryParams.append("number", params.number);
-    if (params?.createdAtGte)
-      queryParams.append("createdAt.gte", params.createdAtGte.toString());
-    if (params?.createdAtLte)
-      queryParams.append("createdAt.lte", params.createdAtLte.toString());
-    if (params?.createdAtLt)
-      queryParams.append("createdAt.lt", params.createdAtLt.toString());
-    if (params?.createdAtGt)
-      queryParams.append("createdAt.gt", params.createdAtGt.toString());
+      const timestamp = Math.floor(Date.now() / 1000);
+      const requestPath = "/v1/invoices";
 
-    const queryString = queryParams.toString();
-    const fullPath = queryString
-      ? `${requestPath}?${queryString}`
-      : requestPath;
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (params?.limit) queryParams.append("limit", params.limit.toString());
+      if (cursor) queryParams.append("cursor", cursor);
+      if (params?.status)
+        params.status.forEach((s) => queryParams.append("status", s));
+      if (params?.currency)
+        params.currency.forEach((c) => queryParams.append("currency", c));
+      if (params?.reference) queryParams.append("reference", params.reference);
+      if (params?.acceptPartialPayments !== undefined)
+        queryParams.append(
+          "acceptPartialPayments",
+          params.acceptPartialPayments?.toString() || "false"
+        );
+      if (params?.number) queryParams.append("number", params.number);
+      if (params?.createdAtGte)
+        queryParams.append("createdAt.gte", params.createdAtGte.toString());
+      if (params?.createdAtLte)
+        queryParams.append("createdAt.lte", params.createdAtLte.toString());
+      if (params?.createdAtLt)
+        queryParams.append("createdAt.lt", params.createdAtLt.toString());
+      if (params?.createdAtGt)
+        queryParams.append("createdAt.gt", params.createdAtGt.toString());
 
-    console.log("Request details:", {
-      fullPath,
-      timestamp,
-      queryString,
-    });
+      const queryString = queryParams.toString();
+      const fullPath = queryString
+        ? `${requestPath}?${queryString}`
+        : requestPath;
 
-    const basePath = "/v1/invoices"; // Don't include search params
-    const signature = generateRequestSignature(basePath, {}, timestamp);
+      const basePath = "/v1/invoices";
+      const signature = generateRequestSignature(basePath, {}, timestamp);
 
-    console.log("Using POST-style signature with base path and empty body");
-    console.log("Base path:", basePath);
-    console.log("Generated signature:", signature.substring(0, 20) + "...");
+      const response = await fetch(`${PAYCASHLESS_API_URL}${fullPath}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${PAYCASHLESS_API_KEY}`,
+          "Request-Signature": signature,
+          "Request-Timestamp": timestamp.toString(),
+        },
+      });
 
-    const response = await fetch(`${PAYCASHLESS_API_URL}${fullPath}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${PAYCASHLESS_API_KEY}`,
-        "Request-Signature": signature,
-        "Request-Timestamp": timestamp.toString(),
-      },
-    });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("❌ PayCashless API error response:", errorData);
 
-    // Response received
+        if (response.status === 401) {
+          return {
+            success: false,
+            error:
+              "PayCashless API authentication failed. Please check your API key and secret.",
+          };
+        }
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("Paycashless API error response:", errorData);
-
-      if (response.status === 401) {
-        return {
-          success: false,
-          error:
-            "Paycashless API authentication failed. Please check your API key and secret.",
-        };
+        throw new Error(
+          `PayCashless API error: ${response.status} - ${errorData.message || response.statusText}`
+        );
       }
 
-      throw new Error(
-        `Paycashless API error: ${response.status} - ${errorData.message || response.statusText}`
-      );
-    }
+      const data = await response.json();
 
-    const data = await response.json();
-    // Paycashless API success
+      // Add invoices from this page
+      const pageInvoices = data.data.map((invoice: PaycashlessInvoice) => {
+        // Extract email from returnUrl properly
+        const returnUrlEmail = extractEmailFromReturnUrl(invoice.returnUrl);
 
-    return {
-      success: true,
-      data: {
-        hasMore: data.hasMore,
-        cursor: data.cursor,
-        invoices: data.data.map((invoice: PaycashlessInvoice) => ({
+        return {
           id: invoice.id,
           reference: invoice.reference,
           number: invoice.number,
@@ -537,9 +532,7 @@ export async function getAllPaycashlessInvoices(params?: {
           remainingAmount:
             (invoice.amountRemaining || invoice.remainingAmount || 0) / 100,
           customer: {
-            email:
-              extractEmailFromReturnUrl(invoice.returnUrl) ||
-              invoice.customer?.email,
+            email: returnUrlEmail || invoice.customer?.email,
             phoneNumber:
               invoice.metadata?.phone || invoice.customer?.phoneNumber,
             name: extractNameFromMetadata(invoice.metadata),
@@ -547,11 +540,29 @@ export async function getAllPaycashlessInvoices(params?: {
           createdAt: invoice.createdAt,
           dueDate: invoice.dueDate,
           acceptPartialPayments: invoice.acceptPartialPayments,
-        })),
+        };
+      });
+
+      allInvoices.push(...pageInvoices);
+
+      // Check if there are more pages
+      hasMore = data.hasMore || false;
+      cursor = data.cursor || null;
+
+      if (hasMore && cursor) {
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        hasMore: false, // We've fetched everything
+        cursor: null,
+        invoices: allInvoices,
       },
     };
   } catch (error) {
-    console.error("Error fetching Paycashless invoices:", error);
+    console.error("❌ Error fetching PayCashless invoices:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -559,21 +570,193 @@ export async function getAllPaycashlessInvoices(params?: {
   }
 }
 
-// Helper function to extract email from returnUrl
+export async function getPaycashlessPaymentStatusForManualCheck(
+  email: string,
+  phone?: string
+): Promise<{
+  success: boolean;
+  data?: {
+    totalPaid: number;
+    remainingAmount: number;
+    isFullyPaid: boolean;
+    payment_id?: string;
+    payments: Array<{
+      id: string;
+      reference: string;
+      amount: number;
+      status: string;
+      paidAt?: string;
+    }>;
+  };
+  error?: string;
+}> {
+  try {
+    if (!PAYCASHLESS_API_KEY || !PAYCASHLESS_API_SECRET) {
+      throw new Error("Paycashless API credentials are not configured");
+    }
+
+    // Fetch ALL invoices without limit to ensure we don't miss any
+    const listResult = await getAllPaycashlessInvoices({
+      limit: 100, // PayCashless maximum limit is 100
+    });
+
+    if (!listResult.success || !listResult.data) {
+      return {
+        success: false,
+        error: listResult.error || "Failed to fetch invoices from Paycashless",
+      };
+    }
+
+    const invoices = listResult.data.invoices || [];
+
+    const relevantInvoices = invoices.filter((invoice: any) => {
+      const metadataEmail = invoice.metadata?.email;
+      const customerEmail = invoice.customer?.email;
+      const returnUrlEmail = extractEmailFromReturnUrl(invoice.returnUrl);
+      const metadataPhone = invoice.metadata?.phone;
+
+      const normalizedSearchEmail = email.toLowerCase().trim();
+      const normalizedMetadataEmail = metadataEmail?.toLowerCase().trim();
+      const normalizedCustomerEmail = customerEmail?.toLowerCase().trim();
+      const normalizedReturnUrlEmail = returnUrlEmail?.toLowerCase().trim();
+
+      if (normalizedMetadataEmail === normalizedSearchEmail) {
+        return true;
+      }
+
+      if (normalizedCustomerEmail === normalizedSearchEmail) {
+        return true;
+      }
+
+      if (normalizedReturnUrlEmail === normalizedSearchEmail) {
+        return true;
+      }
+
+      if (phone && metadataPhone) {
+        const normalizedSearchPhone = phone.replace(/\D/g, "");
+        const normalizedMetadataPhone = metadataPhone.replace(/\D/g, "");
+
+        if (
+          normalizedSearchPhone === normalizedMetadataPhone ||
+          normalizedSearchPhone.includes(normalizedMetadataPhone) ||
+          normalizedMetadataPhone.includes(normalizedSearchPhone)
+        ) {
+          return true;
+        }
+      }
+
+      if (
+        normalizedMetadataEmail &&
+        normalizedMetadataEmail.includes(normalizedSearchEmail.split("@")[0])
+      ) {
+        return true;
+      }
+
+      if (
+        normalizedReturnUrlEmail &&
+        normalizedReturnUrlEmail.includes(normalizedSearchEmail.split("@")[0])
+      ) {
+        return true;
+      }
+
+      return false;
+    });
+
+    if (relevantInvoices.length === 0) {
+      return {
+        success: true,
+        data: {
+          totalPaid: 0,
+          remainingAmount: PAYMENT_CONFIG.amount,
+          isFullyPaid: false,
+          payment_id: undefined,
+          payments: [],
+        },
+      };
+    }
+
+    let totalPaid = 0;
+    let payment_id: string | undefined;
+    const payments: Array<{
+      id: string;
+      reference: string;
+      amount: number;
+      status: string;
+      paidAt?: string;
+    }> = [];
+
+    relevantInvoices.forEach((invoice: any) => {
+      const isActuallyPaid =
+        invoice.status === "paid" ||
+        invoice.status === "completed" ||
+        invoice.status === "succeeded" ||
+        (invoice.totalPaid || 0) > 0;
+
+      const amountPaid = isActuallyPaid ? invoice.totalPaid || 0 : 0;
+      totalPaid += amountPaid;
+
+      if (amountPaid > 0) {
+        if (!payment_id) {
+          payment_id = invoice.id;
+        }
+
+        payments.push({
+          id: invoice.id,
+          reference: invoice.reference,
+          amount: amountPaid,
+          status: invoice.status,
+          paidAt: invoice.paidAt,
+        });
+      }
+    });
+
+    const remainingAmount = Math.max(0, PAYMENT_CONFIG.amount - totalPaid);
+    const isFullyPaid = totalPaid >= PAYMENT_CONFIG.amount;
+
+    const result = {
+      success: true,
+      data: {
+        totalPaid,
+        remainingAmount,
+        isFullyPaid,
+        payment_id,
+        payments,
+      },
+    };
+
+    return result;
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
 function extractEmailFromReturnUrl(returnUrl?: string): string | undefined {
   if (!returnUrl) return undefined;
 
   try {
     const url = new URL(returnUrl);
     const email = url.searchParams.get("email");
-    return email ? decodeURIComponent(email) : undefined;
+    if (email) {
+      return decodeURIComponent(email);
+    }
+
+    const pathParts = url.pathname.split("/");
+    for (const part of pathParts) {
+      if (part.includes("@") && part.includes(".")) {
+        return decodeURIComponent(part);
+      }
+    }
+
+    return undefined;
   } catch (error) {
     console.error("Error parsing returnUrl:", error);
     return undefined;
   }
 }
 
-// Helper function to extract and format name from metadata
 function extractNameFromMetadata(
   metadata?: Record<string, unknown>
 ): string | undefined {
@@ -585,8 +768,22 @@ function extractNameFromMetadata(
   return firstName || lastName ? `${firstName} ${lastName}`.trim() : undefined;
 }
 
-export function validatePaycashlessWebhook(
-  payload: PaycashlessWebhookData
+export function verifyWebhookSignature(
+  payload: PaycashlessWebhookPayload,
+  signature: string,
+  timestamp: string,
+  apiSecret: string
 ): boolean {
-  return !!(payload && (payload.invoice_id || payload.id) && payload.status);
+  try {
+    const bodyHash = sha512Sign(JSON.stringify(payload.data), apiSecret);
+    const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/paycashless`;
+    const stringToSign = `${callbackUrl}${bodyHash}${timestamp}`;
+
+    const expectedSignature = sha512Sign(stringToSign, apiSecret);
+
+    return signature === expectedSignature;
+  } catch (error) {
+    console.error("Webhook signature verification error:", error);
+    return false;
+  }
 }

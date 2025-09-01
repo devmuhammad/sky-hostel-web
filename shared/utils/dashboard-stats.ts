@@ -13,32 +13,35 @@ export interface DashboardStats {
 export async function getDashboardStats(): Promise<DashboardStats> {
   const supabase = await createServerSupabaseClient();
 
-  // Get total students
   const { count: totalStudents } = await supabase
     .from("students")
     .select("*", { count: "exact", head: true });
 
-  // Get total payments
   const { count: totalPayments } = await supabase
     .from("payments")
     .select("*", { count: "exact", head: true });
 
-  // Get completed payments
   const { count: completedPayments } = await supabase
     .from("payments")
     .select("*", { count: "exact", head: true })
     .eq("status", "completed");
 
-  // Get total revenue
-  const { data: revenueData } = await supabase
+  const { data: allPayments } = await supabase
     .from("payments")
-    .select("amount_paid, amount_to_pay")
-    .eq("status", "completed");
+    .select("amount_paid, amount_to_pay, status");
 
-  const totalRevenue =
-    revenueData?.reduce((sum, payment) => sum + payment.amount_paid, 0) || 0;
+  let totalRevenue = 0;
+  if (allPayments) {
+    totalRevenue = allPayments.reduce((sum, payment) => {
+      if (payment.status === "completed") {
+        return sum + (payment.amount_to_pay || 0);
+      } else if (payment.status === "partially_paid") {
+        return sum + (payment.amount_paid || 0);
+      }
+      return sum;
+    }, 0);
+  }
 
-  // Get occupied rooms
   const { data: rooms } = await supabase
     .from("rooms")
     .select("total_beds, available_beds");

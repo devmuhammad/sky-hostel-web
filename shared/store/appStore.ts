@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
-// Types
 export interface Student {
   id: string;
   first_name: string;
@@ -44,6 +43,8 @@ export interface Payment {
   created_at: string;
   updated_at: string;
   student?: Student;
+  paycashless_invoice_id?: string;
+  last_webhook_update?: string;
 }
 
 export interface Room {
@@ -85,10 +86,8 @@ export interface AppState {
   adminUsers: AdminUser[];
   currentUser: AdminUser | null;
 
-  // Loading states
   loading: LoadingState;
 
-  // UI State
   sidebarCollapsed: boolean;
   lastDataFetch: number;
 
@@ -126,6 +125,8 @@ export interface AppState {
   addAdminUser: (adminUser: AdminUser) => void;
   updateAdminUser: (id: string, updates: Partial<AdminUser>) => void;
   removeAdminUser: (id: string) => void;
+
+  updatePaymentFromWebhook: (invoiceId: string, webhookData: any) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -146,7 +147,7 @@ export const useAppStore = create<AppState>()(
         dashboard: false,
       },
 
-      sidebarCollapsed: false, // Start closed on mobile (false = closed, true = open on mobile)
+      sidebarCollapsed: false,
       lastDataFetch: 0,
 
       // Actions
@@ -224,6 +225,41 @@ export const useAppStore = create<AppState>()(
       removeRoom: (id) =>
         set((state) => ({
           rooms: state.rooms.filter((room) => room.id !== id),
+        })),
+
+      updatePaymentFromWebhook: (invoiceId, webhookData) =>
+        set((state) => ({
+          payments: state.payments.map((payment) => {
+            if (payment.invoice_id === invoiceId) {
+              const { event, data } = webhookData;
+
+              if (event === "INVOICE_PAYMENT_SUCCEEDED") {
+                const newAmountPaid = (payment.amount_paid || 0) + data.amount;
+                const newStatus =
+                  newAmountPaid >= payment.amount_to_pay
+                    ? "completed"
+                    : "partially_paid";
+
+                return {
+                  ...payment,
+                  amount_paid: newAmountPaid,
+                  status: newStatus,
+                  last_webhook_update: new Date().toISOString(),
+                };
+              }
+
+              if (event === "INVOICE_PAID") {
+                return {
+                  ...payment,
+                  amount_paid: payment.amount_to_pay,
+                  status: "completed",
+                  paid_at: new Date().toISOString(),
+                  last_webhook_update: new Date().toISOString(),
+                };
+              }
+            }
+            return payment;
+          }),
         })),
 
       // Admin user actions

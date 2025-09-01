@@ -61,24 +61,6 @@ export interface PaycashlessListResponse {
   message?: string;
 }
 
-export interface PaycashlessWebhookData {
-  id?: string;
-  invoice_id?: string;
-  invoiceId?: string;
-  amount?: number;
-  payment_amount?: number;
-  status: string;
-  customer?: {
-    email?: string;
-    phoneNumber?: string;
-    phone?: string;
-  };
-  email?: string;
-  phone?: string;
-  paidAt?: string;
-  event?: string;
-}
-
 export interface PaycashlessInvoiceRequest {
   reference: string;
   description: string;
@@ -118,30 +100,24 @@ export interface PaycashlessInvoiceResponse {
   };
   message: string;
 }
-
 export interface PaycashlessWebhookPayload {
-  id: string;
-  invoice_id?: string; // For backward compatibility
-  reference: string;
-  amount: number;
-  email: string;
-  phone?: string;
-  status:
-    | "paid"
-    | "pending"
-    | "cancelled"
-    | "draft"
-    | "open"
-    | "partially_paid";
-  payment_date?: string;
-  transaction_id?: string;
+  event: string;
+  data: PaycashlessWebhookData;
+}
+
+export interface PaycashlessWebhookData {
+  id?: string;
+  reference?: string;
+  amount?: number;
+  amountPaid?: number;
+  amountRemaining?: number;
+  status?: string;
+  currency?: string;
+  customerId?: string;
+  invoiceId?: string;
   paidAt?: string;
-  customer: {
-    id: string;
-    name: string;
-    email: string;
-    phoneNumber?: string;
-  };
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface PaymentFormData {
@@ -149,5 +125,4 @@ export interface PaymentFormData {
   lastName: string;
   email: string;
   phone: string;
-  // amount removed - configured in PAYMENT_CONFIG constants
 }

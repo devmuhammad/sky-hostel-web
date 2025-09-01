@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/shared/config/supabase";
-import { verifyPaycashlessPayment } from "@/shared/utils/paycashless";
+import {
+  verifyPaycashlessPayment,
+  getPaycashlessPaymentStatusForManualCheck,
+} from "@/shared/utils/paycashless";
 
 export async function POST(request: NextRequest) {
   try {
     const { email, phone, reference } = await request.json();
 
-    // Validate input - at least one field is required
     if (!email && !phone && !reference) {
       return NextResponse.json(
         {
@@ -17,8 +19,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // Build query based on provided fields
     let query = supabaseAdmin
       .from("payments")
       .select(
@@ -36,7 +36,6 @@ export async function POST(request: NextRequest) {
       )
       .order("created_at", { ascending: false });
 
-    // Add filters based on provided fields
     if (reference) {
       query = query.eq("invoice_id", reference);
     } else if (email && phone) {
@@ -50,7 +49,6 @@ export async function POST(request: NextRequest) {
     const { data: payments, error } = await query;
 
     if (error) {
-      console.error("Database error:", error);
       return NextResponse.json(
         {
           success: false,
@@ -60,13 +58,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check Paycashless for actual payment status
-    const paycashlessResult = await verifyPaycashlessPayment(
+    const paycashlessResult = await getPaycashlessPaymentStatusForManualCheck(
       email || "",
       phone
     );
 
-    // If no local payments found, but we have Paycashless data, return that
     if (
       (!payments || payments.length === 0) &&
       paycashlessResult.success &&
@@ -74,14 +70,13 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json({
         success: true,
-        payment: null, // No local payment record
+        payment: null,
         paycashless: paycashlessResult.data,
         message: "Payment found on Paycashless but not in local database",
         hasPaycashlessOnly: true,
       });
     }
 
-    // If no local payments and no Paycashless data, return not found
     if (!payments || payments.length === 0) {
       return NextResponse.json(
         {
@@ -92,10 +87,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Return the most recent payment with Paycashless data
     const latestPayment = payments[0];
 
-    // Add user-friendly status message
     let statusMessage = "";
     switch (latestPayment.status) {
       case "completed":
@@ -111,7 +104,7 @@ export async function POST(request: NextRequest) {
         statusMessage = "Payment status unknown";
     }
 
-    return NextResponse.json({
+    const response = {
       success: true,
       payment: {
         ...latestPayment,
@@ -120,9 +113,10 @@ export async function POST(request: NextRequest) {
       },
       paycashless: paycashlessResult.success ? paycashlessResult.data : null,
       message: statusMessage,
-    });
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
-    console.error("Payment status check error:", error);
     return NextResponse.json(
       {
         success: false,
