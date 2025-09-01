@@ -242,6 +242,7 @@ export async function getPaycashlessPaymentStatus(
         invoice.status === "succeeded" ||
         ((invoice.totalPaid || 0) > 0 &&
           (invoice.totalPaid || 0) >= invoice.amountDue);
+      
       const amountPaid = isActuallyPaid ? (invoice.totalPaid || 0) / 100 : 0; // Convert from kobo to naira
       totalPaid += amountPaid;
 
@@ -282,7 +283,6 @@ export async function getPaycashlessPaymentStatus(
       },
     };
   } catch (error) {
-    console.error("Paycashless API call error:", error);
     return {
       success: false,
       error:
@@ -337,12 +337,10 @@ export async function verifyPaycashlessPayment(
     const paycashlessResult = await getPaycashlessPaymentStatus(email, phone);
 
     if (!paycashlessResult.success) {
-      // No fallback - only use real-time Paycashless data
-      // Paycashless API call failed
+      // Return the actual error message from Paycashless instead of generic message
       return {
         success: false,
-        error:
-          "Payment verification temporarily unavailable. Please try again later or contact support if the issue persists.",
+        error: paycashlessResult.error || "Payment verification failed",
       };
     }
 
@@ -363,7 +361,6 @@ export async function verifyPaycashlessPayment(
       .single();
 
     if (localPaymentError && localPaymentError.code !== "PGRST116") {
-      console.error("Error looking up local payment:", localPaymentError);
       return {
         success: false,
         error: "Payment lookup failed",
@@ -371,7 +368,6 @@ export async function verifyPaycashlessPayment(
     }
 
     if (!localPayment) {
-      console.error("No local payment record found for email:", email);
       return {
         success: false,
         error: "No payment record found for this email",
@@ -387,7 +383,6 @@ export async function verifyPaycashlessPayment(
       },
     };
   } catch (error) {
-    console.error("Payment verification error:", error);
     return {
       success: false,
       error:
@@ -499,7 +494,6 @@ export async function getAllPaycashlessInvoices(params?: {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error("❌ PayCashless API error response:", errorData);
 
         if (response.status === 401) {
           return {
@@ -562,7 +556,6 @@ export async function getAllPaycashlessInvoices(params?: {
       },
     };
   } catch (error) {
-    console.error("❌ Error fetching PayCashless invoices:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
