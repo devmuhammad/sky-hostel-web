@@ -242,7 +242,7 @@ export async function getPaycashlessPaymentStatus(
         invoice.status === "succeeded" ||
         ((invoice.totalPaid || 0) > 0 &&
           (invoice.totalPaid || 0) >= invoice.amountDue);
-      
+
       const amountPaid = isActuallyPaid ? (invoice.totalPaid || 0) / 100 : 0; // Convert from kobo to naira
       totalPaid += amountPaid;
 
