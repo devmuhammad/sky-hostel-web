@@ -79,39 +79,39 @@ async function handlePOST(request: NextRequest) {
 
     // Validate payment_id if provided
     if (data.payment_id) {
-              // Check if this looks like a Paycashless invoice ID (starts with 'inv_')
-        if (data.payment_id.startsWith("inv_")) {
-          // Look up local payment record by email (since Paycashless invoice ID != our invoice_id)
-          const { data: paymentExists, error: paymentError } = await supabaseAdmin
-            .from("payments")
-            .select("id, email, amount_paid, status, invoice_id")
-            .eq("email", data.email)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .single();
+      // Check if this looks like a Paycashless invoice ID (starts with 'inv_')
+      if (data.payment_id.startsWith("inv_")) {
+        // Look up local payment record by email (since Paycashless invoice ID != our invoice_id)
+        const { data: paymentExists, error: paymentError } = await supabaseAdmin
+          .from("payments")
+          .select("id, email, amount_paid, status, invoice_id")
+          .eq("email", data.email)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
 
-          if (paymentError && paymentError.code !== "PGRST116") {
-            console.error("Error looking up local payment:", paymentError);
-            return NextResponse.json(
-              { success: false, error: { message: "Payment lookup failed" } },
-              { status: 500 }
-            );
-          }
-
-          if (!paymentExists) {
-            console.error("No local payment record found for email:", data.email);
-            return NextResponse.json(
-              {
-                success: false,
-                error: { message: "No payment record found for this email" },
-              },
-              { status: 400 }
-            );
-          }
-
-          // Use the local payment ID instead of the Paycashless invoice ID
-          data.payment_id = paymentExists.id;
+        if (paymentError && paymentError.code !== "PGRST116") {
+          console.error("Error looking up local payment:", paymentError);
+          return NextResponse.json(
+            { success: false, error: { message: "Payment lookup failed" } },
+            { status: 500 }
+          );
         }
+
+        if (!paymentExists) {
+          console.error("No local payment record found for email:", data.email);
+          return NextResponse.json(
+            {
+              success: false,
+              error: { message: "No payment record found for this email" },
+            },
+            { status: 400 }
+          );
+        }
+
+        // Use the local payment ID instead of the Paycashless invoice ID
+        data.payment_id = paymentExists.id;
+      }
 
       // Now validate the payment UUID
       const { data: paymentExists, error: paymentError } = await supabaseAdmin
@@ -248,6 +248,7 @@ async function handlePOST(request: NextRequest) {
           lga: data.lga,
           marital_status: data.marital_status,
           religion: data.religion,
+          weight: data.weight,
 
           // Academic Information
           matric_number: data.matric_number,

@@ -53,6 +53,7 @@ export default function RegistrationForm({
       lga: "",
       maritalStatus: "",
       religion: "",
+      weight: 55,
       matricNumber: "",
       course: "",
       level: "",
@@ -81,7 +82,6 @@ export default function RegistrationForm({
   const onFinalSubmit = async () => {
     if (!roomSelection) return;
 
-    // Check if rules consent is completed
     if (!rulesFormData || !rulesFormData.rulesAccepted) {
       toast.error("Please complete the rules and regulations consent", {
         description:
@@ -107,6 +107,7 @@ export default function RegistrationForm({
         lga: formData.lga,
         marital_status: formData.maritalStatus,
         religion: formData.religion,
+        weight: formData.weight,
 
         // Academic Information
         matric_number: formData.matricNumber,

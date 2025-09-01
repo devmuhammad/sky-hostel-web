@@ -27,6 +27,7 @@ interface Bedspace {
   position: "top" | "bottom";
   available: boolean;
   label?: string;
+  weightRestriction?: string;
 }
 
 interface RoomSelectionWizardProps {
@@ -37,7 +38,10 @@ interface RoomSelectionWizardProps {
     roomId: string;
   }) => void;
   onBack: () => void;
-  studentData?: any;
+  studentData?: {
+    weight: number;
+    [key: string]: any;
+  };
 }
 
 const ROOM_TYPES: RoomType[] = [
@@ -60,6 +64,7 @@ const ROOM_TYPES: RoomType[] = [
 export function RoomSelectionWizard({
   onComplete,
   onBack,
+  studentData,
 }: RoomSelectionWizardProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedRoomType, setSelectedRoomType] = useState<RoomType | null>(
@@ -416,6 +421,23 @@ export function RoomSelectionWizard({
           </p>
         </div>
 
+        {/* Weight Restriction Notice */}
+        {studentData?.weight && studentData.weight > 60 && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <h3 className="font-semibold text-yellow-800 mb-2">
+              ⚠️ Weight Restriction Notice
+            </h3>
+            <p className="text-sm text-yellow-700">
+              Your weight is <strong>{studentData.weight}kg</strong>, which
+              exceeds the 60kg limit for top bunks.
+            </p>
+            <p className="text-xs text-yellow-600 mt-2">
+              For safety reasons, you can only select bottom bunks. Top bunks
+              are restricted to students weighing 60kg or less.
+            </p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {(selectedRoom.bed_type === "6_bed"
             ? ["Bunk A", "Bunk B", "Bunk C"]
@@ -462,10 +484,16 @@ export function RoomSelectionWizard({
                 id: `${bunkName}-top`,
                 bunk: bunkName,
                 position: "top" as const,
-                available: demoAvailableBeds.includes(
-                  bunkMapping[bunkName as keyof typeof bunkMapping]?.top || ""
-                ),
+                available:
+                  demoAvailableBeds.includes(
+                    bunkMapping[bunkName as keyof typeof bunkMapping]?.top || ""
+                  ) &&
+                  (!studentData?.weight || studentData.weight <= 60),
                 label: `${bunkName} Top Bunk`,
+                weightRestriction:
+                  studentData?.weight && studentData.weight > 60
+                    ? `⚠️ Top bunk restricted for students >60kg (Your weight: ${studentData.weight}kg)`
+                    : undefined,
               },
               {
                 id: `${bunkName}-bottom`,
@@ -476,6 +504,7 @@ export function RoomSelectionWizard({
                     ""
                 ),
                 label: `${bunkName} Bottom Bunk`,
+                weightRestriction: undefined,
               },
             ];
 
@@ -517,12 +546,21 @@ export function RoomSelectionWizard({
                               : "bg-gray-200 text-gray-500 cursor-not-allowed"
                         }`}
                       >
-                        {bedspace.position === "top"
-                          ? "Top Bunk"
-                          : "Bottom Bunk"}
-                        {selectedBedspace?.id === bedspace.id && (
-                          <span className="ml-1">✓</span>
-                        )}
+                        <div className="text-center">
+                          <div>
+                            {bedspace.position === "top"
+                              ? "Top Bunk"
+                              : "Bottom Bunk"}
+                          </div>
+                          {bedspace.weightRestriction && (
+                            <div className="text-xs text-red-600 mt-1">
+                              {bedspace.weightRestriction}
+                            </div>
+                          )}
+                          {selectedBedspace?.id === bedspace.id && (
+                            <span className="ml-1">✓</span>
+                          )}
+                        </div>
                       </button>
                     ))}
                   </div>

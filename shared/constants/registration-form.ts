@@ -60,6 +60,12 @@ export const FIELD_CONFIG: Record<keyof RegistrationFormData, FieldConfig> = {
     ],
   },
   religion: { type: "text", required: true, section: "personal" },
+  weight: {
+    type: "text",
+    required: true,
+    section: "personal",
+    fullWidth: false,
+  },
 
   // Academic Information
   matricNumber: { type: "text", required: true, section: "academic" },

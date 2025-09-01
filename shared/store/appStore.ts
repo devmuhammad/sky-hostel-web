@@ -13,6 +13,7 @@ export interface Student {
   faculty?: string;
   department?: string;
   level?: string;
+  weight: number;
   block?: string;
   room?: string;
   bedspace_label?: string;

@@ -17,6 +17,11 @@ export const RegistrationSchema = z.object({
   lga: z.string().min(1, "Local Government Area is required"),
   maritalStatus: z.string().min(1, "Marital status is required"),
   religion: z.string().min(1, "Religion is required"),
+  weight: z
+    .number()
+    .min(30, "Weight must be at least 30kg")
+    .max(200, "Weight must be less than 200kg")
+    .refine((val) => !isNaN(val), "Weight must be a valid number"),
 
   // Academic Information
   matricNumber: ValidationPatterns.academic.matricNumber,
@@ -64,6 +69,7 @@ export const getFieldLabel = (fieldName: string): string => {
     address: "Address",
     lga: "Local Government Area",
     religion: "Religion",
+    weight: "Weight (kg)",
     course: "Course",
     level: "Level",
     faculty: "Faculty",
@@ -80,6 +86,7 @@ export const getInputType = (fieldName: string): string => {
   if (fieldName === "password") return "password";
   if (fieldName === "email" || fieldName === "nextOfKinEmail") return "email";
   if (fieldName === "dateOfBirth") return "date";
+  if (fieldName === "weight") return "number";
   if (
     fieldName === "phoneNumber" ||
     fieldName === "phone" ||

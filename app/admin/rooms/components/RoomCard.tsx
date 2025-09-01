@@ -17,7 +17,7 @@ export function RoomCard({ room, students, onViewDetails }: RoomCardProps) {
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600">
-            {room.total_beds} beds ({room.total_beds * 2} bedspaces)
+            {Math.floor(room.total_beds / 2)} beds ({room.total_beds} bedspaces)
           </span>
           <span className="text-sm text-gray-600">
             {(() => {

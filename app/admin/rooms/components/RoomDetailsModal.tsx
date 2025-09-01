@@ -42,7 +42,8 @@ export function RoomDetailsModal({
               Total Beds
             </label>
             <p className="text-sm text-gray-900">
-              {room.total_beds} ({room.total_beds * 2} bedspaces)
+              {Math.floor(room.total_beds / 2)} beds ({room.total_beds}{" "}
+              bedspaces)
             </p>
           </div>
           <div>

@@ -55,13 +55,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine bed type based on total_beds
     const bed_type = total_beds === 6 ? "6_bed" : "4_bed";
 
-    // Generate available beds based on total_beds
     const generateAvailableBeds = (totalBeds: number) => {
       const bedLabels = [];
-      for (let i = 1; i <= totalBeds; i++) {
+      const physicalBeds = Math.floor(totalBeds / 2);
+      for (let i = 1; i <= physicalBeds; i++) {
         bedLabels.push(`Bed ${i} (Top)`);
         bedLabels.push(`Bed ${i} (Down)`);
       }

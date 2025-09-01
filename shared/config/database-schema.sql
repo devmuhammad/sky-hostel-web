@@ -67,6 +67,9 @@ CREATE TABLE students (
   faculty VARCHAR(200) NOT NULL,
   department VARCHAR(200) NOT NULL,
   
+  -- Physical Information
+  weight DECIMAL(5,2) NOT NULL CHECK (weight >= 30.0 AND weight <= 200.0),
+  
   -- Next of Kin Information
   next_of_kin_name VARCHAR(255) NOT NULL,
   next_of_kin_phone VARCHAR(20) NOT NULL,
