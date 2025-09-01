@@ -14,6 +14,7 @@ interface StudentRegistrationData {
   lga: string;
   marital_status: string;
   religion: string;
+  weight: number;
 
   // Academic Information
   matric_number: string;
@@ -54,6 +55,7 @@ async function handlePOST(request: NextRequest) {
       "email",
       "phone",
       "state_of_origin",
+      "weight",
       "next_of_kin_name",
       "next_of_kin_phone",
       "next_of_kin_email",
