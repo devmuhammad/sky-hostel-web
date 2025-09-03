@@ -75,7 +75,8 @@ export async function POST(request: NextRequest) {
 async function handleInvoicePaymentSucceeded(
   webhookData: PaycashlessWebhookData
 ) {
-  const paymentAmount = webhookData.amount || 0;
+  const rawPaymentAmount = webhookData.amount || 0;
+  const paymentAmount = rawPaymentAmount / 100; // Convert from kobo to Naira
   const reference = webhookData.reference;
 
   if (!reference) {

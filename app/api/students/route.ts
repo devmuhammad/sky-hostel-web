@@ -79,7 +79,6 @@ async function handlePOST(request: NextRequest) {
     console.log("All required fields present, connecting to database...");
     const supabaseAdmin = await createServerSupabaseClient();
 
-    // Validate payment_id if provided
     if (data.payment_id) {
       // Check if this looks like a Paycashless invoice ID (starts with 'inv_')
       if (data.payment_id.startsWith("inv_")) {

@@ -3,7 +3,6 @@ import {
   PaycashlessInvoiceRequest,
   PaycashlessInvoiceResponse,
   PaycashlessInvoice,
-  PaycashlessWebhookData,
   PaycashlessWebhookPayload,
 } from "@/shared/types/payment";
 import { supabaseAdmin } from "@/shared/config/supabase";
@@ -243,7 +242,9 @@ export async function getPaycashlessPaymentStatus(
         ((invoice.totalPaid || 0) > 0 &&
           (invoice.totalPaid || 0) >= invoice.amountDue);
 
-      const amountPaid = isActuallyPaid ? (invoice.totalPaid || 0) / 100 : 0; // Convert from kobo to naira
+      const rawAmount = invoice.totalPaid || 0;
+      const amountPaid = isActuallyPaid ? rawAmount : 0;
+
       totalPaid += amountPaid;
 
       if (amountPaid > 0) {
@@ -685,7 +686,9 @@ export async function getPaycashlessPaymentStatusForManualCheck(
         invoice.status === "succeeded" ||
         (invoice.totalPaid || 0) > 0;
 
-      const amountPaid = isActuallyPaid ? invoice.totalPaid || 0 : 0;
+      const rawAmount = invoice.totalPaid || 0;
+      const amountPaid = isActuallyPaid ? rawAmount / 100 : 0; // Convert from kobo to Naira
+
       totalPaid += amountPaid;
 
       if (amountPaid > 0) {

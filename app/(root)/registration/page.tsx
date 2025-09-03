@@ -17,13 +17,6 @@ export default function RegistrationPage() {
   >("payment");
   const [passportPhotoUrl, setPassportPhotoUrl] = useState<string | null>(null);
 
-  // Debug: Log paymentData changes
-  useEffect(() => {
-    if (paymentData) {
-      // PaymentData updated
-    }
-  }, [paymentData]);
-
   // Ensure component is mounted before accessing search params
   useEffect(() => {
     setMounted(true);
@@ -191,15 +184,6 @@ export default function RegistrationPage() {
           </div>
         ))}
 
-      {/* Debug: Log URL parameters */}
-      {currentStep === "payment" && (
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `// URL parameters processed`,
-          }}
-        />
-      )}
-
       {currentStep === "photo" && paymentData && (
         <PassportPhotoUpload
           email={
@@ -212,15 +196,6 @@ export default function RegistrationPage() {
           }}
           onBack={() => setCurrentStep("payment")}
           onContinue={() => setCurrentStep("registration")}
-        />
-      )}
-
-      {/* Debug: Log paymentData */}
-      {currentStep === "photo" && (
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `// PaymentData processed`,
-          }}
         />
       )}
 
