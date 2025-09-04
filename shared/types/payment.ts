@@ -105,20 +105,65 @@ export interface PaycashlessWebhookPayload {
   data: PaycashlessWebhookData;
 }
 
-export interface PaycashlessWebhookData {
-  id?: string;
-  reference?: string;
-  amount?: number;
-  amountPaid?: number;
-  amountRemaining?: number;
-  status?: string;
-  currency?: string;
-  customerId?: string;
-  invoiceId?: string;
-  paidAt?: string;
-  createdAt?: string;
-  updatedAt?: string;
+export interface PaycashlessPaymentSucceededData {
+  amountPaid: number;
+  amountRequested: number;
+  createdAt: string;
+  currency: string;
+  id: string;
+  intentId: string;
+  invoiceId: string;
+  liveMode: boolean;
+  paid: boolean;
+  updatedAt: string;
 }
+
+export interface PaycashlessInvoicePaidData {
+  acceptPartialPayments: boolean;
+  amountDue: number;
+  amountPaid: number;
+  amountRemaining: number;
+  cancellationReason: string | null;
+  createdAt: string;
+  currency: string;
+  customer: {
+    address: string;
+    createdAt: string;
+    email: string;
+    id: string;
+    isBlacklisted: boolean;
+    liveMode: boolean;
+    name: string;
+    phoneNumber: string | null;
+    reference: string | null;
+    updatedAt: string;
+  };
+  customerId: string;
+  daysUntilDue: number;
+  description: string;
+  dueDate: string;
+  id: string;
+  invoicePdf: string;
+  liveMode: boolean;
+  maxInstallments: number;
+  metadata: Record<string, any>;
+  number: string;
+  paidAt: string;
+  receiptPdf: string;
+  reference: string;
+  returnUrl: string;
+  sendEmail: boolean;
+  status: string;
+  subTotal: number;
+  totalExclusiveTaxAmount: number;
+  totalInclusiveTaxAmount: number;
+  updatedAt: string;
+}
+
+// Union type for webhook data
+export type PaycashlessWebhookData =
+  | PaycashlessPaymentSucceededData
+  | PaycashlessInvoicePaidData;
 
 export interface PaymentFormData {
   firstName: string;

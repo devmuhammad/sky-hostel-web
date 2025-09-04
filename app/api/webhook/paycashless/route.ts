@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyWebhookSignature } from "@/shared/utils/paycashless";
 import { supabaseAdmin } from "@/shared/config/supabase";
 import {
-  PaycashlessWebhookData,
   PaycashlessWebhookPayload,
+  PaycashlessPaymentSucceededData,
+  PaycashlessInvoicePaidData,
 } from "@/shared/types/payment";
 import { PAYMENT_CONFIG } from "@/shared/config/constants";
 
@@ -17,15 +18,8 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    // Log raw webhook data for debugging
     const rawBody = await request.text();
     const headers = Object.fromEntries(request.headers.entries());
-    
-    console.log("=== WEBHOOK DEBUG ===");
-    console.log("Headers:", headers);
-    console.log("Raw Body:", rawBody);
-    console.log("===================");
-    
     const payload = JSON.parse(rawBody) as PaycashlessWebhookPayload;
 
     const signature = request.headers.get("Request-Signature");
@@ -55,16 +49,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Log the event details
-    console.log("Event received:", event);
-    console.log("Event data:", data);
-
     switch (event) {
       case "INVOICE_PAYMENT_SUCCEEDED":
-        return await handleInvoicePaymentSucceeded(data);
+        return await handleInvoicePaymentSucceeded(
+          data as PaycashlessPaymentSucceededData
+        );
 
       case "INVOICE_PAID":
-        return await handleInvoicePaid(data);
+        return await handleInvoicePaid(data as PaycashlessInvoicePaidData);
 
       default:
         return NextResponse.json({
@@ -83,20 +75,20 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleInvoicePaymentSucceeded(
-  webhookData: PaycashlessWebhookData
+  webhookData: PaycashlessPaymentSucceededData
 ) {
-  const rawPaymentAmount = webhookData.amount || 0;
-  const paymentAmount = rawPaymentAmount / 100;
-  const reference = webhookData.reference;
+  const invoiceId = webhookData.invoiceId;
+  const rawPaymentAmount = webhookData.amountPaid;
+  const paymentAmount = rawPaymentAmount / 100; // Convert kobo to Naira
 
-  if (!reference) {
+  if (!invoiceId) {
     return NextResponse.json(
-      { error: "No reference provided" },
+      { error: "No invoice ID provided" },
       { status: 400 }
     );
   }
 
-  const existingPayment = await findPaymentByReference(reference);
+  const existingPayment = await findPaymentByInvoiceId(invoiceId);
 
   if (!existingPayment) {
     return NextResponse.json({ error: "Payment not found" }, { status: 404 });
@@ -149,7 +141,7 @@ async function handleInvoicePaymentSucceeded(
       new_status: newStatus,
       webhook_data: webhookData,
       event_type: "INVOICE_PAYMENT_SUCCEEDED",
-      reference: reference,
+      invoice_id: invoiceId,
     },
   });
 
@@ -163,11 +155,11 @@ async function handleInvoicePaymentSucceeded(
     new_status: newStatus,
     updated_at: updatedPayment.updated_at,
     event_type: "INVOICE_PAYMENT_SUCCEEDED",
-    reference: reference,
+    invoice_id: invoiceId,
   });
 }
 
-async function handleInvoicePaid(webhookData: PaycashlessWebhookData) {
+async function handleInvoicePaid(webhookData: PaycashlessInvoicePaidData) {
   const reference = webhookData.reference;
 
   if (!reference) {
@@ -239,6 +231,20 @@ async function findPaymentByReference(reference: string) {
     .from("payments")
     .select("*")
     .eq("invoice_id", reference)
+    .single();
+
+  if (payment && !error) {
+    return payment;
+  }
+
+  return null;
+}
+
+async function findPaymentByInvoiceId(invoiceId: string) {
+  const { data: payment, error } = await supabaseAdmin
+    .from("payments")
+    .select("*")
+    .eq("paycashless_invoice_id", invoiceId)
     .single();
 
   if (payment && !error) {
