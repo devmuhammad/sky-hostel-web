@@ -8,14 +8,29 @@ import {
 import { PAYMENT_CONFIG } from "@/shared/config/constants";
 
 export async function GET() {
+  // Get recent webhook activity
+  const { data: recentLogs, error } = await supabaseAdmin
+    .from("activity_logs")
+    .select("action, created_at, metadata")
+    .in("action", [
+      "partial_payment_received",
+      "invoice_fully_paid",
+      "webhook_error",
+    ])
+    .order("created_at", { ascending: false })
+    .limit(5);
+
   return NextResponse.json({
     message: "Webhook endpoint is accessible",
     timestamp: new Date().toISOString(),
     environment: {
       app_url: process.env.NEXT_PUBLIC_APP_URL,
       node_env: process.env.NODE_ENV,
+      has_api_secret: !!process.env.PAYCASHLESS_API_SECRET,
     },
     webhook_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/paycashless`,
+    recent_activity: recentLogs || [],
+    status: "operational",
   });
 }
 
@@ -65,8 +80,30 @@ export async function POST(request: NextRequest) {
         });
     }
   } catch (error) {
+    console.error("Webhook processing error:", error);
+
+    // Log the error to activity_logs for debugging
+    try {
+      await supabaseAdmin.from("activity_logs").insert({
+        action: "webhook_error",
+        resource_type: "webhook",
+        resource_id: "error",
+        metadata: {
+          error: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : null,
+          timestamp: new Date().toISOString(),
+          headers: Object.fromEntries(request.headers.entries()),
+        },
+      });
+    } catch (logError) {
+      console.error("Failed to log webhook error:", logError);
+    }
+
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }
@@ -121,8 +158,12 @@ async function handleInvoicePaymentSucceeded(
     .single();
 
   if (updateError) {
+    console.error("Failed to update payment in webhook:", updateError);
     return NextResponse.json(
-      { error: "Failed to update payment" },
+      {
+        error: "Failed to update payment",
+        details: updateError.message,
+      },
       { status: 500 }
     );
   }
@@ -190,8 +231,12 @@ async function handleInvoicePaid(webhookData: PaycashlessWebhookData) {
     .single();
 
   if (updateError) {
+    console.error("Failed to update payment in webhook:", updateError);
     return NextResponse.json(
-      { error: "Failed to update payment" },
+      {
+        error: "Failed to update payment",
+        details: updateError.message,
+      },
       { status: 500 }
     );
   }
