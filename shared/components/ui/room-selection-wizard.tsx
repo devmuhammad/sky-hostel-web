@@ -488,7 +488,7 @@ export function RoomSelectionWizard({
                   demoAvailableBeds.includes(
                     bunkMapping[bunkName as keyof typeof bunkMapping]?.top || ""
                   ) &&
-                  (!studentData?.weight || studentData.weight <= 60),
+                  (!studentData?.weight || studentData.weight <= 60), // Top bunk restricted for students >60kg
                 label: `${bunkName} Top Bunk`,
                 weightRestriction:
                   studentData?.weight && studentData.weight > 60

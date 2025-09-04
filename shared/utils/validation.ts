@@ -20,7 +20,7 @@ export const RegistrationSchema = z.object({
   weight: z
     .number()
     .min(30, "Weight must be at least 30kg")
-    .max(200, "Weight must be less than 200kg")
+    .max(150, "Weight must be 150kg or less for safety")
     .refine((val) => !isNaN(val), "Weight must be a valid number"),
 
   // Academic Information
