@@ -25,9 +25,11 @@ CREATE TABLE payments (
   phone VARCHAR(20) NOT NULL,
   amount_to_pay DECIMAL(10,2) NOT NULL,  -- Total amount required for registration
   amount_paid DECIMAL(10,2) DEFAULT 0,   -- Actual amount paid so far
-  invoice_id VARCHAR(255) UNIQUE NOT NULL,
+  invoice_id VARCHAR(255) UNIQUE NOT NULL,  -- Our internal reference (SKY-xxx)
+  paycashless_invoice_id VARCHAR(255),      -- Paycashless invoice ID (inv_xxx)
   status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'partially_paid')),
   paid_at TIMESTAMP,
+  last_webhook_update TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -169,6 +171,7 @@ CREATE INDEX idx_payments_email ON payments(email);
 CREATE INDEX idx_payments_phone ON payments(phone);
 CREATE INDEX idx_payments_status ON payments(status);
 CREATE INDEX idx_payments_invoice_id ON payments(invoice_id);
+CREATE INDEX idx_payments_paycashless_invoice_id ON payments(paycashless_invoice_id);
 CREATE INDEX idx_payments_created_at ON payments(created_at);
 
 -- Students table indexes

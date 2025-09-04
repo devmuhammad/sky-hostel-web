@@ -38,7 +38,6 @@ async function handlePOST(request: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (existingPayments && existingPayments.length > 0 && !checkError) {
-      // Check if there's a completed payment
       const completedPayment = existingPayments.find(
         (p) => p.status === "completed"
       );
@@ -73,8 +72,6 @@ async function handlePOST(request: NextRequest) {
     const reference = `SKY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     try {
-      // Direct redirect to registration after payment (simplified flow)
-      // User goes: Payment -> Registration (skipping confirm-payment page)
       const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL}/registration?email=${encodeURIComponent(
         data.email
       )}&phone=${encodeURIComponent(data.phone)}&firstName=${encodeURIComponent(
@@ -129,8 +126,9 @@ async function handlePOST(request: NextRequest) {
           email: data.email,
           phone: data.phone,
           amount_to_pay: amount,
-          amount_paid: 0, // Start with 0 paid
+          amount_paid: 0,
           invoice_id: invoice.reference,
+          paycashless_invoice_id: invoice.id,
           status: "pending",
         })
         .select()
