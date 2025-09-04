@@ -123,8 +123,8 @@ export async function POST(request: NextRequest) {
       0
     );
 
-    // Convert from kobo to Naira
-    const totalPaid = totalPaidKobo / 100;
+    // Data is already in Naira
+    const totalPaid = totalPaidKobo;
 
     const newStatus =
       totalPaid >= localPayment.amount_to_pay ? "completed" : "partially_paid";

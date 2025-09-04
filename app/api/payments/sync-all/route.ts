@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       }
 
       const paycashlessAmountKobo = paycashlessInvoice.totalPaid || 0;
-      const paycashlessAmount = paycashlessAmountKobo / 100; // Convert from kobo to Naira
+      const paycashlessAmount = paycashlessAmountKobo; // Data is already in Naira
       const paycashlessStatus = paycashlessInvoice.status;
       const isFullyPaid = paycashlessAmount >= PAYMENT_CONFIG.amount;
 
