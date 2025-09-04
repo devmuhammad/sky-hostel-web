@@ -117,11 +117,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Update local payment status based on Paycashless data
-    const totalPaid = paidInvoices.reduce(
+    const totalPaidKobo = paidInvoices.reduce(
       (sum: number, invoice: Record<string, unknown>) =>
         sum + (invoice.totalPaid as number),
       0
     );
+
+    // Convert from kobo to Naira
+    const totalPaid = totalPaidKobo / 100;
 
     const newStatus =
       totalPaid >= localPayment.amount_to_pay ? "completed" : "partially_paid";

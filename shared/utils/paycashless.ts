@@ -243,7 +243,7 @@ export async function getPaycashlessPaymentStatus(
           (invoice.totalPaid || 0) >= invoice.amountDue);
 
       const rawAmount = invoice.totalPaid || 0;
-      const amountPaid = isActuallyPaid ? rawAmount : 0;
+      const amountPaid = isActuallyPaid ? rawAmount : 0; // Data is already in Naira
 
       totalPaid += amountPaid;
 
@@ -687,7 +687,7 @@ export async function getPaycashlessPaymentStatusForManualCheck(
         (invoice.totalPaid || 0) > 0;
 
       const rawAmount = invoice.totalPaid || 0;
-      const amountPaid = isActuallyPaid ? rawAmount / 100 : 0; // Convert from kobo to Naira
+      const amountPaid = isActuallyPaid ? rawAmount : 0; // Data is already in Naira
 
       totalPaid += amountPaid;
 

@@ -2,7 +2,7 @@ import { RegistrationFormData } from "@/shared/utils/validation";
 
 // Field configuration types
 export interface FieldConfig {
-  type: "text" | "email" | "tel" | "date" | "select";
+  type: "text" | "email" | "tel" | "date" | "select" | "number";
   required: boolean;
   section: "personal" | "academic" | "nextOfKin";
   canBeDisabled?: boolean;
@@ -61,7 +61,7 @@ export const FIELD_CONFIG: Record<keyof RegistrationFormData, FieldConfig> = {
   },
   religion: { type: "text", required: true, section: "personal" },
   weight: {
-    type: "text",
+    type: "number",
     required: true,
     section: "personal",
     fullWidth: false,

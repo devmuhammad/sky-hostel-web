@@ -106,7 +106,8 @@ export async function POST(request: NextRequest) {
         localPayment = localPayments?.find((p) => p.email === email);
       }
 
-      const paycashlessAmount = paycashlessInvoice.totalPaid || 0;
+      const paycashlessAmountKobo = paycashlessInvoice.totalPaid || 0;
+      const paycashlessAmount = paycashlessAmountKobo / 100; // Convert from kobo to Naira
       const paycashlessStatus = paycashlessInvoice.status;
       const isFullyPaid = paycashlessAmount >= PAYMENT_CONFIG.amount;
 
