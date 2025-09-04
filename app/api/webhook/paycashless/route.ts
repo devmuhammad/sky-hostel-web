@@ -17,7 +17,16 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = (await request.json()) as PaycashlessWebhookPayload;
+    // Log raw webhook data for debugging
+    const rawBody = await request.text();
+    const headers = Object.fromEntries(request.headers.entries());
+    
+    console.log("=== WEBHOOK DEBUG ===");
+    console.log("Headers:", headers);
+    console.log("Raw Body:", rawBody);
+    console.log("===================");
+    
+    const payload = JSON.parse(rawBody) as PaycashlessWebhookPayload;
 
     const signature = request.headers.get("Request-Signature");
     const timestamp = request.headers.get("Request-Timestamp");
@@ -46,6 +55,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Log the event details
+    console.log("Event received:", event);
+    console.log("Event data:", data);
+
     switch (event) {
       case "INVOICE_PAYMENT_SUCCEEDED":
         return await handleInvoicePaymentSucceeded(data);
@@ -73,7 +86,7 @@ async function handleInvoicePaymentSucceeded(
   webhookData: PaycashlessWebhookData
 ) {
   const rawPaymentAmount = webhookData.amount || 0;
-  const paymentAmount = rawPaymentAmount / 100; // Convert from kobo to Naira
+  const paymentAmount = rawPaymentAmount / 100;
   const reference = webhookData.reference;
 
   if (!reference) {
