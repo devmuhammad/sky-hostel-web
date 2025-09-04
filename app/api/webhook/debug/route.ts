@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const headers = Object.fromEntries(request.headers.entries());
 
     // Log the raw webhook data
-    const debugData = {
+    const debugData: any = {
       timestamp: new Date().toISOString(),
       headers: {
         "Request-Signature": headers["request-signature"],
@@ -26,10 +26,8 @@ export async function POST(request: NextRequest) {
     };
 
     // Try to parse JSON
-    let parsedBody;
     try {
-      parsedBody = JSON.parse(body);
-      debugData.parsedBody = parsedBody;
+      debugData.parsedBody = JSON.parse(body);
     } catch (error) {
       debugData.parseError =
         error instanceof Error ? error.message : "Unknown parse error";
