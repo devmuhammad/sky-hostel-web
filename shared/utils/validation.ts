@@ -18,9 +18,18 @@ export const RegistrationSchema = z.object({
   maritalStatus: z.string().min(1, "Marital status is required"),
   religion: z.string().min(1, "Religion is required"),
   weight: z
-    .number()
-    .min(30, "Weight must be at least 30kg")
-    .max(150, "Weight must be 150kg or less for safety"),
+    .union([z.string(), z.number()])
+    .transform((val) => {
+      const num = typeof val === "string" ? parseFloat(val) : val;
+      return num;
+    })
+    .pipe(
+      z
+        .number()
+        .min(30, "Weight must be at least 30kg")
+        .max(150, "Weight must be 150kg or less for safety")
+        .refine((val) => !isNaN(val), "Weight must be a valid number")
+    ),
 
   // Academic Information
   matricNumber: ValidationPatterns.academic.matricNumber,

@@ -11,9 +11,17 @@ export const ValidationPatterns = {
 
   amount: (max: number = 219000) =>
     z
-      .number()
-      .min(1, "Amount is required")
-      .max(max, `Amount cannot exceed ₦${max.toLocaleString()}`),
+      .union([z.string(), z.number()])
+      .transform((val) => {
+        const num = typeof val === "string" ? parseFloat(val) : val;
+        return num;
+      })
+      .pipe(
+        z
+          .number()
+          .min(1, "Amount is required")
+          .max(max, `Amount cannot exceed ₦${max.toLocaleString()}`)
+      ),
 
   dateOfBirth: z
     .string()
