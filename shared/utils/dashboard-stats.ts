@@ -72,15 +72,22 @@ export async function getCurrentUserRole() {
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
+    console.log("getCurrentUserRole: No user found", userError);
     return null;
   }
 
-  const { data: adminUser } = await supabase
+  const { data: adminUser, error: adminError } = await supabase
     .from("admin_users")
     .select("role")
     .eq("email", user.email)
     .eq("is_active", true)
     .single();
 
+  if (adminError) {
+    console.log("getCurrentUserRole: Admin lookup error", adminError);
+    return null;
+  }
+
+  console.log("getCurrentUserRole: Found admin user", { email: user.email, role: adminUser?.role });
   return adminUser?.role || null;
 }

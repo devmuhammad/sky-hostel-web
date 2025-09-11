@@ -21,9 +21,28 @@ async function checkUserAccess() {
     return { isAuthenticated: false, isAdmin: false, error: "No user found" };
   }
 
-  // For now, allow any authenticated user to access admin
-  // We'll fix the database connection later
-  return { isAuthenticated: true, isAdmin: true, error: null };
+  // Check if user exists in admin_users table
+  const { data: adminUser, error: adminError } = await supabase
+    .from("admin_users")
+    .select("role, is_active")
+    .eq("email", user.email)
+    .eq("is_active", true)
+    .single();
+
+  if (adminError || !adminUser) {
+    return {
+      isAuthenticated: true,
+      isAdmin: false,
+      error: "Not an admin user",
+    };
+  }
+
+  return {
+    isAuthenticated: true,
+    isAdmin: true,
+    adminRole: adminUser.role,
+    error: null,
+  };
 }
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
