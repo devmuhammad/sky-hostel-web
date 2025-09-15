@@ -283,7 +283,9 @@ export default function RegistrationForm({
           <Input
             id={fieldName}
             type={getInputType(fieldName)}
-            {...form.register(fieldName)}
+            {...form.register(fieldName, {
+              valueAsNumber: fieldName === "weight",
+            })}
             disabled={isDisabled}
             className={`${isError ? "border-red-500" : ""} ${
               isDisabled ? "bg-gray-100 cursor-not-allowed" : ""
