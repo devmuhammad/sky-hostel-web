@@ -197,41 +197,32 @@ async function handlePOST(request: NextRequest) {
         );
       }
 
-      const { data: roomData, error: roomError } = await supabaseAdmin
-        .from("rooms")
-        .select("available_beds")
-        .eq("id", data.room_id)
-        .single();
+      // Atomic bedspace assignment to prevent race conditions
+      const { data: roomUpdateResult, error: roomUpdateError } =
+        await supabaseAdmin
+          .from("rooms")
+          .update({
+            available_beds: supabaseAdmin.raw(
+              `array_remove(available_beds, '${data.bedspace_label}')`
+            ),
+          })
+          .eq("id", data.room_id)
+          .contains("available_beds", [data.bedspace_label])
+          .select("id");
 
-      if (roomError || !roomData) {
-        console.error("Room not found or error:", roomError);
-        return NextResponse.json(
-          { success: false, error: "Room not found" },
-          { status: 404 }
+      if (
+        roomUpdateError ||
+        !roomUpdateResult ||
+        roomUpdateResult.length === 0
+      ) {
+        console.error(
+          "Bedspace no longer available or room not found:",
+          roomUpdateError
         );
-      }
-
-      // Check if bedspace is still available
-      if (!roomData.available_beds.includes(data.bedspace_label)) {
         return NextResponse.json(
           { success: false, error: "Bedspace no longer available" },
           { status: 409 }
         );
-      }
-      // Remove bedspace from available beds
-      const updatedBeds = roomData.available_beds.filter(
-        (bed: string) => bed !== data.bedspace_label
-      );
-
-      // Update room availability
-      const { error: updateRoomError } = await supabaseAdmin
-        .from("rooms")
-        .update({ available_beds: updatedBeds })
-        .eq("id", data.room_id);
-
-      if (updateRoomError) {
-        console.error("Error updating room availability:", updateRoomError);
-        throw new Error("Failed to update room availability");
       }
 
       // Create student record with all new fields
@@ -327,6 +318,8 @@ async function handlePOST(request: NextRequest) {
         message = "Phone number already registered";
       } else if (dbError.constraint?.includes("matric")) {
         message = "Matric number already registered";
+      } else if (dbError.constraint?.includes("bedspace")) {
+        message = "Bedspace no longer available";
       }
 
       return NextResponse.json(

@@ -408,18 +408,27 @@ export function RoomSelectionWizard({
             Available Bed Spaces
           </h3>
           <p className="text-sm text-blue-700">
-            {selectedRoom.available_beds.length > 0
-              ? selectedRoom.available_beds.length
-              : 3}{" "}
-            bed(s) available in this room
+            {selectedRoom.available_beds.length} bed(s) available in this room
           </p>
           <p className="text-xs text-blue-600 mt-2">
             Available beds:{" "}
             {selectedRoom.available_beds.length > 0
               ? selectedRoom.available_beds.join(", ")
-              : "Bed 1 (Top), Bed 1 (Down), Bed 2 (Top) (Demo Data)"}
+              : "No beds available"}
           </p>
         </div>
+
+        {/* No beds available message */}
+        {selectedRoom.available_beds.length === 0 && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <h3 className="font-semibold text-red-800 mb-2">
+              ⚠️ No Beds Available
+            </h3>
+            <p className="text-sm text-red-700">
+              This room is currently full. Please select a different room.
+            </p>
+          </div>
+        )}
 
         {/* Weight Restriction Notice */}
         {studentData?.weight && studentData.weight > 60 && (
@@ -438,137 +447,138 @@ export function RoomSelectionWizard({
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {(selectedRoom.bed_type === "6_bed"
-            ? ["Bunk A", "Bunk B", "Bunk C"]
-            : ["Bunk A", "Bunk B"]
-          ).map((bunkName) => {
-            // Create bedspace options based on available beds
-            // Map bunk names to database bed labels
-            const is6BedRoom = selectedRoom.bed_type === "6_bed";
+        {/* Only show bedspace selection if beds are available */}
+        {selectedRoom.available_beds.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {(selectedRoom.bed_type === "6_bed"
+              ? ["Bunk A", "Bunk B", "Bunk C"]
+              : ["Bunk A", "Bunk B"]
+            ).map((bunkName) => {
+              // Create bedspace options based on available beds
+              // Map bunk names to database bed labels
+              const is6BedRoom = selectedRoom.bed_type === "6_bed";
 
-            const bunkMapping = is6BedRoom
-              ? {
-                  "Bunk A": {
-                    top: "Bed 1 (Top)",
-                    bottom: "Bed 1 (Down)",
-                  },
-                  "Bunk B": {
-                    top: "Bed 2 (Top)",
-                    bottom: "Bed 2 (Down)",
-                  },
-                  "Bunk C": {
-                    top: "Bed 3 (Top)",
-                    bottom: "Bed 3 (Down)",
-                  },
-                }
-              : {
-                  "Bunk A": {
-                    top: "Bed 1 (Top)",
-                    bottom: "Bed 1 (Down)",
-                  },
-                  "Bunk B": {
-                    top: "Bed 2 (Top)",
-                    bottom: "Bed 2 (Down)",
-                  },
-                };
+              const bunkMapping = is6BedRoom
+                ? {
+                    "Bunk A": {
+                      top: "Bed 1 (Top)",
+                      bottom: "Bed 1 (Down)",
+                    },
+                    "Bunk B": {
+                      top: "Bed 2 (Top)",
+                      bottom: "Bed 2 (Down)",
+                    },
+                    "Bunk C": {
+                      top: "Bed 3 (Top)",
+                      bottom: "Bed 3 (Down)",
+                    },
+                  }
+                : {
+                    "Bunk A": {
+                      top: "Bed 1 (Top)",
+                      bottom: "Bed 1 (Down)",
+                    },
+                    "Bunk B": {
+                      top: "Bed 2 (Top)",
+                      bottom: "Bed 2 (Down)",
+                    },
+                  };
 
-            // For demo purposes, if no database data, make some beds available
-            const demoAvailableBeds =
-              selectedRoom.available_beds.length === 0
-                ? ["Bed 1 (Top)", "Bed 1 (Down)", "Bed 2 (Top)"]
-                : selectedRoom.available_beds;
+              // Use actual database data only
+              const availableBeds = selectedRoom.available_beds;
 
-            const bunkBedspaces = [
-              {
-                id: `${bunkName}-top`,
-                bunk: bunkName,
-                position: "top" as const,
-                available:
-                  demoAvailableBeds.includes(
-                    bunkMapping[bunkName as keyof typeof bunkMapping]?.top || ""
-                  ) &&
-                  (!studentData?.weight || studentData.weight <= 60), // Top bunk restricted for students >60kg
-                label: `${bunkName} Top Bunk`,
-                weightRestriction:
-                  studentData?.weight && studentData.weight > 60
-                    ? `⚠️ Top bunk restricted for students >60kg (Your weight: ${studentData.weight}kg)`
-                    : undefined,
-              },
-              {
-                id: `${bunkName}-bottom`,
-                bunk: bunkName,
-                position: "bottom" as const,
-                available: demoAvailableBeds.includes(
-                  bunkMapping[bunkName as keyof typeof bunkMapping]?.bottom ||
-                    ""
-                ),
-                label: `${bunkName} Bottom Bunk`,
-                weightRestriction: undefined,
-              },
-            ];
+              const bunkBedspaces = [
+                {
+                  id: `${bunkName}-top`,
+                  bunk: bunkName,
+                  position: "top" as const,
+                  available:
+                    availableBeds.includes(
+                      bunkMapping[bunkName as keyof typeof bunkMapping]?.top ||
+                        ""
+                    ) &&
+                    (!studentData?.weight || studentData.weight <= 60), // Top bunk restricted for students >60kg
+                  label: `${bunkName} Top Bunk`,
+                  weightRestriction:
+                    studentData?.weight && studentData.weight > 60
+                      ? `⚠️ Top bunk restricted for students >60kg (Your weight: ${studentData.weight}kg)`
+                      : undefined,
+                },
+                {
+                  id: `${bunkName}-bottom`,
+                  bunk: bunkName,
+                  position: "bottom" as const,
+                  available: availableBeds.includes(
+                    bunkMapping[bunkName as keyof typeof bunkMapping]?.bottom ||
+                      ""
+                  ),
+                  label: `${bunkName} Bottom Bunk`,
+                  weightRestriction: undefined,
+                },
+              ];
 
-            return (
-              <div key={bunkName} className="border rounded-lg p-6">
-                <h3 className="text-lg font-semibold mb-4">{bunkName}</h3>
-                <div className="relative">
-                  {/* Bunk Bed Image Placeholder */}
-                  <div className="w-full h-48 bg-gray-200 rounded-lg mb-4 flex items-center justify-center relative">
-                    <div className="text-gray-500">Bunk Bed Image</div>
+              return (
+                <div key={bunkName} className="border rounded-lg p-6">
+                  <h3 className="text-lg font-semibold mb-4">{bunkName}</h3>
+                  <div className="relative">
+                    {/* Bunk Bed Image Placeholder */}
+                    <div className="w-full h-48 bg-gray-200 rounded-lg mb-4 flex items-center justify-center relative">
+                      <div className="text-gray-500">Bunk Bed Image</div>
 
-                    {/* Bed Numbers - positioned over the image only */}
-                    <div className="absolute inset-0 flex flex-col justify-between p-4 pointer-events-none">
-                      <div className="flex justify-center">
-                        <div className="bg-white bg-opacity-90 px-3 py-1 rounded-full text-sm font-semibold">
-                          1
+                      {/* Bed Numbers - positioned over the image only */}
+                      <div className="absolute inset-0 flex flex-col justify-between p-4 pointer-events-none">
+                        <div className="flex justify-center">
+                          <div className="bg-white bg-opacity-90 px-3 py-1 rounded-full text-sm font-semibold">
+                            1
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex justify-center">
-                        <div className="bg-white bg-opacity-90 px-3 py-1 rounded-full text-sm font-semibold">
-                          2
+                        <div className="flex justify-center">
+                          <div className="bg-white bg-opacity-90 px-3 py-1 rounded-full text-sm font-semibold">
+                            2
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Bedspace Selection */}
-                  <div className="grid grid-cols-2 gap-2 relative z-10">
-                    {bunkBedspaces.map((bedspace) => (
-                      <button
-                        key={bedspace.id}
-                        onClick={() => handleBedspaceSelect(bedspace)}
-                        disabled={!bedspace.available}
-                        className={`p-3 text-sm rounded border transition-colors ${
-                          selectedBedspace?.id === bedspace.id
-                            ? "bg-blue-500 border-blue-500 text-white font-semibold"
-                            : bedspace.available
-                              ? "bg-white border-gray-300 hover:border-blue-500 hover:bg-blue-50"
-                              : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                        }`}
-                      >
-                        <div className="text-center">
-                          <div>
-                            {bedspace.position === "top"
-                              ? "Top Bunk"
-                              : "Bottom Bunk"}
-                          </div>
-                          {bedspace.weightRestriction && (
-                            <div className="text-xs text-red-600 mt-1">
-                              {bedspace.weightRestriction}
+                    {/* Bedspace Selection */}
+                    <div className="grid grid-cols-2 gap-2 relative z-10">
+                      {bunkBedspaces.map((bedspace) => (
+                        <button
+                          key={bedspace.id}
+                          onClick={() => handleBedspaceSelect(bedspace)}
+                          disabled={!bedspace.available}
+                          className={`p-3 text-sm rounded border transition-colors ${
+                            selectedBedspace?.id === bedspace.id
+                              ? "bg-blue-500 border-blue-500 text-white font-semibold"
+                              : bedspace.available
+                                ? "bg-white border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                                : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                          }`}
+                        >
+                          <div className="text-center">
+                            <div>
+                              {bedspace.position === "top"
+                                ? "Top Bunk"
+                                : "Bottom Bunk"}
                             </div>
-                          )}
-                          {selectedBedspace?.id === bedspace.id && (
-                            <span className="ml-1">✓</span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
+                            {bedspace.weightRestriction && (
+                              <div className="text-xs text-red-600 mt-1">
+                                {bedspace.weightRestriction}
+                              </div>
+                            )}
+                            {selectedBedspace?.id === bedspace.id && (
+                              <span className="ml-1">✓</span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Navigation */}
         <div className="flex justify-between">
