@@ -141,7 +141,7 @@ export function usePaymentManagement() {
     } finally {
       setIsSyncingAll(false);
     }
-  }, [setPayments]);
+  }, [setPayments, toast]);
 
   return {
     syncAllPayments,
