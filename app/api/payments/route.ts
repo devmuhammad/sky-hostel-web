@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/shared/config/auth";
 import { createPaycashlessInvoice } from "@/shared/utils/paycashless";
 import { withRateLimit, rateLimiters } from "@/shared/utils/rate-limit";
 import { PAYMENT_CONFIG } from "@/shared/config/constants";
+import { sanitizeEmail } from "@/shared/utils/sanitize";
 
 interface PaymentData {
   firstName: string;
@@ -25,16 +26,19 @@ async function handlePOST(request: NextRequest) {
       }
     }
 
+    // Normalize email to lowercase to prevent case sensitivity issues
+    const normalizedEmail = sanitizeEmail(data.email);
+
     // Fixed amount for hostel accommodation
     const amount = PAYMENT_CONFIG.amount;
 
     const supabaseAdmin = await createServerSupabaseClient();
 
-    // Check if a payment already exists for this email
+    // Check if a payment already exists for this email (using normalized email)
     const { data: existingPayments, error: checkError } = await supabaseAdmin
       .from("payments")
       .select("id, status, created_at, invoice_id")
-      .eq("email", data.email)
+      .eq("email", normalizedEmail)
       .order("created_at", { ascending: false });
 
     if (existingPayments && existingPayments.length > 0 && !checkError) {
@@ -46,7 +50,7 @@ async function handlePOST(request: NextRequest) {
           {
             success: false,
             error: {
-              message: `A payment has already been completed for this email (${data.email}). Please contact support if you need assistance.`,
+              message: `A payment has already been completed for this email (${normalizedEmail}). Please contact support if you need assistance.`,
             },
           },
           { status: 400 }
@@ -60,7 +64,7 @@ async function handlePOST(request: NextRequest) {
           {
             success: false,
             error: {
-              message: `A payment already exists for this email (${data.email}). Please complete your existing payment before creating a new one.`,
+              message: `A payment already exists for this email (${normalizedEmail}). Please complete your existing payment before creating a new one.`,
             },
           },
           { status: 400 }
@@ -73,7 +77,7 @@ async function handlePOST(request: NextRequest) {
 
     try {
       const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL}/registration?email=${encodeURIComponent(
-        data.email
+        normalizedEmail
       )}&phone=${encodeURIComponent(data.phone)}&firstName=${encodeURIComponent(
         data.firstName
       )}&lastName=${encodeURIComponent(data.lastName)}`;
@@ -86,7 +90,7 @@ async function handlePOST(request: NextRequest) {
         description: `Sky Student Hostel Payment - ${data.firstName} ${data.lastName}`,
         currency: "NGN",
         customer: {
-          email: data.email,
+          email: normalizedEmail,
           name: `${data.firstName} ${data.lastName}`,
           address: "Sky Student Hostel, University Campus Area",
         },
@@ -123,7 +127,7 @@ async function handlePOST(request: NextRequest) {
       const { data: payment, error: paymentError } = await supabaseAdmin
         .from("payments")
         .insert({
-          email: data.email,
+          email: normalizedEmail,
           phone: data.phone,
           amount_to_pay: amount,
           amount_paid: 0,
@@ -146,7 +150,7 @@ async function handlePOST(request: NextRequest) {
         resource_id: payment.id,
         metadata: {
           amount: amount,
-          email: data.email,
+          email: normalizedEmail,
           phone: data.phone,
           invoice_id: invoice.id,
           reference,

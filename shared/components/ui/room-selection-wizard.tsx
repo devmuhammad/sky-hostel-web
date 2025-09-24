@@ -430,23 +430,6 @@ export function RoomSelectionWizard({
           </div>
         )}
 
-        {/* Weight Restriction Notice */}
-        {studentData?.weight && studentData.weight > 60 && (
-          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <h3 className="font-semibold text-yellow-800 mb-2">
-              ⚠️ Weight Restriction Notice
-            </h3>
-            <p className="text-sm text-yellow-700">
-              Your weight is <strong>{studentData.weight}kg</strong>, which
-              exceeds the 60kg limit for top bunks.
-            </p>
-            <p className="text-xs text-yellow-600 mt-2">
-              For safety reasons, you can only select bottom bunks. Top bunks
-              are restricted to students weighing 60kg or less.
-            </p>
-          </div>
-        )}
-
         {/* Only show bedspace selection if beds are available */}
         {selectedRoom.available_beds.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -487,35 +470,47 @@ export function RoomSelectionWizard({
               // Use actual database data only
               const availableBeds = selectedRoom.available_beds;
 
-              const bunkBedspaces = [
-                {
+              // Only create bedspaces that are actually available
+              const bunkBedspaces = [];
+
+              // Check if top bunk is available and user can use it
+              const topBedLabel =
+                bunkMapping[bunkName as keyof typeof bunkMapping]?.top || "";
+              const isTopAvailable = availableBeds.includes(topBedLabel);
+              const canUseTop =
+                !studentData?.weight || studentData.weight <= 60;
+
+              if (isTopAvailable && canUseTop) {
+                bunkBedspaces.push({
                   id: `${bunkName}-top`,
                   bunk: bunkName,
                   position: "top" as const,
-                  available:
-                    availableBeds.includes(
-                      bunkMapping[bunkName as keyof typeof bunkMapping]?.top ||
-                        ""
-                    ) &&
-                    (!studentData?.weight || studentData.weight <= 60), // Top bunk restricted for students >60kg
+                  available: true,
                   label: `${bunkName} Top Bunk`,
-                  weightRestriction:
-                    studentData?.weight && studentData.weight > 60
-                      ? `⚠️ Top bunk restricted for students >60kg (Your weight: ${studentData.weight}kg)`
-                      : undefined,
-                },
-                {
+                  weightRestriction: undefined,
+                });
+              }
+
+              // Check if bottom bunk is available
+              const bottomBedLabel =
+                bunkMapping[bunkName as keyof typeof bunkMapping]?.bottom || "";
+              const isBottomAvailable = availableBeds.includes(bottomBedLabel);
+
+              if (isBottomAvailable) {
+                bunkBedspaces.push({
                   id: `${bunkName}-bottom`,
                   bunk: bunkName,
                   position: "bottom" as const,
-                  available: availableBeds.includes(
-                    bunkMapping[bunkName as keyof typeof bunkMapping]?.bottom ||
-                      ""
-                  ),
+                  available: true,
                   label: `${bunkName} Bottom Bunk`,
                   weightRestriction: undefined,
-                },
-              ];
+                });
+              }
+
+              // Only show this bunk if it has available bedspaces
+              if (bunkBedspaces.length === 0) {
+                return null;
+              }
 
               return (
                 <div key={bunkName} className="border rounded-lg p-6">
@@ -546,13 +541,10 @@ export function RoomSelectionWizard({
                         <button
                           key={bedspace.id}
                           onClick={() => handleBedspaceSelect(bedspace)}
-                          disabled={!bedspace.available}
                           className={`p-3 text-sm rounded border transition-colors ${
                             selectedBedspace?.id === bedspace.id
                               ? "bg-blue-500 border-blue-500 text-white font-semibold"
-                              : bedspace.available
-                                ? "bg-white border-gray-300 hover:border-blue-500 hover:bg-blue-50"
-                                : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                              : "bg-white border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                           }`}
                         >
                           <div className="text-center">
@@ -561,11 +553,6 @@ export function RoomSelectionWizard({
                                 ? "Top Bunk"
                                 : "Bottom Bunk"}
                             </div>
-                            {bedspace.weightRestriction && (
-                              <div className="text-xs text-red-600 mt-1">
-                                {bedspace.weightRestriction}
-                              </div>
-                            )}
                             {selectedBedspace?.id === bedspace.id && (
                               <span className="ml-1">✓</span>
                             )}
