@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "./button";
-import { useRoomsData } from "@/shared/hooks/useRoomsData";
+import { useRoomSelectionData } from "@/shared/hooks/useRoomSelectionData";
+import {
+  getAvailableBedspacesForRoom,
+  getRoomsWithAvailableBedspaces,
+} from "@/shared/utils/roomSelectionUtils";
 
 interface RoomType {
   id: string;
@@ -76,8 +80,14 @@ export function RoomSelectionWizard({
   );
   const [selectedBlock, setSelectedBlock] = useState<string>("all");
 
-  // Fetch real room data from database with auto-refresh
-  const { rooms: databaseRooms, loading, error, refetch } = useRoomsData();
+  // Fetch real room and student data from database with auto-refresh
+  const {
+    rooms: databaseRooms,
+    students,
+    loading,
+    error,
+    refetch,
+  } = useRoomSelectionData();
 
   // Auto-refresh room data every 30 seconds to prevent stale data
   useEffect(() => {
@@ -88,9 +98,11 @@ export function RoomSelectionWizard({
     return () => clearInterval(interval);
   }, [refetch]);
 
-  // Filter available rooms (rooms with available beds)
-  const availableRooms = databaseRooms.filter(
-    (room) => room.available_beds.length > 0
+  // Filter available rooms using proper availability checking (considers student assignments)
+  const availableRooms = getRoomsWithAvailableBedspaces(
+    databaseRooms,
+    students,
+    studentData?.weight
   );
   const availableRoomsCount = availableRooms.length;
 
@@ -408,111 +420,53 @@ export function RoomSelectionWizard({
             Available Bed Spaces
           </h3>
           <p className="text-sm text-blue-700">
-            {selectedRoom.available_beds.length} bed(s) available in this room
+            {
+              getAvailableBedspacesForRoom(
+                selectedRoom,
+                students,
+                studentData?.weight
+              ).length
+            }{" "}
+            bed(s) available in this room
           </p>
           <p className="text-xs text-blue-600 mt-2">
-            Available beds:{" "}
-            {selectedRoom.available_beds.length > 0
-              ? selectedRoom.available_beds.join(", ")
-              : "No beds available"}
+            Only truly available beds are shown (considers student assignments)
           </p>
         </div>
 
-        {/* No beds available message */}
-        {selectedRoom.available_beds.length === 0 && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <h3 className="font-semibold text-red-800 mb-2">
-              ⚠️ No Beds Available
-            </h3>
-            <p className="text-sm text-red-700">
-              This room is currently full. Please select a different room.
-            </p>
-          </div>
-        )}
+        {/* Get truly available bedspaces (considers student assignments) */}
+        {(() => {
+          const availableBedspaces = getAvailableBedspacesForRoom(
+            selectedRoom,
+            students,
+            studentData?.weight
+          );
 
-        {/* Only show bedspace selection if beds are available */}
-        {selectedRoom.available_beds.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {(selectedRoom.bed_type === "6_bed"
-              ? ["Bunk A", "Bunk B", "Bunk C"]
-              : ["Bunk A", "Bunk B"]
-            ).map((bunkName) => {
-              // Create bedspace options based on available beds
-              // Map bunk names to database bed labels
-              const is6BedRoom = selectedRoom.bed_type === "6_bed";
+          if (availableBedspaces.length === 0) {
+            return (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <h3 className="font-semibold text-red-800 mb-2">
+                  ⚠️ No Beds Available
+                </h3>
+                <p className="text-sm text-red-700">
+                  This room is currently full. Please select a different room.
+                </p>
+              </div>
+            );
+          }
 
-              const bunkMapping = is6BedRoom
-                ? {
-                    "Bunk A": {
-                      top: "Bed 1 (Top)",
-                      bottom: "Bed 1 (Down)",
-                    },
-                    "Bunk B": {
-                      top: "Bed 2 (Top)",
-                      bottom: "Bed 2 (Down)",
-                    },
-                    "Bunk C": {
-                      top: "Bed 3 (Top)",
-                      bottom: "Bed 3 (Down)",
-                    },
-                  }
-                : {
-                    "Bunk A": {
-                      top: "Bed 1 (Top)",
-                      bottom: "Bed 1 (Down)",
-                    },
-                    "Bunk B": {
-                      top: "Bed 2 (Top)",
-                      bottom: "Bed 2 (Down)",
-                    },
-                  };
+          // Group bedspaces by bunk
+          const bunkGroups: { [key: string]: Bedspace[] } = {};
+          availableBedspaces.forEach((bedspace) => {
+            if (!bunkGroups[bedspace.bunk]) {
+              bunkGroups[bedspace.bunk] = [];
+            }
+            bunkGroups[bedspace.bunk].push(bedspace);
+          });
 
-              // Use actual database data only
-              const availableBeds = selectedRoom.available_beds;
-
-              // Only create bedspaces that are actually available
-              const bunkBedspaces = [];
-
-              // Check if top bunk is available and user can use it
-              const topBedLabel =
-                bunkMapping[bunkName as keyof typeof bunkMapping]?.top || "";
-              const isTopAvailable = availableBeds.includes(topBedLabel);
-              const canUseTop =
-                !studentData?.weight || studentData.weight <= 60;
-
-              if (isTopAvailable && canUseTop) {
-                bunkBedspaces.push({
-                  id: `${bunkName}-top`,
-                  bunk: bunkName,
-                  position: "top" as const,
-                  available: true,
-                  label: `${bunkName} Top Bunk`,
-                  weightRestriction: undefined,
-                });
-              }
-
-              // Check if bottom bunk is available
-              const bottomBedLabel =
-                bunkMapping[bunkName as keyof typeof bunkMapping]?.bottom || "";
-              const isBottomAvailable = availableBeds.includes(bottomBedLabel);
-
-              if (isBottomAvailable) {
-                bunkBedspaces.push({
-                  id: `${bunkName}-bottom`,
-                  bunk: bunkName,
-                  position: "bottom" as const,
-                  available: true,
-                  label: `${bunkName} Bottom Bunk`,
-                  weightRestriction: undefined,
-                });
-              }
-
-              // Only show this bunk if it has available bedspaces
-              if (bunkBedspaces.length === 0) {
-                return null;
-              }
-
-              return (
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              {Object.entries(bunkGroups).map(([bunkName, bunkBedspaces]) => (
                 <div key={bunkName} className="border rounded-lg p-6">
                   <h3 className="text-lg font-semibold mb-4">{bunkName}</h3>
                   <div className="relative">
@@ -562,10 +516,10 @@ export function RoomSelectionWizard({
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              ))}
+            </div>
+          );
+        })()}
 
         {/* Navigation */}
         <div className="flex justify-between">
