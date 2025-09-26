@@ -376,7 +376,7 @@ async function handlePOST(request: NextRequest) {
 }
 
 // Apply rate limiting to the POST handler
-export const POST = handlePOST;
+export const POST = withRateLimit(rateLimiters.registration, handlePOST);
 
 // GET handler for fetching student data
 async function handleGET(request: NextRequest) {
@@ -386,18 +386,30 @@ async function handleGET(request: NextRequest) {
     const phone = searchParams.get("phone");
     const studentId = searchParams.get("student_id");
 
-    if (!email && !phone && !studentId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: { message: "Email, phone, or student_id is required" },
-        },
-        { status: 400 }
-      );
-    }
-
     const supabaseAdmin = await createServerSupabaseClient();
 
+    // If no specific parameters, return all students (for room selection)
+    if (!email && !phone && !studentId) {
+      const { data: students, error } = await supabaseAdmin
+        .from("students")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Database error:", error);
+        return NextResponse.json(
+          { success: false, error: { message: "Failed to fetch students" } },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: students || [],
+      });
+    }
+
+    // Handle individual student lookup
     let query = supabaseAdmin.from("students").select(`
         id,
         first_name,
