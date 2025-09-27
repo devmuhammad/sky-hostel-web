@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         faculty: student.faculty,
         department: student.department || "Not specified",
         roomNumber: student.room,
-        bedspace: student.bedspace || "Not assigned",
+        bedspace: student.bedspace_label || "Not assigned",
         block: student.block,
         amountPaid: student.amount_paid || 0,
         amountToPay: student.amount_to_pay || 219000,
