@@ -133,13 +133,13 @@ const DynamicForm = ({
             />
           ))}
 
-          <Button
+          {/* <Button
             type="submit"
             className="w-full"
             disabled={form.formState.isSubmitting}
           >
             {form.formState.isSubmitting ? getLoadingText() : getButtonText()}
-          </Button>
+          </Button> */}
 
           <div className="text-center">
             <Link
