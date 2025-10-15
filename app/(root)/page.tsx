@@ -3,12 +3,9 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import FeatureCard from "@/components/FeatureCard";
 import RoomSelectionBar from "@/components/RoomSelectionBar";
 
-// Main Landing Page Component
 const Page = () => {
-  // Features data
   const features = [
     { id: 1, title: "24/7 Security", icon: "/icons/security-icon.svg" },
     { id: 2, title: "Free WiFi", icon: "/icons/wifi-icon.svg" },
@@ -18,7 +15,6 @@ const Page = () => {
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
       <section className="flex flex-col md:flex-row items-center  bg-light-blue relative pt-24 md:pt-8 lg:pt-0 gap-10 lg:gap-0">
         <div className="md:w-1/2">
           <div className="flex flex-col items-left max-w-2xl mx-auto text-left px-8">
@@ -68,7 +64,7 @@ const Page = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/registration">
+            <Link href="/sold-out">
               <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors">
                 Continue Registration
               </button>
@@ -81,82 +77,6 @@ const Page = () => {
           </div>
         </div>
       </section>
-
-      {/* Why Choose SKY Section */}
-      {/* <section className="p-4 bg-green rounded-lg shadow-sm mb-12 flex items-center gap-5 lg:gap-10 justify-center flex-wrap lg:flex-nowrap max-w-[55%] lg:max-w-[70%] mx-auto">
-        <h2 className="text-2xl font-bold text-white text-center">
-          Why choose SKY?
-        </h2>
-
-        {features.map((feature) => (
-          <FeatureCard
-            key={feature.id}
-            title={feature.title}
-            icon={feature.icon}
-          />
-        ))}
-      </section> */}
-
-      {/* Testimonials Section */}
-      {/* <section className="py-12 mb-12">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8 text-gray-900">
-            What Students Say
-          </h2>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-2xl shadow-lg">
-              <div className="flex items-center mb-4">
-                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                  A
-                </div>
-                <div className="ml-3">
-                  <h3 className="font-semibold text-gray-900">
-                    Adebayo Michael
-                  </h3>
-                  <p className="text-sm text-gray-600">Computer Science</p>
-                </div>
-              </div>
-              <p className="text-gray-700 italic">
-                &ldquo;Sky Hostel provides the perfect environment for studying.
-                The facilities are modern and the location is convenient.&rdquo;
-              </p>
-            </div>
-
-            <div className="bg-white p-6 rounded-2xl shadow-lg">
-              <div className="flex items-center mb-4">
-                <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-white font-bold">
-                  S
-                </div>
-                <div className="ml-3">
-                  <h3 className="font-semibold text-gray-900">Sarah Johnson</h3>
-                  <p className="text-sm text-gray-600">Engineering</p>
-                </div>
-              </div>
-              <p className="text-gray-700 italic">
-                &ldquo;I love the community here! Great security, fast WiFi, and
-                amazing roommates. Highly recommended!&rdquo;
-              </p>
-            </div>
-
-            <div className="bg-white p-6 rounded-2xl shadow-lg">
-              <div className="flex items-center mb-4">
-                <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                  O
-                </div>
-                <div className="ml-3">
-                  <h3 className="font-semibold text-gray-900">Olumide Grace</h3>
-                  <p className="text-sm text-gray-600">Medicine</p>
-                </div>
-              </div>
-              <p className="text-gray-700 italic">
-                &ldquo;The 24/7 support team is incredible. Any issue I have is
-                resolved quickly. This place feels like home.&rdquo;
-              </p>
-            </div>
-          </div>
-        </div>
-      </section> */}
 
       {/* Footer */}
       <footer className="bg-gray-100 py-8 px-4">
@@ -176,7 +96,7 @@ const Page = () => {
               <h4 className="font-semibold mb-3 text-gray-900">Quick Links</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 <li>
-                  <Link href="/registration" className="hover:text-blue-600">
+                  <Link href="/sold-out" className="hover:text-blue-600">
                     Register
                   </Link>
                 </li>

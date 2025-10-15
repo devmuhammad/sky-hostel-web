@@ -1,6 +1,5 @@
 "use client";
 
-// Force dynamic rendering for this page
 export const dynamic = "force-dynamic";
 
 import { useState } from "react";
@@ -252,7 +251,7 @@ export default function CheckPaymentPage() {
 
                 {result.payment.status === "completed" && (
                   <div className="mt-6">
-                    <Link href="/registration">
+                    <Link href="/sold-out">
                       <Button className="w-full bg-green-600 hover:bg-green-700 text-white">
                         Proceed to Registration
                       </Button>
@@ -288,7 +287,7 @@ export default function CheckPaymentPage() {
               <p className="text-sm text-gray-600">
                 Need to make a new payment?
               </p>
-              <Link href="/invoice">
+              <Link href="/sold-out">
                 <Button variant="outline" className="w-full">
                   Make New Payment
                 </Button>

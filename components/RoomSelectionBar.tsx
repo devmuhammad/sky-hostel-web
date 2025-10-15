@@ -57,7 +57,7 @@ const RoomSelectionBar: React.FC<RoomSelectionBarProps> = ({
         </div>
 
         <div className="w-full  flex items-center">
-          <Link href="/invoice" className="w-full  h-full">
+          <Link href="/sold-out" className="w-full  h-full">
             <button className="w-full  bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded transition-colors h-full">
               Start Registration
             </button>
