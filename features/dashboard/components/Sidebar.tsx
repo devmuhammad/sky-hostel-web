@@ -15,7 +15,7 @@ interface AdminUser {
   email: string;
   first_name: string;
   last_name: string;
-  role: "admin" | "super_admin";
+  role: string;
   is_active: boolean;
   last_login?: string;
 }
@@ -196,7 +196,10 @@ export default function Sidebar({
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {ADMIN_NAVIGATION.map((item) => {
           const isActive = pathname === item.href;
-          const isVisible = item.roles.includes(adminUser?.role || "admin");
+          const isVisible = item.roles.includes(adminUser?.role as any || "admin");
+          
+          if (!isVisible) return null;
+
           return (
             <Link
               key={item.name}
@@ -208,19 +211,18 @@ export default function Sidebar({
                 }
               }}
               className={cn(
-                "flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group",
+                "flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group border",
                 isActive
-                  ? "bg-blue-50 text-blue-700 shadow-sm border border-blue-100"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                !isCollapsed || sidebarCollapsed ? "" : "justify-center",
-                !isVisible && "hidden" // Hide items not visible to the user
+                  ? "bg-white text-gray-900 shadow-sm border-gray-800"
+                  : "text-gray-600 border-transparent hover:bg-gray-50 hover:border-gray-200 hover:text-gray-900",
+                !isCollapsed || sidebarCollapsed ? "" : "justify-center"
               )}
             >
               <span
                 className={cn(
                   "flex-shrink-0",
                   isActive
-                    ? "text-blue-700"
+                    ? "text-gray-900"
                     : "text-gray-400 group-hover:text-gray-600"
                 )}
               >
@@ -255,7 +257,9 @@ export default function Sidebar({
                   : "Admin User"}
               </p>
               <p className="text-xs text-gray-500 truncate">
-                {adminUser?.role === "super_admin" ? "Super Admin" : "Admin"}
+                {adminUser?.role 
+                  ? adminUser.role.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+                  : "Admin"}
               </p>
             </div>
           )}

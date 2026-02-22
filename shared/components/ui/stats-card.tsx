@@ -6,7 +6,7 @@ interface StatsCardProps {
   value: string | number;
   change?: {
     value: number;
-    type: "increase" | "decrease";
+    type: "increase" | "decrease" | "neutral";
   };
   icon?: ReactNode;
   className?: string;
@@ -37,10 +37,12 @@ export function StatsCard({
                   "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
                   change.type === "increase"
                     ? "bg-green-100 text-green-800"
-                    : "bg-red-100 text-red-800"
+                    : change.type === "decrease"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-gray-100 text-gray-800"
                 )}
               >
-                {change.type === "increase" ? "↗" : "↘"}{" "}
+                {change.type === "increase" ? "↗" : change.type === "decrease" ? "↘" : "−"}{" "}
                 {Math.abs(change.value)}%
               </span>
             </div>

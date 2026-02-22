@@ -2,12 +2,15 @@
 
 export const dynamic = "force-dynamic";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { TableLoadingSkeleton } from "@/shared/components/ui/loading-skeleton";
 import { useStudentsManagement } from "./hooks/useStudentsManagement";
 import { StudentsTable } from "./components/StudentsTable";
 import { StudentDetailModal } from "./components/StudentDetailModal";
 import { EditStudentModal } from "./components/EditStudentModal";
+import { ReportForm } from "@/features/student-reports/components/ReportForm";
+import { Modal } from "@/shared/components/ui/modal";
+import { Student } from "@/shared/store/appStore";
 
 function StudentsManagement() {
   const {
@@ -28,6 +31,8 @@ function StudentsManagement() {
     handleResendEmail,
   } = useStudentsManagement();
 
+  const [reportingStudent, setReportingStudent] = useState<Student | null>(null);
+
   return (
     <>
       <StudentsTable
@@ -37,6 +42,7 @@ function StudentsManagement() {
         onViewStudent={setSelectedStudent}
         onEditStudent={handleEditStudent}
         onResendEmail={handleResendEmail}
+        onReportStudent={setReportingStudent}
       />
 
       <StudentDetailModal
@@ -52,6 +58,22 @@ function StudentsManagement() {
         onClose={() => setEditingStudent(null)}
         isPending={updateStudentMutation.isPending}
       />
+
+      <Modal
+        isOpen={!!reportingStudent}
+        onClose={() => setReportingStudent(null)}
+        title="New Report"
+        description={`File a behaviour or incident report for ${reportingStudent?.first_name} ${reportingStudent?.last_name}`}
+        hideDefaultFooter
+      >
+        {reportingStudent && (
+          <ReportForm
+            studentId={reportingStudent.id}
+            onSuccess={() => setReportingStudent(null)}
+            onCancel={() => setReportingStudent(null)}
+          />
+        )}
+      </Modal>
     </>
   );
 }

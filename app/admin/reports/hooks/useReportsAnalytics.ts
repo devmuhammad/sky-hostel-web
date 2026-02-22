@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useAppStore } from "@/shared/store/appStore";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useStudents, usePayments, useRooms } from "@/shared/hooks/useAppData";
 
 interface ReportData {
@@ -16,13 +15,23 @@ interface ReportData {
   revenueByMonth: Array<{ month: string; revenue: number }>;
 }
 
-export function useReportsAnalytics() {
-  const [dateRange, setDateRange] = useState({
-    from: new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0],
-    to: new Date().toISOString().split("T")[0],
-  });
+type RangePreset = "last_30_days" | "last_12_months" | "all_time";
 
-  const { students, payments, rooms } = useAppStore();
+const formatDate = (date: Date) => date.toISOString().split("T")[0];
+
+const getDefaultRange = () => {
+  const now = new Date();
+  const oneYearAgo = new Date(now);
+  oneYearAgo.setFullYear(now.getFullYear() - 1);
+  return {
+    from: formatDate(oneYearAgo),
+    to: formatDate(now),
+  };
+};
+
+export function useReportsAnalytics() {
+  const [dateRange, setDateRange] = useState(getDefaultRange);
+  const hasAutoAdjustedRange = useRef(false);
 
   const {
     data: studentsData,
@@ -41,21 +50,48 @@ export function useReportsAnalytics() {
   } = useRooms();
 
   const isLoading = studentsLoading || paymentsLoading || roomsLoading;
-  const isError = studentsError || paymentsError || roomsError;
+  const isError = Boolean(studentsError || paymentsError || roomsError);
+
+  const availableRange = useMemo(() => {
+    const timestamps = [
+      ...((studentsData as any[]) || []).map((student) => student.created_at),
+      ...((paymentsData as any[]) || []).map((payment) => payment.created_at),
+    ]
+      .filter(Boolean)
+      .map((value) => new Date(value).getTime())
+      .filter((value) => !Number.isNaN(value));
+
+    if (!timestamps.length) {
+      const defaultRange = getDefaultRange();
+      return defaultRange;
+    }
+
+    const minTime = Math.min(...timestamps);
+    const maxTime = Math.max(...timestamps);
+    return {
+      from: formatDate(new Date(minTime)),
+      to: formatDate(new Date(maxTime)),
+    };
+  }, [studentsData, paymentsData]);
 
   const reportData = useMemo(() => {
     if (!studentsData || !paymentsData || !roomsData) return null;
 
+    const fromDate = new Date(`${dateRange.from}T00:00:00`);
+    const toDate = new Date(`${dateRange.to}T23:59:59`);
+
     const filteredStudents = (studentsData as any[]).filter(
-      (student: any) =>
-        student.created_at >= dateRange.from &&
-        student.created_at <= dateRange.to + "T23:59:59"
+      (student: any) => {
+        const createdAt = new Date(student.created_at);
+        return createdAt >= fromDate && createdAt <= toDate;
+      }
     );
 
     const filteredPayments = (paymentsData as any[]).filter(
-      (payment: any) =>
-        payment.created_at >= dateRange.from &&
-        payment.created_at <= dateRange.to + "T23:59:59"
+      (payment: any) => {
+        const createdAt = new Date(payment.created_at);
+        return createdAt >= fromDate && createdAt <= toDate;
+      }
     );
 
     const totalStudents = filteredStudents.length;
@@ -147,7 +183,7 @@ export function useReportsAnalytics() {
             payment.status === "completed" &&
             payment.created_at.startsWith(month)
         )
-        .reduce((sum, payment) => sum + payment.amount_paid, 0),
+        .reduce((sum, payment) => sum + (payment.amount_paid || 0), 0),
     }));
 
     return {
@@ -163,11 +199,59 @@ export function useReportsAnalytics() {
     };
   }, [studentsData, paymentsData, roomsData, dateRange]);
 
+  const hasDataInRange = useMemo(() => {
+    if (!reportData) return false;
+    return (
+      reportData.totalStudents > 0 ||
+      reportData.totalRevenue > 0 ||
+      Object.keys(reportData.studentsByFaculty).length > 0 ||
+      Object.keys(reportData.studentsByLevel).length > 0 ||
+      Object.values(reportData.paymentsByStatus).reduce((sum, count) => sum + count, 0) > 0
+    );
+  }, [reportData]);
+
+  useEffect(() => {
+    if (hasAutoAdjustedRange.current) return;
+    if (!reportData) return;
+
+    const hasAnyDataLoaded =
+      (((studentsData as any[]) || []).length > 0 ||
+        ((paymentsData as any[]) || []).length > 0);
+
+    if (hasAnyDataLoaded && !hasDataInRange) {
+      hasAutoAdjustedRange.current = true;
+      setDateRange(availableRange);
+    }
+  }, [reportData, hasDataInRange, availableRange, studentsData, paymentsData]);
+
+  const setPresetRange = (preset: RangePreset) => {
+    const now = new Date();
+    if (preset === "last_30_days") {
+      const start = new Date(now);
+      start.setDate(now.getDate() - 29);
+      setDateRange({ from: formatDate(start), to: formatDate(now) });
+      return;
+    }
+
+    if (preset === "last_12_months") {
+      const start = new Date(now);
+      start.setFullYear(now.getFullYear() - 1);
+      setDateRange({ from: formatDate(start), to: formatDate(now) });
+      return;
+    }
+
+    setDateRange(availableRange);
+  };
+
   return {
     dateRange,
     setDateRange,
     reportData,
     isLoading,
     isError,
+    hasDataInRange,
+    setPresetRange,
+    studentsData: (studentsData as any[]) || [],
+    paymentsData: (paymentsData as any[]) || [],
   };
 }

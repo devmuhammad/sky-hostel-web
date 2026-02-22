@@ -1,10 +1,14 @@
 import { ReactNode } from "react";
 
+export type StaffRole = "admin" | "super_admin" | "porter" | "other" | "security" | "cleaner" | "maintenance" | "front_desk" | "hostel_manager" | "accountant";
+
+// We keep the old ones in the type to avoid breaking existing DB records immediately, but the new simplified ones are the primary focus.
+
 export interface NavigationItem {
   name: string;
   href: string;
   icon: ReactNode;
-  roles: ("admin" | "super_admin")[];
+  roles: StaffRole[];
 }
 
 // Dashboard icon
@@ -115,39 +119,96 @@ const AdminUsersIcon = (
   </svg>
 );
 
+// Inventory icon
+const InventoryIcon = (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+  </svg>
+);
+
+// Daily Logs icon
+const DailyLogsIcon = (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+
+// Leave Requests icon
+const LeaveRequestsIcon = (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  </svg>
+);
+
+// Support Tickets icon
+const SupportTicketsIcon = (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M8 10h8M8 14h5m-8 7h14a2 2 0 002-2V7a2 2 0 00-2-2h-5l-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+    />
+  </svg>
+);
+
 export const ADMIN_NAVIGATION: NavigationItem[] = [
   {
     name: "Dashboard",
     href: "/admin",
     icon: DashboardIcon,
-    roles: ["admin", "super_admin"],
+    roles: ["admin", "super_admin", "hostel_manager", "accountant", "front_desk", "other"],
   },
   {
     name: "Students",
     href: "/admin/students",
     icon: StudentsIcon,
-    roles: ["admin", "super_admin"],
+    roles: ["admin", "super_admin", "hostel_manager", "front_desk", "maintenance", "accountant", "porter", "other"],
   },
   {
     name: "Payments",
     href: "/admin/payments",
     icon: PaymentsIcon,
-    roles: ["admin", "super_admin"],
+    roles: ["admin", "super_admin", "hostel_manager", "accountant", "other"],
   },
   {
     name: "Rooms",
     href: "/admin/rooms",
     icon: RoomsIcon,
-    roles: ["admin", "super_admin"],
+    roles: ["admin", "super_admin", "hostel_manager", "maintenance", "cleaner", "porter", "other"],
+  },
+  {
+    name: "Inventory",
+    href: "/admin/inventory",
+    icon: InventoryIcon,
+    roles: ["admin", "super_admin", "porter", "other"],
+  },
+  {
+    name: "Daily Logs",
+    href: "/admin/daily-logs",
+    icon: DailyLogsIcon,
+    roles: ["admin", "super_admin", "hostel_manager", "front_desk", "security", "maintenance", "cleaner", "accountant", "porter", "other"],
+  },
+  {
+    name: "Leave Requests",
+    href: "/admin/leave-requests",
+    icon: LeaveRequestsIcon,
+    roles: ["admin", "super_admin", "hostel_manager", "front_desk", "security", "maintenance", "cleaner", "accountant", "porter", "other"],
+  },
+  {
+    name: "Support Tickets",
+    href: "/admin/student-tickets",
+    icon: SupportTicketsIcon,
+    roles: ["admin", "super_admin", "porter", "other"],
   },
   {
     name: "Reports",
     href: "/admin/reports",
     icon: ReportsIcon,
-    roles: ["super_admin"],
+    roles: ["super_admin", "hostel_manager", "accountant", "other"],
   },
   {
-    name: "Admin Users",
+    name: "Staff Management",
     href: "/admin/users",
     icon: AdminUsersIcon,
     roles: ["super_admin"],

@@ -18,6 +18,7 @@ interface ModalProps {
   size?: "sm" | "md" | "lg" | "xl";
   footer?: ReactNode;
   showCloseButton?: boolean;
+  hideDefaultFooter?: boolean;
 }
 
 export function Modal({
@@ -29,6 +30,7 @@ export function Modal({
   size = "md",
   footer,
   showCloseButton = true,
+  hideDefaultFooter = false,
 }: ModalProps) {
   const sizeClasses = {
     sm: "sm:max-w-md",
@@ -40,23 +42,23 @@ export function Modal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className={`${sizeClasses[size]} max-h-[90vh] sm:max-h-[85vh] overflow-y-auto flex flex-col`}
+        className={`${sizeClasses[size]} max-h-[90vh] sm:max-h-[85vh] overflow-y-auto flex flex-col p-6`}
         showCloseButton={showCloseButton}
       >
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="text-lg sm:text-xl">{title}</DialogTitle>
-          {description && <DialogDescription>{description}</DialogDescription>}
+        <DialogHeader className="flex-shrink-0 mb-4">
+          <DialogTitle className="text-xl font-semibold tracking-tight">{title}</DialogTitle>
+          {description && <DialogDescription className="text-gray-500 mt-1">{description}</DialogDescription>}
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto py-4 min-h-0">{children}</div>
+        <div className="flex-1 overflow-y-auto min-h-0">{children}</div>
 
         {footer && (
-          <DialogFooter className="flex-shrink-0">{footer}</DialogFooter>
+          <DialogFooter className="flex-shrink-0 mt-6">{footer}</DialogFooter>
         )}
 
-        {!footer && (
-          <DialogFooter className="flex-shrink-0">
-            <Button variant="outline" onClick={onClose}>
+        {!footer && !hideDefaultFooter && (
+          <DialogFooter className="flex-shrink-0 mt-6">
+            <Button variant="outline" onClick={onClose} className="rounded-full px-6">
               Close
             </Button>
           </DialogFooter>

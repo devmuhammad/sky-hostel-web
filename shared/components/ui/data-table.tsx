@@ -41,6 +41,7 @@ interface DataTableProps<T> {
     description: string;
   };
   title?: string;
+  noShadow?: boolean;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -54,6 +55,7 @@ export function DataTable<T extends Record<string, any>>({
   actionLabel = "View Details",
   emptyState,
   title,
+  noShadow = false,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -82,11 +84,13 @@ export function DataTable<T extends Record<string, any>>({
     return <DataTableSkeleton />;
   }
 
+  const cardClasses = noShadow ? "shadow-none border-0 bg-transparent" : "";
+
   return (
     <div className="space-y-4 lg:space-y-6 w-full">
       {/* Search and Filters */}
       {(searchFields.length > 0 || filters.length > 0) && (
-        <Card>
+        <Card className={cardClasses}>
           <CardContent className="pt-4 lg:pt-6">
             <div className="grid gap-3 lg:gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
               {searchFields.length > 0 && (
@@ -128,7 +132,7 @@ export function DataTable<T extends Record<string, any>>({
       )}
 
       {/* Data Table */}
-      <Card className="w-full">
+      <Card className={`w-full ${cardClasses}`}>
         {title && (
           <CardHeader>
             <CardTitle className="text-lg lg:text-xl">

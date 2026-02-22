@@ -5,8 +5,9 @@ import { EmptyState } from "@/shared/components/ui/empty-state";
 import CreateAdminButton from "./components/CreateAdminButton";
 import {
   createServerSupabaseClient,
-  requireAdminAccess,
+  requireRole,
 } from "@/shared/config/auth";
+import AdminUserActions from "./components/AdminUserActions";
 
 async function getCurrentUserRole() {
   const supabase = await createServerSupabaseClient();
@@ -75,6 +76,9 @@ async function AdminUsersList() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Created
                   </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -114,6 +118,9 @@ async function AdminUsersList() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <AdminUserActions user={user} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -133,12 +140,11 @@ async function AdminUsersList() {
 }
 
 export default async function AdminUsersPage() {
-  // Check admin access
-  await requireAdminAccess();
+  // Check super admin access
+  const user = await requireRole(["super_admin"]);
 
-  // Get current user role
-  const userRole = await getCurrentUserRole();
-  const isSuperAdmin = userRole === "super_admin";
+  // Set super admin explicitly since this page is protected
+  const isSuperAdmin = true;
 
   return (
     <div className="p-4 lg:p-6 pb-8 lg:pb-12">

@@ -39,21 +39,21 @@ export const createClientSupabaseClient = () => {
 export const checkAdminAccess = async () => {
   const supabase = await createServerSupabaseClient();
 
-  // Get the current session
+  // Get an authenticated user (safer than getSession() for authorization checks)
   const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-  if (sessionError || !session) {
-    return { isAdmin: false, adminUser: null, error: "No session found" };
+  if (userError || !user?.email) {
+    return { isAdmin: false, adminUser: null, error: "No authenticated user found" };
   }
 
   // Check if user exists in admin_users table
   const { data: adminUser, error: adminError } = await supabase
     .from("admin_users")
     .select("*")
-    .eq("email", session.user.email)
+    .eq("email", user.email)
     .eq("is_active", true)
     .single();
 
@@ -77,5 +77,15 @@ export const requireAdminAccess = async () => {
     throw new Error(error || "Admin access required");
   }
 
+  return adminUser;
+};
+
+export const requireRole = async (allowedRoles: string[]) => {
+  const adminUser = await requireAdminAccess();
+  
+  if (!allowedRoles.includes(adminUser.role)) {
+    throw new Error("Insufficient permissions: Role not allowed");
+  }
+  
   return adminUser;
 };

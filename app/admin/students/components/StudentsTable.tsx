@@ -16,6 +16,7 @@ interface StudentsTableProps {
   onViewStudent: (student: Student) => void;
   onEditStudent: (student: Student) => void;
   onResendEmail: (studentId: string) => void;
+  onReportStudent: (student: Student) => void;
 }
 
 export function StudentsTable({
@@ -25,6 +26,7 @@ export function StudentsTable({
   onViewStudent,
   onEditStudent,
   onResendEmail,
+  onReportStudent,
 }: StudentsTableProps) {
   const { students, loading } = useAppStore();
   const { data, isLoading, error } = useStudents();
@@ -34,6 +36,7 @@ export function StudentsTable({
     onViewStudent,
     onEditStudent,
     onResendEmail,
+    onReportStudent,
     isResendingEmail,
   });
   const filters = getStudentFilters(

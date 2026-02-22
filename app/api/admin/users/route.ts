@@ -5,6 +5,8 @@ import {
 } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
 
+const ALLOWED_ADMIN_ROLES = ["super_admin", "admin", "porter", "other"] as const;
+
 export async function POST(request: NextRequest) {
   try {
     // Check if current user is super admin
@@ -39,6 +41,16 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: "Password must be at least 8 characters long",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!ALLOWED_ADMIN_ROLES.includes(role)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Invalid role. Allowed roles: ${ALLOWED_ADMIN_ROLES.join(", ")}`,
         },
         { status: 400 }
       );
@@ -92,7 +104,7 @@ export async function POST(request: NextRequest) {
       // Clean up the auth user if admin creation fails
       await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
       return NextResponse.json(
-        { success: false, error: "Failed to create admin user" },
+        { success: false, error: adminError.message || "Failed to create admin user" },
         { status: 500 }
       );
     }
@@ -137,7 +149,7 @@ export async function GET(request: NextRequest) {
     // Check if current user is admin
     const currentAdmin = await requireAdminAccess();
 
-    if (currentAdmin.role !== "super_admin") {
+    if (!["super_admin", "admin"].includes(currentAdmin.role)) {
       return NextResponse.json(
         { success: false, error: "Insufficient permissions" },
         { status: 403 }

@@ -169,6 +169,8 @@ export default function CreateAdminModal({
           >
             <option value="admin">Admin</option>
             <option value="super_admin">Super Admin</option>
+            <option value="porter">Porter</option>
+            <option value="other">Other</option>
           </select>
         </div>
 

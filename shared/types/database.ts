@@ -207,6 +207,44 @@ export interface Database {
           created_at?: string;
         };
       };
+      staff_leave_requests: {
+        Row: {
+          id: string;
+          staff_id: string;
+          start_date: string;
+          end_date: string;
+          reason: string;
+          status: "pending" | "approved" | "rejected";
+          approved_by: string | null;
+          rejection_reason: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          staff_id: string;
+          start_date: string;
+          end_date: string;
+          reason: string;
+          status?: "pending" | "approved" | "rejected";
+          approved_by?: string | null;
+          rejection_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          staff_id?: string;
+          start_date?: string;
+          end_date?: string;
+          reason?: string;
+          status?: "pending" | "approved" | "rejected";
+          approved_by?: string | null;
+          rejection_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
   };
 }

@@ -81,7 +81,7 @@ export function StatusBadge({
         className
       )}
     >
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
     </Badge>
   );
 }

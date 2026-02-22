@@ -14,6 +14,9 @@ export function ReportsHeader({
   studentsData,
   paymentsData,
 }: ReportsHeaderProps) {
+  const hasStudentData = studentsData.length > 0;
+  const hasPaymentData = paymentsData.length > 0;
+
   const handleExportStudents = () => {
     exportToCSV("students", studentsData, paymentsData, dateRange);
   };
@@ -23,20 +26,20 @@ export function ReportsHeader({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">
           Reports & Analytics
         </h1>
         <p className="text-sm text-gray-600 mt-1">
           Comprehensive insights into your hostel operations
         </p>
       </div>
-      <div className="mt-4 sm:mt-0 flex space-x-2">
-        <Button onClick={handleExportStudents} variant="outline" size="sm">
+      <div className="flex gap-2">
+        <Button onClick={handleExportStudents} variant="outline" size="sm" disabled={!hasStudentData}>
           Export Students
         </Button>
-        <Button onClick={handleExportPayments} variant="outline" size="sm">
+        <Button onClick={handleExportPayments} variant="outline" size="sm" disabled={!hasPaymentData}>
           Export Payments
         </Button>
       </div>

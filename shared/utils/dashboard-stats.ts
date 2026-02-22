@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/shared/config/auth";
+import { supabaseAdmin } from "@/shared/config/supabase";
 
 export interface DashboardStats {
   totalStudents: number;
@@ -8,10 +9,13 @@ export interface DashboardStats {
   occupiedBeds: number;
   totalBeds: number;
   occupancyRate: number;
+  unresolvedReports: number;
+  itemsNeedingRepair: number;
+  pendingLogs: number;
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const supabase = await createServerSupabaseClient();
+  const supabase = supabaseAdmin;
 
   const { count: totalStudents } = await supabase
     .from("students")
@@ -51,6 +55,22 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     rooms?.reduce((sum, room) => sum + room.available_beds.length, 0) || 0;
   const occupiedBeds = totalBeds - availableBeds;
 
+  // New Module Stats
+  const { count: unresolvedReports } = await supabase
+    .from("student_reports")
+    .select("*", { count: "exact", head: true })
+    .in("status", ["unresolved", "under_review"]);
+
+  const { count: itemsNeedingRepair } = await supabase
+    .from("inventory_items")
+    .select("*", { count: "exact", head: true })
+    .in("condition", ["needs_repair", "spoilt", "destroyed"]);
+
+  const { count: pendingLogs } = await supabase
+    .from("staff_daily_logs")
+    .select("*", { count: "exact", head: true })
+    .eq("supervisor_status", "pending");
+
   return {
     totalStudents: totalStudents || 0,
     totalPayments: totalPayments || 0,
@@ -60,6 +80,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     totalBeds,
     occupancyRate:
       totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0,
+    unresolvedReports: unresolvedReports || 0,
+    itemsNeedingRepair: itemsNeedingRepair || 0,
+    pendingLogs: pendingLogs || 0,
   };
 }
 

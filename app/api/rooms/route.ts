@@ -5,6 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const block = searchParams.get("block");
+    const includeFull = searchParams.get("includeFull") === "true";
 
     let query = supabaseAdmin
       .from("rooms")
@@ -26,13 +27,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Filter rooms with available beds
-    const availableRooms =
-      rooms?.filter((room) => room.available_beds.length > 0) || [];
+    // Default behavior keeps registration flow by only returning rooms with availability.
+    // Inventory and admin flows can request all rooms with ?includeFull=true.
+    const filteredRooms = includeFull
+      ? rooms || []
+      : rooms?.filter((room) => room.available_beds.length > 0) || [];
 
     return NextResponse.json({
       success: true,
-      data: availableRooms,
+      data: filteredRooms,
     });
   } catch (error) {
     console.error("Rooms fetch error:", error);

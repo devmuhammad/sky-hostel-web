@@ -8,6 +8,7 @@ interface TableColumnsProps {
   onViewStudent: (student: Student) => void;
   onEditStudent: (student: Student) => void;
   onResendEmail: (studentId: string) => void;
+  onReportStudent: (student: Student) => void;
   isResendingEmail: string | null;
 }
 
@@ -15,6 +16,7 @@ export function getTableColumns({
   onViewStudent,
   onEditStudent,
   onResendEmail,
+  onReportStudent,
   isResendingEmail,
 }: TableColumnsProps): Column<Student>[] {
   return [
@@ -97,6 +99,14 @@ export function getTableColumns({
             className="text-xs px-2 py-1 h-auto"
           >
             Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onReportStudent(student)}
+            className="text-xs px-2 py-1 h-auto text-red-600 border-red-200 hover:bg-red-50"
+          >
+            Report
           </Button>
           <Button
             size="sm"
