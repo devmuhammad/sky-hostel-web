@@ -55,6 +55,7 @@ export interface Room {
   total_beds: number;
   bed_type: "4_bed" | "6_bed";
   available_beds: string[];
+  room_availability_status?: "open" | "reserved" | "locked";
   created_at: string;
   updated_at: string;
 }

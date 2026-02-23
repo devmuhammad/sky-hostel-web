@@ -72,6 +72,14 @@ export function RoomDetailsModal({
               })()}
             </p>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Availability Status
+            </label>
+            <p className="text-sm text-gray-900 capitalize">
+              {room.room_availability_status || "open"}
+            </p>
+          </div>
         </div>
 
         <div>

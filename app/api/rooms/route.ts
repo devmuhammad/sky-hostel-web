@@ -31,7 +31,11 @@ export async function GET(request: NextRequest) {
     // Inventory and admin flows can request all rooms with ?includeFull=true.
     const filteredRooms = includeFull
       ? rooms || []
-      : rooms?.filter((room) => room.available_beds.length > 0) || [];
+      : rooms?.filter(
+          (room) =>
+            room.available_beds.length > 0 &&
+            (room.room_availability_status || "open") === "open"
+        ) || [];
 
     return NextResponse.json({
       success: true,
@@ -80,6 +84,7 @@ export async function POST(request: NextRequest) {
         total_beds,
         bed_type,
         available_beds,
+        room_availability_status: "open",
       })
       .select()
       .single();

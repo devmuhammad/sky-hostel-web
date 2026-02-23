@@ -198,11 +198,27 @@ async function handlePOST(request: NextRequest) {
       }
 
       // Get current room data and check availability
-      const { data: roomData, error: roomError } = await supabaseAdmin
+      let roomData: { available_beds: string[]; room_availability_status?: string } | null = null;
+      let roomError: any = null;
+
+      const roomQuery = await supabaseAdmin
         .from("rooms")
-        .select("available_beds")
+        .select("available_beds, room_availability_status")
         .eq("id", data.room_id)
         .single();
+
+      if (roomQuery.error && roomQuery.error.code === "42703") {
+        const fallbackRoomQuery = await supabaseAdmin
+          .from("rooms")
+          .select("available_beds")
+          .eq("id", data.room_id)
+          .single();
+        roomData = fallbackRoomQuery.data as any;
+        roomError = fallbackRoomQuery.error;
+      } else {
+        roomData = roomQuery.data as any;
+        roomError = roomQuery.error;
+      }
 
       if (roomError || !roomData) {
         console.error("Room not found or error:", roomError);
@@ -216,6 +232,13 @@ async function handlePOST(request: NextRequest) {
       if (!roomData.available_beds.includes(data.bedspace_label)) {
         return NextResponse.json(
           { success: false, error: "Bedspace no longer available" },
+          { status: 409 }
+        );
+      }
+
+      if ((roomData.room_availability_status || "open") !== "open") {
+        return NextResponse.json(
+          { success: false, error: "Room is currently unavailable for student booking" },
           { status: 409 }
         );
       }

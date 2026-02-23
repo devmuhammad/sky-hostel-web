@@ -4,14 +4,30 @@ import { Button } from "@/shared/components/ui/button";
 import { CardContainer } from "@/shared/components/ui/card-container";
 import { Room, Student } from "@/shared/store/appStore";
 import { getBedStatus } from "../utils/roomUtils";
+import Link from "next/link";
 
 interface RoomCardProps {
   room: Room;
   students: Student[];
   onViewDetails: (room: Room) => void;
+  onSetAvailabilityStatus: (
+    room: Room,
+    status: "open" | "reserved" | "locked"
+  ) => void;
+  isStatusUpdating?: boolean;
+  statusUpdatingTo?: "open" | "reserved" | "locked" | null;
 }
 
-export function RoomCard({ room, students, onViewDetails }: RoomCardProps) {
+export function RoomCard({
+  room,
+  students,
+  onViewDetails,
+  onSetAvailabilityStatus,
+  isStatusUpdating = false,
+  statusUpdatingTo = null,
+}: RoomCardProps) {
+  const roomStatus = room.room_availability_status || "open";
+
   return (
     <CardContainer title={`${room.block} - ${room.name}`}>
       <div className="space-y-4">
@@ -39,6 +55,25 @@ export function RoomCard({ room, students, onViewDetails }: RoomCardProps) {
               );
               return `${availableBedspaces.length} bedspaces available`;
             })()}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">Availability</span>
+          <span
+            className={`text-xs px-2 py-1 rounded-full ${
+              roomStatus === "open"
+                ? "bg-emerald-100 text-emerald-700"
+                : roomStatus === "reserved"
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-rose-100 text-rose-700"
+            }`}
+          >
+            {roomStatus === "open"
+              ? "Open"
+              : roomStatus === "reserved"
+                ? "Reserved"
+                : "Locked"}
           </span>
         </div>
 
@@ -111,14 +146,52 @@ export function RoomCard({ room, students, onViewDetails }: RoomCardProps) {
           )}
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onViewDetails(room)}
-          className="w-full"
-        >
-          View Details
-        </Button>
+        <div className="grid grid-cols-3 gap-2">
+          <Button
+            variant={roomStatus === "open" ? "default" : "outline"}
+            size="sm"
+            onClick={() => onSetAvailabilityStatus(room, "open")}
+            disabled={isStatusUpdating}
+          >
+            {isStatusUpdating && statusUpdatingTo === "open"
+              ? "Updating..."
+              : "Open"}
+          </Button>
+          <Button
+            variant={roomStatus === "reserved" ? "default" : "outline"}
+            size="sm"
+            onClick={() => onSetAvailabilityStatus(room, "reserved")}
+            disabled={isStatusUpdating}
+          >
+            {isStatusUpdating && statusUpdatingTo === "reserved"
+              ? "Updating..."
+              : "Reserve"}
+          </Button>
+          <Button
+            variant={roomStatus === "locked" ? "default" : "outline"}
+            size="sm"
+            onClick={() => onSetAvailabilityStatus(room, "locked")}
+            disabled={isStatusUpdating}
+          >
+            {isStatusUpdating && statusUpdatingTo === "locked"
+              ? "Updating..."
+              : "Lock"}
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onViewDetails(room)}
+            className="w-full"
+          >
+            View Details
+          </Button>
+          <Button variant="outline" size="sm" asChild className="w-full">
+            <Link href={`/admin/inventory/rooms/${room.id}`}>Room Inventory</Link>
+          </Button>
+        </div>
       </div>
     </CardContainer>
   );

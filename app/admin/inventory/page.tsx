@@ -13,6 +13,10 @@ import { toast } from "sonner";
 
 export default function InventoryPage() {
   const [items, setItems] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryIsRoomTemplate, setNewCategoryIsRoomTemplate] = useState(true);
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [isCreatingItem, setIsCreatingItem] = useState(false);
@@ -46,9 +50,23 @@ export default function InventoryPage() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("/api/admin/inventory/categories");
+      const data = await res.json();
+      if (data.success) {
+        setCategories(data.data?.categories || []);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load inventory categories");
+    }
+  };
+
   useEffect(() => {
     fetchUserRole();
     fetchItems();
+    fetchCategories();
   }, []);
 
   const canViewFinancials = currentUserRole ? ["super_admin", "admin", "hostel_manager", "accountant"].includes(currentUserRole) : false;
@@ -80,9 +98,40 @@ export default function InventoryPage() {
     fetchItems();
   };
 
+  const handleCreateCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+
+    setIsCreatingCategory(true);
+    try {
+      const res = await fetch("/api/admin/inventory/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          is_room_template: newCategoryIsRoomTemplate,
+        }),
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+
+      toast.success("Category created");
+      setNewCategoryName("");
+      await fetchCategories();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create category");
+    } finally {
+      setIsCreatingCategory(false);
+    }
+  };
+
   const columns = [
     { header: "Name", key: "name", render: (item: any) => item.name },
-    { header: "Category", key: "category", render: (item: any) => <span className="capitalize">{item.category}</span> },
+    {
+      header: "Category",
+      key: "category",
+      render: (item: any) => <span className="capitalize">{item.category_ref?.name || item.category}</span>,
+    },
     { 
       header: "Location", 
       key: "room", 
@@ -180,6 +229,49 @@ export default function InventoryPage() {
             </div>
           </div>
         )}
+
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Inventory Categories</h3>
+            <p className="text-sm text-gray-500">Create shared categories and mark those that can be attached to room templates.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3">
+            <input
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              placeholder="e.g. Study Tables"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            />
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={newCategoryIsRoomTemplate}
+                onChange={(e) => setNewCategoryIsRoomTemplate(e.target.checked)}
+              />
+              Room Template
+            </label>
+            <Button onClick={handleCreateCategory} disabled={isCreatingCategory || !newCategoryName.trim()}>
+              {isCreatingCategory ? "Saving..." : "Add Category"}
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {categories.map((category) => (
+              <span
+                key={category.id}
+                className={`rounded-full border px-3 py-1 text-xs ${
+                  category.is_room_template
+                    ? "border-blue-200 bg-blue-50 text-blue-700"
+                    : "border-gray-200 bg-gray-50 text-gray-700"
+                }`}
+              >
+                {category.name}
+              </span>
+            ))}
+            {categories.length === 0 && (
+              <p className="text-sm text-gray-500">No categories configured yet.</p>
+            )}
+          </div>
+        </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           {items.length > 0 || isLoading ? (

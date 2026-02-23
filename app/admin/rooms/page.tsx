@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { CardLoadingSkeleton } from "@/shared/components/ui/loading-skeleton";
 import { EmptyState } from "@/shared/components/ui/empty-state";
@@ -13,8 +13,17 @@ import { RoomsStats } from "./components/RoomsStats";
 import { RoomCard } from "./components/RoomCard";
 import { AddRoomModal } from "./components/AddRoomModal";
 import { RoomDetailsModal } from "./components/RoomDetailsModal";
+import { toast } from "sonner";
 
 function RoomsManagement() {
+  const [activeTab, setActiveTab] = useState<"all" | "locked" | "reserved">(
+    "all"
+  );
+  const [statusUpdating, setStatusUpdating] = useState<{
+    roomId: string | null;
+    status: "open" | "reserved" | "locked" | null;
+  }>({ roomId: null, status: null });
+
   const {
     data: roomsData,
     isLoading: roomsLoading,
@@ -29,8 +38,8 @@ function RoomsManagement() {
   } = useStudents();
 
   // Use fresh data from hooks instead of store
-  const rooms = roomsData || [];
-  const students = studentsData || [];
+  const rooms = useMemo(() => roomsData || [], [roomsData]);
+  const students = useMemo(() => studentsData || [], [studentsData]);
 
   // Auto-refresh rooms data every 30 seconds
   useEffect(() => {
@@ -54,6 +63,55 @@ function RoomsManagement() {
 
   const isLoading = roomsLoading || studentsLoading;
   const isError = roomsError || studentsError;
+  const reservedRooms = useMemo(
+    () =>
+      rooms.filter(
+        (room) => (room.room_availability_status || "open") === "reserved"
+      ),
+    [rooms]
+  );
+  const lockedRooms = useMemo(
+    () =>
+      rooms.filter(
+        (room) => (room.room_availability_status || "open") === "locked"
+      ),
+    [rooms]
+  );
+  const visibleRooms = useMemo(() => {
+    if (activeTab === "locked") return lockedRooms;
+    if (activeTab === "reserved") return reservedRooms;
+    return rooms;
+  }, [activeTab, lockedRooms, reservedRooms, rooms]);
+
+  const setRoomAvailabilityStatus = async (
+    room: (typeof rooms)[number],
+    status: "open" | "reserved" | "locked"
+  ) => {
+    try {
+      setStatusUpdating({ roomId: room.id, status });
+      const response = await fetch(`/api/admin/rooms/${room.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || "Failed to update room status");
+      }
+
+      toast.success(
+        `${room.block}-${room.name} set to ${
+          status === "open" ? "Open" : status === "reserved" ? "Reserved" : "Locked"
+        }`
+      );
+      await refetchRooms();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update room availability");
+    } finally {
+      setStatusUpdating({ roomId: null, status: null });
+    }
+  };
 
   if (isLoading) {
     return <CardLoadingSkeleton cards={4} />;
@@ -101,64 +159,67 @@ function RoomsManagement() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {rooms
-          .filter(
-            (room) => room.available_beds && room.available_beds.length > 0
-          )
-          .map((room) => (
+      <div className="border-b border-gray-200">
+        <nav className="flex gap-2">
+          {[
+            { key: "all" as const, label: `All (${rooms.length})` },
+            { key: "locked" as const, label: `Locked (${lockedRooms.length})` },
+            {
+              key: "reserved" as const,
+              label: `Reserved (${reservedRooms.length})`,
+            },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === tab.key
+                  ? "border border-b-white border-gray-200 bg-white text-gray-900"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {activeTab === "all" && (
+        <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
+          Showing all rooms. Student booking still only uses rooms marked{" "}
+          <span className="font-semibold">Open</span>.
+        </div>
+      )}
+
+      {visibleRooms.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {visibleRooms.map((room) => (
             <RoomCard
               key={room.id}
               room={room}
               students={students}
               onViewDetails={setSelectedRoom}
+              onSetAvailabilityStatus={setRoomAvailabilityStatus}
+              isStatusUpdating={statusUpdating.roomId === room.id}
+              statusUpdatingTo={
+                statusUpdating.roomId === room.id ? statusUpdating.status : null
+              }
             />
           ))}
-      </div>
-
-      {rooms.filter(
-        (room) => room.available_beds && room.available_beds.length > 0
-      ).length === 0 && (
+        </div>
+      ) : (
         <EmptyState
-          title="No available rooms found"
-          description="All rooms are currently full. Add a new room to get started."
+          title={`No ${activeTab} rooms found`}
+          description={
+            activeTab === "all"
+              ? "No rooms available yet. Add a new room to get started."
+              : `There are no ${activeTab} rooms right now.`
+          }
           action={
             <Button onClick={() => setShowAddModal(true)}>Add Room</Button>
           }
         />
-      )}
-
-      {/* Show full rooms separately */}
-      {rooms.filter(
-        (room) => !room.available_beds || room.available_beds.length === 0
-      ).length > 0 && (
-        <div className="mt-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Full Rooms (
-            {
-              rooms.filter(
-                (room) =>
-                  !room.available_beds || room.available_beds.length === 0
-              ).length
-            }
-            )
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {rooms
-              .filter(
-                (room) =>
-                  !room.available_beds || room.available_beds.length === 0
-              )
-              .map((room) => (
-                <RoomCard
-                  key={room.id}
-                  room={room}
-                  students={students}
-                  onViewDetails={setSelectedRoom}
-                />
-              ))}
-          </div>
-        </div>
       )}
 
       <AddRoomModal

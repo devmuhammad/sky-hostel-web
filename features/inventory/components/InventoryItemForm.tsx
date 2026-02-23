@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ChevronsUpDown, Check } from "lucide-react";
 import { Label } from "@/shared/components/ui/label";
 import { Input } from "@/shared/components/ui/input";
@@ -14,10 +14,24 @@ interface InventoryItemFormProps {
   onSubmitAction: (data: any) => Promise<void>;
 }
 
+interface InventoryCategory {
+  id: string;
+  name: string;
+  slug: string;
+  is_room_template: boolean;
+}
+
+interface RoomTemplate {
+  id: string;
+  expected_quantity: number;
+  category: InventoryCategory;
+}
+
 export function InventoryItemForm({ onCancel, onSubmitAction }: InventoryItemFormProps) {
   const [formData, setFormData] = useState({
     name: "",
-    category: "furniture",
+    category_id: "",
+    custom_category: "",
     room_id: "",
     assigned_to: "",
     condition: "good",
@@ -25,6 +39,8 @@ export function InventoryItemForm({ onCancel, onSubmitAction }: InventoryItemFor
   });
   const [rooms, setRooms] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [categories, setCategories] = useState<InventoryCategory[]>([]);
+  const [roomTemplates, setRoomTemplates] = useState<RoomTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRoomPopoverOpen, setIsRoomPopoverOpen] = useState(false);
   const [isStudentPopoverOpen, setIsStudentPopoverOpen] = useState(false);
@@ -34,31 +50,69 @@ export function InventoryItemForm({ onCancel, onSubmitAction }: InventoryItemFor
   useEffect(() => {
     const fetchFormData = async () => {
       try {
-        const roomsRes = await fetch("/api/rooms?includeFull=true");
-        const roomsData = await roomsRes.json();
+        const [roomsRes, studentsRes, categoriesRes] = await Promise.all([
+          fetch("/api/rooms?includeFull=true"),
+          fetch("/api/students"),
+          fetch("/api/admin/inventory/categories"),
+        ]);
+
+        const [roomsData, studentsData, categoriesData] = await Promise.all([
+          roomsRes.json(),
+          studentsRes.json(),
+          categoriesRes.json(),
+        ]);
+
         if (roomsData.success) {
           setRooms(roomsData.data || []);
-        } else {
-          console.error("Failed to load rooms:", roomsData.error);
+        }
+
+        if (studentsData.success) {
+          setStudents(studentsData.data || []);
+        }
+
+        if (categoriesData.success) {
+          const loadedCategories = categoriesData.data?.categories || [];
+          setCategories(loadedCategories);
+          if (loadedCategories.length > 0) {
+            setFormData((prev) => ({ ...prev, category_id: loadedCategories[0].id }));
+          }
         }
       } catch (error) {
-        console.error("Failed to load rooms", error);
+        console.error("Failed to load inventory form data", error);
+      }
+    };
+
+    fetchFormData();
+  }, []);
+
+  useEffect(() => {
+    const fetchRoomTemplates = async () => {
+      if (!formData.room_id) {
+        setRoomTemplates([]);
+        return;
       }
 
       try {
-        const studentsRes = await fetch("/api/students");
-        const studentsData = await studentsRes.json();
-        if (studentsData.success) {
-          setStudents(studentsData.data || []);
-        } else {
-          console.error("Failed to load students:", studentsData.error);
+        const res = await fetch(`/api/admin/inventory/room-categories?roomId=${formData.room_id}`);
+        const data = await res.json();
+        if (!data.success) return;
+
+        const templates = (data.data || []) as RoomTemplate[];
+        setRoomTemplates(templates);
+
+        if (templates.length > 0) {
+          const selectedTemplateExists = templates.some((template) => template.category?.id === formData.category_id);
+          if (!selectedTemplateExists && !formData.custom_category) {
+            setFormData((prev) => ({ ...prev, category_id: templates[0].category.id }));
+          }
         }
       } catch (error) {
-        console.error("Failed to load students", error);
+        console.error("Failed to load room templates", error);
       }
     };
-    fetchFormData();
-  }, []);
+
+    fetchRoomTemplates();
+  }, [formData.room_id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -73,6 +127,8 @@ export function InventoryItemForm({ onCancel, onSubmitAction }: InventoryItemFor
         ...formData,
         room_id: formData.room_id || null,
         assigned_to: formData.assigned_to || null,
+        category: formData.custom_category.trim() || undefined,
+        category_id: formData.custom_category.trim() ? null : formData.category_id,
       });
     } catch (error: any) {
       toast.error(error.message || "Failed to create item");
@@ -100,6 +156,18 @@ export function InventoryItemForm({ onCancel, onSubmitAction }: InventoryItemFor
     ? `${selectedStudent.first_name} ${selectedStudent.last_name} (${selectedStudent.matric_number})`
     : "Not Assigned";
 
+  const activeCategories = useMemo(() => {
+    if (roomTemplates.length === 0) {
+      return categories;
+    }
+
+    const roomTemplateCategoryIds = new Set(roomTemplates.map((template) => template.category.id));
+    const roomTemplateCategories = categories.filter((category) => roomTemplateCategoryIds.has(category.id));
+    const nonTemplateCategories = categories.filter((category) => !roomTemplateCategoryIds.has(category.id));
+
+    return [...roomTemplateCategories, ...nonTemplateCategories];
+  }, [categories, roomTemplates]);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4 px-1 pb-2">
       <div className="space-y-1.5">
@@ -117,21 +185,46 @@ export function InventoryItemForm({ onCancel, onSubmitAction }: InventoryItemFor
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="category">Category</Label>
+          <Label htmlFor="category_id">Category</Label>
           <select
-            id="category"
-            name="category"
-            value={formData.category}
-            onChange={handleChange}
+            id="category_id"
+            name="category_id"
+            value={formData.custom_category ? "custom" : formData.category_id}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value === "custom") {
+                setFormData((prev) => ({ ...prev, custom_category: "", category_id: "" }));
+                return;
+              }
+              setFormData((prev) => ({ ...prev, category_id: value, custom_category: "" }));
+            }}
             className="w-full rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition-colors py-2.5 px-3 outline-none"
           >
-            <option value="furniture">Furniture</option>
-            <option value="electronics">Electronics</option>
-            <option value="appliance">Appliance</option>
-            <option value="plumbing">Plumbing</option>
-            <option value="decor">Decor</option>
-            <option value="other">Other</option>
+            {activeCategories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+            <option value="custom">Custom Category</option>
           </select>
+
+          {formData.custom_category !== "" && (
+            <Input
+              id="custom_category"
+              name="custom_category"
+              value={formData.custom_category}
+              onChange={handleChange}
+              placeholder="Enter custom category"
+              className="mt-2 bg-gray-50 border-gray-200 focus:bg-white"
+              required
+            />
+          )}
+
+          {roomTemplates.length > 0 && (
+            <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-2 py-1">
+              This room has {roomTemplates.length} attached inventory category template(s).
+            </p>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -269,17 +362,17 @@ export function InventoryItemForm({ onCancel, onSubmitAction }: InventoryItemFor
 
       <div className="space-y-1.5">
         <Label htmlFor="price_estimate">Price Estimate (₦)</Label>
-          <Input
-            id="price_estimate"
-            name="price_estimate"
-            type="number"
-            min="0"
-            step="100"
-            value={formData.price_estimate}
-            onChange={handleChange}
-            placeholder="0"
-            className="bg-gray-50 border-gray-200 focus:bg-white"
-          />
+        <Input
+          id="price_estimate"
+          name="price_estimate"
+          type="number"
+          min="0"
+          step="100"
+          value={formData.price_estimate}
+          onChange={handleChange}
+          placeholder="0"
+          className="bg-gray-50 border-gray-200 focus:bg-white"
+        />
       </div>
 
       <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">

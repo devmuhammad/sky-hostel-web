@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
       .from("inventory_items")
       .select(`
         *,
+        category_ref:inventory_categories(id, name, slug),
         room:rooms(name, block),
         assigned_student:students(first_name, last_name, matric_number)
       `)
@@ -51,13 +52,42 @@ export async function POST(request: NextRequest) {
     ]);
 
     const body = await request.json();
-    const { name, category, room_id, condition, price_estimate, assigned_to } = body;
+    const { name, category, category_id, room_id, condition, price_estimate, assigned_to } = body;
+
+    let resolvedCategory = String(category || "").trim();
+    let resolvedCategoryId: string | null = category_id ? String(category_id) : null;
+
+    if (resolvedCategoryId) {
+      const { data: categoryData, error: categoryError } = await supabaseAdmin
+        .from("inventory_categories")
+        .select("id, name")
+        .eq("id", resolvedCategoryId)
+        .single();
+
+      if (categoryError || !categoryData) {
+        return NextResponse.json(
+          { success: false, error: "Invalid category selected" },
+          { status: 400 }
+        );
+      }
+
+      resolvedCategory = categoryData.name;
+      resolvedCategoryId = categoryData.id;
+    }
+
+    if (!resolvedCategory) {
+      return NextResponse.json(
+        { success: false, error: "Category is required" },
+        { status: 400 }
+      );
+    }
 
     const { data: item, error } = await supabaseAdmin
       .from("inventory_items")
       .insert({
         name,
-        category,
+        category: resolvedCategory,
+        category_id: resolvedCategoryId,
         room_id: room_id || null,
         condition: condition || "good",
         assigned_to: assigned_to || null,
