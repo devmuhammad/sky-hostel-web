@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DataTable } from "@/shared/components/ui/data-table";
 import { StatusBadge } from "@/shared/components/ui/status-badge";
 import { Button } from "@/shared/components/ui/button";
@@ -19,7 +19,24 @@ export default function LeaveRequestsPage() {
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
-  const fetchUserRole = async () => {
+  const fetchRequests = useCallback(async (dbUserId?: string) => {
+    setIsLoading(true);
+    try {
+      const url = dbUserId ? `/api/admin/leave-requests?userId=${dbUserId}` : "/api/admin/leave-requests";
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        setRequests(data.data);
+      }
+    } catch (error) {
+      console.error("Failed to load leave requests", error);
+      toast.error("Failed to load leave requests");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const fetchUserRole = useCallback(async () => {
     try {
       // In a real scenario we might have an endpoint for this, or extract it from JWT
       // Wait, we need the user DB ID. Let's fetch it from another endpoint or user profile.
@@ -37,28 +54,11 @@ export default function LeaveRequestsPage() {
       console.error(error);
       fetchRequests();
     }
-  };
-
-  const fetchRequests = async (dbUserId?: string) => {
-    setIsLoading(true);
-    try {
-      const url = dbUserId ? `/api/admin/leave-requests?userId=${dbUserId}` : "/api/admin/leave-requests";
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        setRequests(data.data);
-      }
-    } catch (error) {
-      console.error("Failed to load leave requests", error);
-      toast.error("Failed to load leave requests");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [fetchRequests]);
 
   useEffect(() => {
     fetchUserRole();
-  }, []);
+  }, [fetchUserRole]);
 
   const handleSubmitRequest = async (data: any) => {
     try {

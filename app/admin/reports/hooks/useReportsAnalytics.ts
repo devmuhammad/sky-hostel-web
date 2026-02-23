@@ -74,7 +74,7 @@ export function useReportsAnalytics() {
     };
   }, [studentsData, paymentsData]);
 
-  const reportData = useMemo(() => {
+  const reportData = useMemo<ReportData | null>(() => {
     if (!studentsData || !paymentsData || !roomsData) return null;
 
     const fromDate = new Date(`${dateRange.from}T00:00:00`);
@@ -206,7 +206,10 @@ export function useReportsAnalytics() {
       reportData.totalRevenue > 0 ||
       Object.keys(reportData.studentsByFaculty).length > 0 ||
       Object.keys(reportData.studentsByLevel).length > 0 ||
-      Object.values(reportData.paymentsByStatus).reduce((sum, count) => sum + count, 0) > 0
+      (Object.values(reportData.paymentsByStatus) as number[]).reduce(
+        (sum: number, count: number) => sum + count,
+        0
+      ) > 0
     );
   }, [reportData]);
 

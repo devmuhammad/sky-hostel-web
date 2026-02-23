@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -119,7 +120,7 @@ export default function StudentPortalPage() {
     { key: "feedback", label: "Feedback" },
   ];
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
       const [profileRes, ticketsRes] = await Promise.all([
@@ -162,11 +163,11 @@ export default function StudentPortalPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const openCount = useMemo(
     () => tickets.filter((ticket) => ticket.status === "open").length,
@@ -586,7 +587,7 @@ export default function StudentPortalPage() {
           <div className="mt-5 space-y-3">
             {tickets.length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-                No tickets yet. Use "Report Issue" to raise one.
+                No tickets yet. Use &quot;Report Issue&quot; to raise one.
               </div>
             ) : (
               tickets.map((ticket) => (
@@ -619,9 +620,11 @@ export default function StudentPortalPage() {
                       >
                         View attached image
                       </a>
-                      <img
+                      <Image
                         src={ticket.image_url}
                         alt="Issue attachment"
+                        width={128}
+                        height={128}
                         className="mt-2 h-32 w-32 rounded-md border border-slate-200 object-cover"
                       />
                     </div>

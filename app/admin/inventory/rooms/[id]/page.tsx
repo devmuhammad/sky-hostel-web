@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useCallback, useEffect, useState, use } from "react";
 import { DataTable } from "@/shared/components/ui/data-table";
 import { StatusBadge } from "@/shared/components/ui/status-badge";
 import { Button } from "@/shared/components/ui/button";
@@ -15,7 +15,7 @@ export default function RoomInventoryPage({ params }: { params: Promise<{ id: st
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
 
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await fetch(`/api/admin/inventory/items?roomId=${id}`);
@@ -29,11 +29,11 @@ export default function RoomInventoryPage({ params }: { params: Promise<{ id: st
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchItems();
-  }, [id]);
+  }, [fetchItems]);
 
   const handleReportDamage = async (data: any) => {
     const res = await fetch("/api/admin/inventory/damage-reports", {

@@ -11,9 +11,10 @@ function isMissingTableError(error: any) {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await requireRole([
       "super_admin",
       "admin",
@@ -41,7 +42,7 @@ export async function PATCH(
       const { data: request_record, error } = await supabaseAdmin
         .from(tableName)
         .update(updateData)
-        .eq("id", params.id)
+        .eq("id", id)
         .select()
         .single();
 

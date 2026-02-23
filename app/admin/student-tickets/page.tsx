@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { LoadingButton } from "@/shared/components/ui/loading-button";
 import { useToast } from "@/shared/hooks/useToast";
 
@@ -47,7 +48,7 @@ export default function StudentTicketsAdminPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [formState, setFormState] = useState<Record<string, { status: TicketStatus; resolution_note: string }>>({});
 
-  const loadTickets = async () => {
+  const loadTickets = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch("/api/admin/student-tickets", { cache: "no-store" });
@@ -71,11 +72,11 @@ export default function StudentTicketsAdminPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     loadTickets();
-  }, []);
+  }, [loadTickets]);
 
   const filteredTickets = useMemo(() => {
     if (statusFilter === "all") return tickets;
@@ -190,9 +191,11 @@ export default function StudentTicketsAdminPage() {
                     >
                       Open attached image
                     </a>
-                    <img
+                    <Image
                       src={ticket.image_url}
                       alt="Ticket attachment"
+                      width={128}
+                      height={128}
                       className="mt-2 h-32 w-32 rounded-md border border-slate-200 object-cover"
                     />
                   </div>
