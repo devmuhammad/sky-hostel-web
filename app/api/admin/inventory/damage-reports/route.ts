@@ -110,6 +110,21 @@ export async function POST(request: NextRequest) {
       .update({ condition: "needs_repair" })
       .eq("id", itemId);
 
+    // Audit log
+    await supabaseAdmin.from("activity_logs").insert({
+      action: "inventory_damage_reported",
+      resource_type: "inventory_damage_report",
+      resource_id: report.id,
+      admin_user_id: currentUser.id,
+      metadata: {
+        item_id: itemId,
+        description,
+        status: status || "unresolved",
+        cost_estimate: cost_estimate ? parseFloat(cost_estimate) : null,
+        responsible_student_id: responsible_student_id || null,
+      },
+    });
+
     return NextResponse.json({ success: true, data: report });
   } catch (error) {
     console.error("Create damage report error:", error);
@@ -178,6 +193,15 @@ export async function PATCH(request: NextRequest) {
         .update({ condition: nextCondition })
         .eq("id", report.item_id);
     }
+
+    // Audit log
+    await supabaseAdmin.from("activity_logs").insert({
+      action: "inventory_damage_report_updated",
+      resource_type: "inventory_damage_report",
+      resource_id: reportId,
+      admin_user_id: currentUser.id,
+      metadata: { updates },
+    });
 
     return NextResponse.json({ success: true, data: report });
   } catch (error) {

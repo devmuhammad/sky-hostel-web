@@ -121,6 +121,21 @@ export async function POST(
         .eq("id", id);
     }
 
+    // Audit log
+    await supabaseAdmin.from("activity_logs").insert({
+      action: "student_report_created",
+      resource_type: "student_report",
+      resource_id: report.id,
+      admin_user_id: currentUser.id,
+      metadata: {
+        student_id: id,
+        title,
+        category,
+        severity,
+        status: status || "unresolved",
+      },
+    });
+
     return NextResponse.json({ success: true, data: report });
   } catch (error) {
     console.error("Create report error:", error);

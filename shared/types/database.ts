@@ -184,7 +184,7 @@ export interface Database {
           action: string;
           resource_type: string;
           resource_id: string;
-          user_id: string | null;
+          admin_user_id: string | null;
           metadata: Record<string, any> | null;
           created_at: string;
         };
@@ -193,7 +193,7 @@ export interface Database {
           action: string;
           resource_type: string;
           resource_id: string;
-          user_id?: string | null;
+          admin_user_id?: string | null;
           metadata?: Record<string, any> | null;
           created_at?: string;
         };
@@ -202,9 +202,182 @@ export interface Database {
           action?: string;
           resource_type?: string;
           resource_id?: string;
-          user_id?: string | null;
+          admin_user_id?: string | null;
           metadata?: Record<string, any> | null;
           created_at?: string;
+        };
+      };
+      student_reports: {
+        Row: {
+          id: string;
+          student_id: string;
+          reporter_id: string;
+          category: "warning" | "misconduct" | "damage" | "late_payment" | "disturbance" | "commendation";
+          severity: "low" | "medium" | "high";
+          title: string;
+          comments: string | null;
+          evidence_url: string | null;
+          status: "resolved" | "unresolved" | "under_review";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          student_id: string;
+          reporter_id: string;
+          category: "warning" | "misconduct" | "damage" | "late_payment" | "disturbance" | "commendation";
+          severity: "low" | "medium" | "high";
+          title: string;
+          comments?: string | null;
+          evidence_url?: string | null;
+          status?: "resolved" | "unresolved" | "under_review";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          student_id?: string;
+          reporter_id?: string;
+          category?: "warning" | "misconduct" | "damage" | "late_payment" | "disturbance" | "commendation";
+          severity?: "low" | "medium" | "high";
+          title?: string;
+          comments?: string | null;
+          evidence_url?: string | null;
+          status?: "resolved" | "unresolved" | "under_review";
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      inventory_items: {
+        Row: {
+          id: string;
+          name: string;
+          category: string;
+          category_id: string | null;
+          room_id: string | null;
+          condition: "good" | "needs_repair" | "spoilt" | "destroyed";
+          assigned_to: string | null;
+          price_estimate: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          category: string;
+          category_id?: string | null;
+          room_id?: string | null;
+          condition?: "good" | "needs_repair" | "spoilt" | "destroyed";
+          assigned_to?: string | null;
+          price_estimate?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          category?: string;
+          category_id?: string | null;
+          room_id?: string | null;
+          condition?: "good" | "needs_repair" | "spoilt" | "destroyed";
+          assigned_to?: string | null;
+          price_estimate?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      inventory_damage_reports: {
+        Row: {
+          id: string;
+          item_id: string;
+          reporter_id: string;
+          description: string;
+          cost_estimate: number | null;
+          image_url: string | null;
+          responsible_student_id: string | null;
+          status: string;
+          action_taken: string | null;
+          handled_by: string | null;
+          resolved_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          item_id: string;
+          reporter_id: string;
+          description: string;
+          cost_estimate?: number | null;
+          image_url?: string | null;
+          responsible_student_id?: string | null;
+          status?: string;
+          action_taken?: string | null;
+          handled_by?: string | null;
+          resolved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          item_id?: string;
+          reporter_id?: string;
+          description?: string;
+          cost_estimate?: number | null;
+          image_url?: string | null;
+          responsible_student_id?: string | null;
+          status?: string;
+          action_taken?: string | null;
+          handled_by?: string | null;
+          resolved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      staff_daily_logs: {
+        Row: {
+          id: string;
+          staff_id: string;
+          log_date: string;
+          shift: "morning" | "afternoon" | "night";
+          duty_type: string;
+          activities: string;
+          issues_observed: string | null;
+          materials_used: string | null;
+          supervisor_status: "pending" | "approved" | "requires_clarification";
+          supervisor_comments: string | null;
+          supervisor_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          staff_id: string;
+          log_date?: string;
+          shift: "morning" | "afternoon" | "night";
+          duty_type: string;
+          activities: string;
+          issues_observed?: string | null;
+          materials_used?: string | null;
+          supervisor_status?: "pending" | "approved" | "requires_clarification";
+          supervisor_comments?: string | null;
+          supervisor_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          staff_id?: string;
+          log_date?: string;
+          shift?: "morning" | "afternoon" | "night";
+          duty_type?: string;
+          activities?: string;
+          issues_observed?: string | null;
+          materials_used?: string | null;
+          supervisor_status?: "pending" | "approved" | "requires_clarification";
+          supervisor_comments?: string | null;
+          supervisor_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
         };
       };
       staff_leave_requests: {
