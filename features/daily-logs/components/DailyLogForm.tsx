@@ -12,7 +12,7 @@ interface DailyLogFormProps {
 export function DailyLogForm({ onSubmitAction, onCancel }: DailyLogFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    shift: "morning",
+    shift: "day",
     duty_type: "",
     activities: "",
     issues_observed: "",
@@ -49,8 +49,7 @@ export function DailyLogForm({ onSubmitAction, onCancel }: DailyLogFormProps) {
             onChange={handleChange}
             className="w-full rounded-lg border-gray-200 bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition-colors py-2.5 px-3 outline-none"
           >
-            <option value="morning">Morning</option>
-            <option value="afternoon">Afternoon</option>
+            <option value="day">Day</option>
             <option value="night">Night</option>
           </select>
         </div>

@@ -54,7 +54,7 @@ vi.mock('@/shared/config/supabase', () => ({
 
       if (table === 'staff_daily_logs') {
         const results = [
-          { data: { id: 'log-1', shift: 'morning' }, error: null }, // for POST
+          { data: { id: 'log-1', shift: 'day' }, error: null }, // for POST
           { data: [{ id: 'log-1', duty_type: 'Cleaning', supervisor_status: 'pending' }], error: null }, // for GET
           { data: { id: 'log-1', supervisor_status: 'approved' }, error: null } // for PATCH update
         ];
@@ -81,7 +81,7 @@ describe('Staff Daily Logs Integration API', () => {
     mockInsert.mockResolvedValue({ data: { id: 'log-1', shift: 'morning' }, error: null });
 
     const req = createRequest('http://localhost/api', 'POST', {
-      shift: 'morning',
+      shift: 'day',
       duty_type: 'Cleaning',
       activities: 'Mopped floors',
     });
@@ -90,7 +90,7 @@ describe('Staff Daily Logs Integration API', () => {
     const json = await res.json();
 
     expect(json.success).toBe(true);
-    expect(json.data.shift).toBe('morning');
+    expect(json.data.shift).toBe('day');
   });
 
   it('Fetch daily logs works', async () => {

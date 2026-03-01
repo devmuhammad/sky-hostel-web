@@ -5,14 +5,18 @@ import {
 } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
 
-const ALLOWED_ADMIN_ROLES = ["super_admin", "admin", "porter", "other"] as const;
+const ALL_ROLES = ["super_admin", "admin", "porter", "other"] as const;
+// Roles that admin (non-super) can assign
+const ADMIN_ASSIGNABLE_ROLES = ["porter", "other"] as const;
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if current user is super admin
     const currentAdmin = await requireAdminAccess();
+    const isSuperAdmin = currentAdmin.role === "super_admin";
+    const isAdmin = currentAdmin.role === "admin";
 
-    if (currentAdmin.role !== "super_admin") {
+    // Only super_admin or admin can create users
+    if (!isSuperAdmin && !isAdmin) {
       return NextResponse.json(
         { success: false, error: "Insufficient permissions" },
         { status: 403 }
@@ -24,7 +28,7 @@ export async function POST(request: NextRequest) {
       password,
       firstName,
       lastName,
-      role = "admin",
+      role = isSuperAdmin ? "admin" : "porter",
     } = await request.json();
 
     // Validate required fields
@@ -46,18 +50,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!ALLOWED_ADMIN_ROLES.includes(role)) {
+    // Validate role — admin can only assign porter or other
+    if (!ALL_ROLES.includes(role)) {
       return NextResponse.json(
         {
           success: false,
-          error: `Invalid role. Allowed roles: ${ALLOWED_ADMIN_ROLES.join(", ")}`,
+          error: `Invalid role. Allowed roles: ${ALL_ROLES.join(", ")}`,
         },
         { status: 400 }
       );
     }
 
+    if (!isSuperAdmin && !ADMIN_ASSIGNABLE_ROLES.includes(role)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "As an Admin, you can only create Porter or Other staff accounts.",
+        },
+        { status: 403 }
+      );
+    }
+
     // Check if admin user already exists
-    const { data: existingAdmin, error: checkError } = await supabaseAdmin
+    const { data: existingAdmin } = await supabaseAdmin
       .from("admin_users")
       .select("id")
       .eq("email", email)
@@ -65,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     if (existingAdmin) {
       return NextResponse.json(
-        { success: false, error: "Admin user with this email already exists" },
+        { success: false, error: "A user with this email already exists" },
         { status: 400 }
       );
     }
@@ -104,12 +119,12 @@ export async function POST(request: NextRequest) {
       // Clean up the auth user if admin creation fails
       await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
       return NextResponse.json(
-        { success: false, error: adminError.message || "Failed to create admin user" },
+        { success: false, error: adminError.message || "Failed to create user" },
         { status: 500 }
       );
     }
 
-    // Log the admin creation
+    // Log the creation
     await supabaseAdmin.from("activity_logs").insert({
       action: "admin_user_created",
       resource_type: "admin_user",
@@ -125,7 +140,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        message: "Admin user created successfully",
+        message: "User created successfully",
         adminUser: {
           id: adminUser.id,
           email: adminUser.email,
@@ -138,7 +153,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Create admin user error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to create admin user" },
+      { success: false, error: "Failed to create user" },
       { status: 500 }
     );
   }
@@ -146,7 +161,6 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Check if current user is admin
     const currentAdmin = await requireAdminAccess();
 
     if (!["super_admin", "admin"].includes(currentAdmin.role)) {

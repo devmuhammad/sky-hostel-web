@@ -7,11 +7,37 @@ import { toast } from "sonner";
 import { Label } from "@/shared/components/ui/label";
 import { LoadingButton } from "@/shared/components/ui/loading-button";
 
-export default function AdminUserActions({ user }: { user: any }) {
+interface AdminUserActionsProps {
+  user: any;
+  currentUserRole: string;
+}
+
+// Roles available when editing — filtered per caller's role
+const SUPER_ADMIN_ROLES = ["super_admin", "admin", "porter", "other"];
+const ADMIN_ROLES = ["porter", "other"];
+
+// If a user already has one of these roles, an admin cannot modify them at all
+const PROTECTED_ROLES = ["super_admin", "admin"];
+
+const roleLabels: Record<string, string> = {
+  super_admin: "Super Admin",
+  admin: "Admin",
+  porter: "Porter",
+  other: "Other",
+};
+
+export default function AdminUserActions({ user, currentUserRole }: AdminUserActionsProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [role, setRole] = useState(user.role);
+
+  const isSuperAdmin = currentUserRole === "super_admin";
+  // An admin cannot touch users who are themselves admin or super_admin
+  const isProtectedUser = PROTECTED_ROLES.includes(user.role);
+  const canModify = isSuperAdmin || !isProtectedUser;
+
+  const availableRoles = isSuperAdmin ? SUPER_ADMIN_ROLES : ADMIN_ROLES;
 
   const handleUpdateRole = async () => {
     setIsLoading(true);
@@ -38,7 +64,7 @@ export default function AdminUserActions({ user }: { user: any }) {
 
   const handleToggleStatus = async () => {
     if (!confirm(`Are you sure you want to ${user.is_active ? "suspend" : "activate"} this user?`)) return;
-    
+
     try {
       const res = await fetch(`/api/admin/users/${user.id}`, {
         method: "PATCH",
@@ -78,23 +104,30 @@ export default function AdminUserActions({ user }: { user: any }) {
     }
   };
 
+  // If this user is an admin/super_admin and the logged-in user is only an admin, show a read-only indicator
+  if (!canModify) {
+    return (
+      <span className="text-xs text-gray-400 italic">No access</span>
+    );
+  }
+
   return (
     <>
       <div className="flex justify-end gap-2">
         <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
           Edit Role
         </Button>
-        <Button 
-          variant={user.is_active ? "outline" : "default"} 
-          size="sm" 
+        <Button
+          variant={user.is_active ? "outline" : "default"}
+          size="sm"
           onClick={handleToggleStatus}
           className={user.is_active ? "text-yellow-600 border-yellow-200 hover:bg-yellow-50" : ""}
         >
           {user.is_active ? "Suspend" : "Activate"}
         </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => setIsDeleteModalOpen(true)}
           className="text-red-600 border-red-200 hover:bg-red-50"
         >
@@ -111,11 +144,17 @@ export default function AdminUserActions({ user }: { user: any }) {
               onChange={(e) => setRole(e.target.value)}
               className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             >
-              <option value="admin">Admin</option>
-              <option value="super_admin">Super Admin</option>
-              <option value="porter">Porter</option>
-              <option value="other">Other</option>
+              {availableRoles.map((r) => (
+                <option key={r} value={r}>
+                  {roleLabels[r]}
+                </option>
+              ))}
             </select>
+            {!isSuperAdmin && (
+              <p className="text-xs text-gray-500 mt-1">
+                As an Admin, you can only assign Porter or Other roles.
+              </p>
+            )}
           </div>
           <div className="flex justify-end space-x-3">
             <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>

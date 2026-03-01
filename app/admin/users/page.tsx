@@ -9,28 +9,6 @@ import {
 } from "@/shared/config/auth";
 import AdminUserActions from "./components/AdminUserActions";
 
-async function getCurrentUserRole() {
-  const supabase = await createServerSupabaseClient();
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    return null;
-  }
-
-  const { data: adminUser } = await supabase
-    .from("admin_users")
-    .select("role")
-    .eq("email", user.email)
-    .eq("is_active", true)
-    .single();
-
-  return adminUser?.role || null;
-}
-
 async function getAdminUsers() {
   const supabase = await createServerSupabaseClient();
 
@@ -47,7 +25,7 @@ async function getAdminUsers() {
   return adminUsers || [];
 }
 
-async function AdminUsersList() {
+async function AdminUsersList({ currentUserRole }: { currentUserRole: string }) {
   const adminUsers = await getAdminUsers();
 
   return (
@@ -119,7 +97,7 @@ async function AdminUsersList() {
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <AdminUserActions user={user} />
+                      <AdminUserActions user={user} currentUserRole={currentUserRole} />
                     </td>
                   </tr>
                 ))}
@@ -140,11 +118,9 @@ async function AdminUsersList() {
 }
 
 export default async function AdminUsersPage() {
-  // Check super admin access
-  const user = await requireRole(["super_admin"]);
-
-  // Set super admin explicitly since this page is protected
-  const isSuperAdmin = true;
+  // Allow both admin and super_admin to access this page
+  const currentAdmin = await requireRole(["super_admin", "admin"]);
+  const currentUserRole = currentAdmin.role;
 
   return (
     <div className="p-4 lg:p-6 pb-8 lg:pb-12">
@@ -157,7 +133,7 @@ export default async function AdminUsersPage() {
               Manage system administrators
             </p>
           </div>
-          {isSuperAdmin && <CreateAdminButton />}
+          <CreateAdminButton currentUserRole={currentUserRole} />
         </div>
 
         <Suspense
@@ -177,7 +153,7 @@ export default async function AdminUsersPage() {
             </CardContainer>
           }
         >
-          <AdminUsersList />
+          <AdminUsersList currentUserRole={currentUserRole} />
         </Suspense>
       </div>
     </div>

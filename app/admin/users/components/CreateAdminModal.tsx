@@ -12,23 +12,42 @@ interface CreateAdminModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  currentUserRole: string;
 }
+
+// Roles an admin can assign (not admin or super_admin)
+const ADMIN_ALLOWED_ROLES = ["porter", "other"] as const;
+// Roles a super_admin can assign (all roles)
+const SUPER_ADMIN_ALLOWED_ROLES = ["super_admin", "admin", "porter", "other"] as const;
 
 export default function CreateAdminModal({
   isOpen,
   onClose,
   onSuccess,
+  currentUserRole,
 }: CreateAdminModalProps) {
+  const isSuperAdmin = currentUserRole === "super_admin";
+  const defaultRole = isSuperAdmin ? "admin" : "porter";
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     confirmPassword: "",
     firstName: "",
     lastName: "",
-    role: "admin",
+    role: defaultRole,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const allowedRoles = isSuperAdmin ? SUPER_ADMIN_ALLOWED_ROLES : ADMIN_ALLOWED_ROLES;
+
+  const roleLabels: Record<string, string> = {
+    super_admin: "Super Admin",
+    admin: "Admin",
+    porter: "Porter",
+    other: "Other",
+  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -74,7 +93,7 @@ export default function CreateAdminModal({
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Failed to create admin user");
+        setError(data.error || "Failed to create user");
       } else {
         // Reset form
         setFormData({
@@ -83,7 +102,7 @@ export default function CreateAdminModal({
           confirmPassword: "",
           firstName: "",
           lastName: "",
-          role: "admin",
+          role: defaultRole,
         });
         onSuccess();
         onClose();
@@ -96,7 +115,7 @@ export default function CreateAdminModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Create New Admin User">
+    <Modal isOpen={isOpen} onClose={onClose} title="Create New Staff User">
       <form onSubmit={handleSubmit} className="space-y-6">
         <ErrorAlert error={error} />
 
@@ -150,7 +169,7 @@ export default function CreateAdminModal({
             type="email"
             value={formData.email}
             onChange={handleInputChange}
-            placeholder="admin@skyhotel.com"
+            placeholder="staff@skyhotel.com"
             required
             className="mt-1"
           />
@@ -167,11 +186,17 @@ export default function CreateAdminModal({
             onChange={handleInputChange}
             className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           >
-            <option value="admin">Admin</option>
-            <option value="super_admin">Super Admin</option>
-            <option value="porter">Porter</option>
-            <option value="other">Other</option>
+            {allowedRoles.map((r) => (
+              <option key={r} value={r}>
+                {roleLabels[r]}
+              </option>
+            ))}
           </select>
+          {!isSuperAdmin && (
+            <p className="text-xs text-gray-500 mt-1">
+              As an Admin, you can only create Porter or Other staff accounts.
+            </p>
+          )}
         </div>
 
         <div>
@@ -230,7 +255,7 @@ export default function CreateAdminModal({
             loadingText="Creating..."
             className="bg-blue-600 hover:bg-blue-700"
           >
-            Create Admin User
+            Create User
           </LoadingButton>
         </div>
       </form>

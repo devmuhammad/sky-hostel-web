@@ -205,12 +205,12 @@ export const ADMIN_NAVIGATION: NavigationItem[] = [
     name: "Reports",
     href: "/admin/reports",
     icon: ReportsIcon,
-    roles: ["super_admin", "hostel_manager", "accountant", "other"],
+    roles: ["super_admin"],
   },
   {
     name: "Staff Management",
     href: "/admin/users",
     icon: AdminUsersIcon,
-    roles: ["super_admin"],
+    roles: ["super_admin", "admin"],
   },
 ]; 

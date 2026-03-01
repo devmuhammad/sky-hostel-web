@@ -4,7 +4,11 @@ import { useState } from "react";
 import { Button } from "@/shared/components/ui/button";
 import CreateAdminModal from "./CreateAdminModal";
 
-export default function CreateAdminButton() {
+interface CreateAdminButtonProps {
+  currentUserRole: string;
+}
+
+export default function CreateAdminButton({ currentUserRole }: CreateAdminButtonProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleSuccess = () => {
@@ -30,13 +34,14 @@ export default function CreateAdminButton() {
             d="M12 6v6m0 0v6m0-6h6m-6 0H6"
           />
         </svg>
-        Add Admin User
+        Add Staff User
       </Button>
       <CreateAdminModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleSuccess}
+        currentUserRole={currentUserRole}
       />
     </>
   );
-} 
+}
