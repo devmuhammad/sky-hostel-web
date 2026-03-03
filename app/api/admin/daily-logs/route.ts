@@ -2,6 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
 
+type DbShiftType = "morning" | "afternoon" | "night";
+type ClientShiftType = "day" | "night";
+
+function normalizeShift(rawShift: unknown): DbShiftType | null {
+  if (typeof rawShift !== "string") return null;
+  const normalized = rawShift.trim().toLowerCase();
+
+  if (normalized === "day") return "morning";
+  if (normalized === "evening") return "afternoon";
+  if (normalized === "morning" || normalized === "afternoon" || normalized === "night") {
+    return normalized;
+  }
+
+  return null;
+}
+
+function toClientShift(rawShift: unknown): ClientShiftType {
+  if (typeof rawShift !== "string") return "day";
+  const normalized = rawShift.trim().toLowerCase();
+  return normalized === "night" ? "night" : "day";
+}
+
 export async function GET(request: NextRequest) {
   try {
     const currentUser = await requireRole([
@@ -43,7 +65,12 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, data: logs });
+    const normalizedLogs = (logs || []).map((log) => ({
+      ...log,
+      shift: toClientShift(log.shift),
+    }));
+
+    return NextResponse.json({ success: true, data: normalizedLogs });
   } catch (error) {
     console.error("Fetch daily logs error:", error);
     return NextResponse.json(
@@ -69,10 +96,11 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { log_date, shift, duty_type, activities, issues_observed, materials_used } = body;
+    const normalizedShift = normalizeShift(shift);
 
-    if (!shift || !duty_type || !activities) {
+    if (!normalizedShift || !duty_type || !activities) {
       return NextResponse.json(
-        { success: false, error: "Shift, duty type, and activities are required" },
+        { success: false, error: "Valid shift (day/night), duty type, and activities are required" },
         { status: 400 }
       );
     }
@@ -82,7 +110,7 @@ export async function POST(request: NextRequest) {
       .insert({
         staff_id: currentUser.id,
         log_date: log_date || new Date().toISOString().split('T')[0],
-        shift,
+        shift: normalizedShift,
         duty_type,
         activities,
         issues_observed,
@@ -94,7 +122,13 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, data: log });
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...log,
+        shift: toClientShift(log.shift),
+      },
+    });
   } catch (error) {
     console.error("Create daily log error:", error);
     return NextResponse.json(

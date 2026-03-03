@@ -54,7 +54,7 @@ vi.mock('@/shared/config/supabase', () => ({
 
       if (table === 'staff_daily_logs') {
         const results = [
-          { data: { id: 'log-1', shift: 'day' }, error: null }, // for POST
+          { data: { id: 'log-1', shift: 'morning' }, error: null }, // for POST
           { data: [{ id: 'log-1', duty_type: 'Cleaning', supervisor_status: 'pending' }], error: null }, // for GET
           { data: { id: 'log-1', supervisor_status: 'approved' }, error: null } // for PATCH update
         ];
