@@ -90,7 +90,13 @@ export default function CreateAdminModal({
         }),
       });
 
-      const data = await response.json();
+      let data: { error?: string } = {};
+      try {
+        data = await response.json();
+      } catch {
+        setError(`Server error (${response.status}). Please try again.`);
+        return;
+      }
 
       if (!response.ok) {
         setError(data.error || "Failed to create user");
@@ -108,7 +114,7 @@ export default function CreateAdminModal({
         onClose();
       }
     } catch (err) {
-      setError("An unexpected error occurred");
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
