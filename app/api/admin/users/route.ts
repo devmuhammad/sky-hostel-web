@@ -24,12 +24,13 @@ export async function POST(request: NextRequest) {
     }
 
     const {
-      email,
+      email: rawEmail,
       password,
       firstName,
       lastName,
       role = isSuperAdmin ? "admin" : "porter",
     } = await request.json();
+    const email = rawEmail?.trim().toLowerCase();
 
     // Validate required fields
     if (!email || !password || !firstName || !lastName) {
@@ -85,7 +86,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create user in Supabase Auth
+    // Create user in Supabase Auth (or reuse existing auth user)
+    let authUserId: string;
     const { data: authUser, error: authError } =
       await supabaseAdmin.auth.admin.createUser({
         email,
@@ -94,11 +96,30 @@ export async function POST(request: NextRequest) {
       });
 
     if (authError) {
-      console.error("Auth user creation error:", authError);
-      return NextResponse.json(
-        { success: false, error: "Failed to create user account" },
-        { status: 500 }
-      );
+      // If auth user already exists, find them and reuse their ID
+      if (authError.code === "email_exists") {
+        const { data: existingAuthUsers } =
+          await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+        const existingAuthUser = existingAuthUsers?.users?.find(
+          (u) => u.email?.toLowerCase() === email.toLowerCase()
+        );
+        if (existingAuthUser) {
+          // Update the password for the existing auth user
+          await supabaseAdmin.auth.admin.updateUserById(existingAuthUser.id, { password });
+          authUserId = existingAuthUser.id;
+        } else {
+          // Auth user exists but couldn't be located — proceed anyway
+          authUserId = "";
+        }
+      } else {
+        console.error("Auth user creation error:", authError);
+        return NextResponse.json(
+          { success: false, error: authError.message || "Failed to create user account" },
+          { status: 500 }
+        );
+      }
+    } else {
+      authUserId = authUser.user.id;
     }
 
     // Create admin user record
@@ -116,8 +137,8 @@ export async function POST(request: NextRequest) {
 
     if (adminError) {
       console.error("Admin user creation error:", adminError);
-      // Clean up the auth user if admin creation fails
-      await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
+      // Clean up the auth user if admin creation fails (only if we created it)
+      if (authUserId) await supabaseAdmin.auth.admin.deleteUser(authUserId);
       return NextResponse.json(
         { success: false, error: adminError.message || "Failed to create user" },
         { status: 500 }

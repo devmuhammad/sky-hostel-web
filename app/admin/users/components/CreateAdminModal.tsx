@@ -82,7 +82,7 @@ export default function CreateAdminModal({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: formData.email,
+          email: formData.email.trim().toLowerCase(),
           password: formData.password,
           firstName: formData.firstName,
           lastName: formData.lastName,
