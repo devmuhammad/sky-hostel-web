@@ -5,6 +5,18 @@ import { supabaseAdmin } from "@/shared/config/supabase";
 type DbShiftType = "morning" | "afternoon" | "night";
 type ClientShiftType = "day" | "night";
 
+const SUPERVISOR_ROLES = ["super_admin", "admin", "hostel_manager"] as const;
+const STAFF_DAILY_LOG_ROLES = [
+  ...SUPERVISOR_ROLES,
+  "front_desk",
+  "security",
+  "accountant",
+  "maintenance",
+  "porter",
+  "cleaner",
+  "other",
+] as const;
+
 function normalizeShift(rawShift: unknown): DbShiftType | null {
   if (typeof rawShift !== "string") return null;
   const normalized = rawShift.trim().toLowerCase();
@@ -26,17 +38,7 @@ function toClientShift(rawShift: unknown): ClientShiftType {
 
 export async function GET(request: NextRequest) {
   try {
-    const currentUser = await requireRole([
-      "admin",
-      "super_admin",
-      "hostel_manager",
-      "front_desk",
-      "security",
-      "accountant",
-      "maintenance",
-      "porter",
-      "cleaner",
-    ]);
+    const currentUser = await requireRole([...STAFF_DAILY_LOG_ROLES]);
 
     const url = new URL(request.url);
     const filterUserId = url.searchParams.get('userId');
@@ -53,7 +55,9 @@ export async function GET(request: NextRequest) {
     // Supervisors/Admins can see everything. Normal staff only see theirs, unless querying explicitly to fetch all.
     // The policy on RLS would technically handle this if using standard client, but we're on supabaseAdmin.
     // Let's enforce it in the API logic.
-    const isSupervisor = ["super_admin", "admin", "hostel_manager"].includes(currentUser.role);
+    const isSupervisor = SUPERVISOR_ROLES.includes(
+      currentUser.role as (typeof SUPERVISOR_ROLES)[number]
+    );
     
     if (!isSupervisor) {
       query = query.eq("staff_id", currentUser.id);
@@ -82,17 +86,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const currentUser = await requireRole([
-      "front_desk",
-      "security",
-      "accountant",
-      "maintenance",
-      "porter",
-      "cleaner",
-      "admin",
-      "super_admin",
-      "hostel_manager"
-    ]);
+    const currentUser = await requireRole([...STAFF_DAILY_LOG_ROLES]);
 
     const body = await request.json();
     const { log_date, shift, duty_type, activities, issues_observed, materials_used } = body;
