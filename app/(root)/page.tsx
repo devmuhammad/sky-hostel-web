@@ -64,7 +64,7 @@ const Page = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/sold-out">
+            <Link href="/registration">
               <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors">
                 Continue Registration
               </button>
@@ -96,7 +96,7 @@ const Page = () => {
               <h4 className="font-semibold mb-3 text-gray-900">Quick Links</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 <li>
-                  <Link href="/sold-out" className="hover:text-blue-600">
+                  <Link href="registration" className="hover:text-blue-600">
                     Register
                   </Link>
                 </li>
