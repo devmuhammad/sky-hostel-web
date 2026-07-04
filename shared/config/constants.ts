@@ -1,7 +1,7 @@
 export const PAYMENT_CONFIG = {
   // For Testing: 1000
-  // For Production: 219000
-  amount: 219000,
+  // For Production: 285000
+  amount: 285000,
   get amountInKobo() {
     return this.amount * 100;
   },
@@ -17,7 +17,7 @@ export const PAYMENT_CONFIG = {
   },
 
   setProductionAmount() {
-    this.amount = 219000;
+    this.amount = 285000;
   },
 };
 
