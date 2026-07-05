@@ -15,6 +15,8 @@ import {
 } from "@/shared/utils/dashboard-stats";
 import { createServerSupabaseClient } from "@/shared/config/auth";
 import { Database } from "@/shared/types/database";
+import { RegistrationStatusToggle } from "@/features/dashboard/components/RegistrationStatusToggle";
+import { PAYMENT_CONFIG } from "@/shared/config/constants";
 
 type Student = Database["public"]["Tables"]["students"]["Row"];
 type Payment = Database["public"]["Tables"]["payments"]["Row"];
@@ -263,7 +265,8 @@ async function RecentActivity({ userRole }: { userRole: string }) {
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">
                     ₦{payment.amount_paid?.toLocaleString()} of ₦
-                    {payment.amount_to_pay?.toLocaleString() || "219,000"}
+                    {payment.amount_to_pay?.toLocaleString() ||
+                      PAYMENT_CONFIG.amount.toLocaleString()}
                   </p>
                   <StatusBadge status={payment.status} />
                 </div>
@@ -285,12 +288,16 @@ export default async function AdminDashboard() {
   const userRole = await getCurrentUserRole() || "admin";
   const canViewFinancials = ["super_admin", "admin", "hostel_manager", "accountant"].includes(userRole);
   const canManageUsers = ["super_admin"].includes(userRole);
+  const canToggleRegistration = ["super_admin", "admin"].includes(userRole);
 
   return (
     <div className="p-4 lg:p-6 pb-8 lg:pb-12">
       <div className="mx-auto space-y-6">
         {/* Header */}
         <Header title="Dashboard" />
+
+        {/* Registration Open/Closed */}
+        <RegistrationStatusToggle canToggle={canToggleRegistration} />
 
         {/* Stats Cards */}
         <Suspense fallback={<CardLoadingSkeleton cards={4} />}>

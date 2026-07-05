@@ -34,6 +34,27 @@ async function handlePOST(request: NextRequest) {
 
     const supabaseAdmin = await createServerSupabaseClient();
 
+    // Hard server-side stop: don't allow new invoices while an admin has
+    // marked registration as closed, even if someone bypasses the UI.
+    const { data: registrationSetting } = await supabaseAdmin
+      .from("app_settings")
+      .select("value")
+      .eq("key", "registration_open")
+      .single();
+
+    if (registrationSetting && registrationSetting.value === false) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            message:
+              "Registration is currently closed. Please check back later.",
+          },
+        },
+        { status: 403 }
+      );
+    }
+
     // Check if a payment already exists for this email (using normalized email)
     const { data: existingPayments, error: checkError } = await supabaseAdmin
       .from("payments")

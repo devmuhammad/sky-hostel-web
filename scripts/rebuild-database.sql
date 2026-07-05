@@ -657,6 +657,35 @@ ADD COLUMN IF NOT EXISTS room_availability_status room_availability_status NOT N
 CREATE INDEX IF NOT EXISTS idx_rooms_availability_status ON rooms(room_availability_status);
 
 
+-- #######################################################
+-- ##  MIGRATION 10 — Registration Open/Closed Toggle   ##
+-- #######################################################
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key VARCHAR(100) PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_by UUID REFERENCES admin_users(id) ON DELETE SET NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+INSERT INTO app_settings (key, value)
+VALUES ('registration_open', 'true'::jsonb)
+ON CONFLICT (key) DO NOTHING;
+
+CREATE TRIGGER set_timestamp_app_settings
+BEFORE UPDATE ON app_settings FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public can read settings" ON app_settings FOR SELECT USING (true);
+CREATE POLICY "Staff can insert settings" ON app_settings FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM admin_users WHERE admin_users.id = auth.uid() AND role IN ('super_admin', 'admin') AND is_active = true)
+);
+CREATE POLICY "Staff can update settings" ON app_settings FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM admin_users WHERE admin_users.id = auth.uid() AND role IN ('super_admin', 'admin') AND is_active = true)
+);
+
+
 -- =====================================================
 -- VERIFICATION
 -- =====================================================
