@@ -95,7 +95,7 @@ export const RegistrationConfirmationEmail = ({
             <Text style={paragraph}>
               Welcome to Sky Student Hostel! Your registration has been
               successfully completed and confirmed. We&apos;re excited to have
-              you as part of our hostel community for the 2025/2026 academic
+              you as part of our hostel community for the 2026/2027 academic
               session.
             </Text>
 
@@ -282,7 +282,7 @@ export const RegistrationConfirmationEmail = ({
           <Hr style={hr} />
           <Section style={footer}>
             <Text style={footerText}>
-              © 2025 Sky Student Hostel. All rights reserved.
+              © 2026 Sky Student Hostel. All rights reserved.
             </Text>
             <Text style={footerText}>
               This email was sent to {email}. If you didn&apos;t register for

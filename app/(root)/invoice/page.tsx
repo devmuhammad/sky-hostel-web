@@ -122,7 +122,7 @@ const Page = () => {
   return (
     <div className="container mx-auto px-4 py-8 pt-24">
       <h1 className="text-3xl font-bold text-center mb-8">
-        SKY Hostel Application 2025/2026 Payment
+        SKY Hostel Application 2026/2027 Payment
       </h1>
       <h2 className="text-4xl font-bold text-blue-900 text-center mb-8">
         {PAYMENT_CONFIG.formatAmount()}
