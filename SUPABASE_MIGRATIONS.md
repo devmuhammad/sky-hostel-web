@@ -306,3 +306,24 @@ CREATE POLICY "Staff can update unapproved, Supervisors can update all" ON staff
     )
   );
 ```
+
+---
+
+## 5. Phase 11: Log Replies, Notifications, Inventory Status & Room Maintenance
+Adds threaded replies to daily logs, an in-app notification system, item status
+tracking across occupancy stages, and a room maintenance log.
+
+The full, idempotent SQL lives in `shared/config/11-log-comments-notifications-inventory.sql`.
+Copy that file's contents into the Supabase SQL editor and run it. It creates:
+
+- `staff_daily_log_comments` — threaded replies on daily logs, visible to the log
+  owner and all supervisors, with RLS.
+- `notifications` — per-user in-app notifications (used to alert participants when a
+  new reply is posted), with RLS scoped to the owning user.
+- `inventory_items` new columns — `item_status` (Good | Damaged | Missing |
+  Under Maintenance) plus `status_before_checkin`, `status_during_occupancy`,
+  `status_after_exit`, and `stage_notes` for occupancy-stage inspections.
+- `room_maintenance_logs` — room maintenance checks (room, date, issue found,
+  action taken, status, officer responsible, optional complaint form link), with RLS.
+- `app_settings` seed for `complaint_form_url` — the Google Form link used for room
+  complaints (set it from the Inventory page).

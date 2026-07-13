@@ -7,6 +7,8 @@ import { Button } from "@/shared/components/ui/button";
 import { Modal } from "@/shared/components/ui/modal";
 import { DamageReportForm } from "@/features/inventory/components/DamageReportForm";
 import { InventoryItemForm } from "@/features/inventory/components/InventoryItemForm";
+import { ItemStatusModal } from "@/features/inventory/components/ItemStatusModal";
+import { RoomMaintenanceLog } from "@/features/inventory/components/RoomMaintenanceLog";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -19,6 +21,7 @@ export default function InventoryPage() {
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const [statusItem, setStatusItem] = useState<any | null>(null);
   const [isCreatingItem, setIsCreatingItem] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
@@ -71,6 +74,7 @@ export default function InventoryPage() {
 
   const canViewFinancials = currentUserRole ? ["super_admin", "admin", "hostel_manager", "accountant"].includes(currentUserRole) : false;
   const canAddItem = currentUserRole ? ["super_admin", "admin", "porter", "other"].includes(currentUserRole) : false;
+  const canManageComplaintLink = currentUserRole ? ["super_admin", "admin", "hostel_manager"].includes(currentUserRole) : false;
 
   const handleReportDamage = async (data: any) => {
     const res = await fetch("/api/admin/inventory/damage-reports", {
@@ -161,6 +165,22 @@ export default function InventoryPage() {
       }
     },
     {
+      header: "Item Status",
+      key: "item_status",
+      render: (item: any) => (
+        <StatusBadge
+          status={item.item_status || "good"}
+          variant="custom"
+          colorMap={{
+            good: "bg-emerald-100 text-emerald-800 border-emerald-200",
+            damaged: "bg-red-100 text-red-800 border-red-200",
+            missing: "bg-amber-100 text-amber-800 border-amber-200",
+            under_maintenance: "bg-blue-100 text-blue-800 border-blue-200",
+          }}
+        />
+      ),
+    },
+    {
       header: "Responsible Student",
       key: "assigned_student",
       render: (item: any) =>
@@ -183,14 +203,23 @@ export default function InventoryPage() {
       header: "Actions",
       key: "actions",
       render: (item: any) => (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => setSelectedItem(item)}
-          disabled={item.condition === 'destroyed'}
-        >
-          Report Damage
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setStatusItem(item)}
+          >
+            Status
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSelectedItem(item)}
+            disabled={item.condition === 'destroyed'}
+          >
+            Report Damage
+          </Button>
+        </div>
       )
     }
   ];
@@ -293,7 +322,15 @@ export default function InventoryPage() {
             </div>
           )}
         </div>
+
+        <RoomMaintenanceLog canManageSettings={canManageComplaintLink} />
       </div>
+
+      <ItemStatusModal
+        item={statusItem}
+        onClose={() => setStatusItem(null)}
+        onSaved={fetchItems}
+      />
 
       <Modal 
         isOpen={!!selectedItem} 

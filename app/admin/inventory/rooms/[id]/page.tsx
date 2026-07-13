@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { Modal } from "@/shared/components/ui/modal";
 import { DamageReportForm } from "@/features/inventory/components/DamageReportForm";
+import { ItemStatusModal } from "@/features/inventory/components/ItemStatusModal";
+import { RoomMaintenanceLog } from "@/features/inventory/components/RoomMaintenanceLog";
 
 interface InventoryCategory {
   id: string;
@@ -27,6 +29,8 @@ export default function RoomInventoryPage({ params }: { params: Promise<{ id: st
   const [items, setItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const [statusItem, setStatusItem] = useState<any | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [allCategories, setAllCategories] = useState<InventoryCategory[]>([]);
   const [roomTemplates, setRoomTemplates] = useState<RoomTemplate[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
@@ -50,6 +54,16 @@ export default function RoomInventoryPage({ params }: { params: Promise<{ id: st
       setIsLoading(false);
     }
   }, [id]);
+
+  const fetchUserRole = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/users/me");
+      const data = await res.json();
+      if (data.success && data.data) setCurrentUserRole(data.data.role);
+    } catch (error) {
+      console.error(error);
+    }
+  }, []);
 
   const fetchRoomInfo = useCallback(async () => {
     try {
@@ -110,11 +124,12 @@ export default function RoomInventoryPage({ params }: { params: Promise<{ id: st
   }, [id]);
 
   useEffect(() => {
+    fetchUserRole();
     fetchItems();
     fetchRoomInfo();
     fetchRoomCategories();
     fetchReports();
-  }, [fetchItems, fetchRoomInfo, fetchRoomCategories, fetchReports]);
+  }, [fetchUserRole, fetchItems, fetchRoomInfo, fetchRoomCategories, fetchReports]);
 
   const handleReportDamage = async (data: any) => {
     const res = await fetch("/api/admin/inventory/damage-reports", {
@@ -218,6 +233,44 @@ export default function RoomInventoryPage({ params }: { params: Promise<{ id: st
       },
     },
     {
+      header: "Item Status",
+      key: "item_status",
+      render: (item: any) => (
+        <StatusBadge
+          status={item.item_status || "good"}
+          variant="custom"
+          colorMap={{
+            good: "bg-emerald-100 text-emerald-800 border-emerald-200",
+            damaged: "bg-red-100 text-red-800 border-red-200",
+            missing: "bg-amber-100 text-amber-800 border-amber-200",
+            under_maintenance: "bg-blue-100 text-blue-800 border-blue-200",
+          }}
+        />
+      ),
+    },
+    {
+      header: "Occupancy Stages",
+      key: "stages",
+      render: (item: any) => {
+        const stageLabels: Record<string, string> = {
+          good: "Good",
+          damaged: "Damaged",
+          missing: "Missing",
+          under_maintenance: "Maint.",
+        };
+        const render = (value: string | null) => (value ? stageLabels[value] || value : "—");
+        return (
+          <div className="text-xs text-gray-600 whitespace-nowrap">
+            <span title="Before Check-in">Pre: {render(item.status_before_checkin)}</span>
+            <span className="text-gray-300"> | </span>
+            <span title="During Occupancy">Dur: {render(item.status_during_occupancy)}</span>
+            <span className="text-gray-300"> | </span>
+            <span title="After Exit">Exit: {render(item.status_after_exit)}</span>
+          </div>
+        );
+      },
+    },
+    {
       header: "Responsible Student",
       key: "assigned_student",
       render: (item: any) =>
@@ -243,12 +296,21 @@ export default function RoomInventoryPage({ params }: { params: Promise<{ id: st
       header: "Actions",
       key: "actions",
       render: (item: any) => (
-        <Button variant="outline" size="sm" onClick={() => setSelectedItem(item)} disabled={item.condition === "destroyed"}>
-          Report
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setStatusItem(item)}>
+            Status
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setSelectedItem(item)} disabled={item.condition === "destroyed"}>
+            Report
+          </Button>
+        </div>
       ),
     },
   ];
+
+  const canManageComplaintLink = currentUserRole
+    ? ["super_admin", "admin", "hostel_manager"].includes(currentUserRole)
+    : false;
 
   const roomName = roomInfo ? `${roomInfo.block}${String(roomInfo.name).replace(roomInfo.block, "")}` : "Room";
 
@@ -422,7 +484,15 @@ export default function RoomInventoryPage({ params }: { params: Promise<{ id: st
             </div>
           )}
         </div>
+
+        <RoomMaintenanceLog fixedRoomId={id} canManageSettings={canManageComplaintLink} />
       </div>
+
+      <ItemStatusModal
+        item={statusItem}
+        onClose={() => setStatusItem(null)}
+        onSaved={fetchItems}
+      />
 
       <Modal isOpen={!!selectedItem} onClose={() => setSelectedItem(null)} title="Report Damage" hideDefaultFooter>
         {selectedItem && (

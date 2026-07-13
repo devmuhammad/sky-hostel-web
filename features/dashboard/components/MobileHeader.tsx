@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useAppStore } from "@/shared/store/appStore";
+import NotificationBell from "@/features/dashboard/components/NotificationBell";
 
 export default function MobileHeader() {
   const { sidebarCollapsed, setSidebarCollapsed } = useAppStore();
@@ -36,12 +36,15 @@ export default function MobileHeader() {
           </div>
         </div>
 
-        {/* Hamburger Menu Button */}
-        <button
-          onClick={toggleSidebar}
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-          aria-label="Toggle menu"
-        >
+        <div className="flex items-center gap-1">
+          <NotificationBell />
+
+          {/* Hamburger Menu Button */}
+          <button
+            onClick={toggleSidebar}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Toggle menu"
+          >
           <svg
             className="w-6 h-6 text-gray-600"
             fill="none"
@@ -55,7 +58,8 @@ export default function MobileHeader() {
               d="M4 6h16M4 12h16M4 18h16"
             />
           </svg>
-        </button>
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import { LoadingButton } from "@/shared/components/ui/loading-button";
 import { toast } from "sonner";
 import { Modal } from "@/shared/components/ui/modal";
 import { DailyLogForm } from "@/features/daily-logs/components/DailyLogForm";
+import { LogComments } from "@/features/daily-logs/components/LogComments";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 
 export default function DailyLogsPage() {
@@ -302,6 +303,8 @@ export default function DailyLogsPage() {
                 </div>
               )}
             </div>
+
+            <LogComments logId={selectedLog.id} />
           </div>
         )}
       </Modal>

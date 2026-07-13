@@ -35,6 +35,7 @@ export function InventoryItemForm({ onCancel, onSubmitAction }: InventoryItemFor
     room_id: "",
     assigned_to: "",
     condition: "good",
+    item_status: "good",
     price_estimate: "",
   });
   const [rooms, setRooms] = useState<any[]>([]);
@@ -228,20 +229,36 @@ export function InventoryItemForm({ onCancel, onSubmitAction }: InventoryItemFor
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="condition">Condition</Label>
+          <Label htmlFor="item_status">Item Status</Label>
           <select
-            id="condition"
-            name="condition"
-            value={formData.condition}
+            id="item_status"
+            name="item_status"
+            value={formData.item_status}
             onChange={handleChange}
             className="w-full rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition-colors py-2.5 px-3 outline-none"
           >
             <option value="good">Good</option>
-            <option value="needs_repair">Needs Repair</option>
-            <option value="spoilt">Spoilt</option>
-            <option value="destroyed">Destroyed</option>
+            <option value="damaged">Damaged</option>
+            <option value="missing">Missing</option>
+            <option value="under_maintenance">Under Maintenance</option>
           </select>
         </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="condition">Physical Condition</Label>
+        <select
+          id="condition"
+          name="condition"
+          value={formData.condition}
+          onChange={handleChange}
+          className="w-full rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition-colors py-2.5 px-3 outline-none"
+        >
+          <option value="good">Good</option>
+          <option value="needs_repair">Needs Repair</option>
+          <option value="spoilt">Spoilt</option>
+          <option value="destroyed">Destroyed</option>
+        </select>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

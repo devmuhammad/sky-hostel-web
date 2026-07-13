@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/shared/hooks/useToast";
 import { useAppStore } from "@/shared/store/appStore";
 import { ADMIN_NAVIGATION } from "@/shared/constants/navigation";
+import NotificationBell from "@/features/dashboard/components/NotificationBell";
 
 interface AdminUser {
   id: string;
@@ -150,6 +151,8 @@ export default function Sidebar({
         )}
 
         <div className="flex items-center space-x-2">
+          {(!isCollapsed || sidebarCollapsed) && <NotificationBell />}
+
           {/* Mobile Close Button */}
           <button
             onClick={() => setSidebarCollapsed(false)}
