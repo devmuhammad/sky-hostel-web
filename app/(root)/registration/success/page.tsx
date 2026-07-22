@@ -336,7 +336,7 @@ export default function RegistrationSuccess() {
                 </label>
                 <p className="mt-1 text-sm text-gray-900">
                   ₦{studentData.amount_paid?.toLocaleString() || "0"} of ₦
-                  {studentData.amount_to_pay?.toLocaleString() || "219,000"}
+                  {studentData.amount_to_pay?.toLocaleString() || "255,700"}
                 </p>
               </div>
               <div>

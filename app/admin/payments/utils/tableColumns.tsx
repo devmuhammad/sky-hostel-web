@@ -23,7 +23,7 @@ export const columns = [
           ₦{payment.amount_paid?.toLocaleString() || "0"}
         </div>
         <div className="text-xs text-gray-500">
-          of ₦{payment.amount_to_pay?.toLocaleString() || "219,000"}
+          of ₦{payment.amount_to_pay?.toLocaleString() || "255,700"}
         </div>
       </div>
     ),

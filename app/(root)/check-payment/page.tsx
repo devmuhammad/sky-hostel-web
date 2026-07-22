@@ -221,7 +221,7 @@ export default function CheckPaymentPage() {
                     <p className="font-semibold">
                       ₦{result.payment.amount_paid?.toLocaleString()} of ₦
                       {result.payment.amount_to_pay?.toLocaleString() ||
-                        "219,000"}
+                        "255,700"}
                     </p>
                   </div>
 

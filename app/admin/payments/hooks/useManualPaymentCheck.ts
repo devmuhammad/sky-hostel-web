@@ -184,7 +184,7 @@ export function useManualPaymentCheck() {
           updateData: {
             status: newStatus,
             amount_paid: newAmountPaid,
-            amount_to_pay: 219000,
+            amount_to_pay: 255700,
             paid_at:
               newStatus === "completed" ? new Date().toISOString() : null,
           },
