@@ -9,7 +9,7 @@ export const ValidationPatterns = {
 
   phone: z.string().min(10, "Phone number must be at least 10 digits"),
 
-  amount: (max: number = 219000) =>
+  amount: (max: number = 255700) =>
     z
       .union([z.string(), z.number()])
       .transform((val) => {

@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
         bedspace: student.bedspace_label || "Not assigned",
         block: student.block,
         amountPaid: student.amount_paid || 0,
-        amountToPay: student.amount_to_pay || 219000,
+        amountToPay: student.amount_to_pay || 255700,
         registrationDate: student.created_at,
         checkInDate: student.check_in_date,
         passportPhotoUrl: student.passport_photo_url,

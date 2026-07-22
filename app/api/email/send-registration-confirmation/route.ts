@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         bedspace,
         block,
         amountPaid,
-        amountToPay: body.amountToPay || 219000,
+        amountToPay: body.amountToPay || 255700,
         registrationDate,
         checkInDate,
         passportPhotoUrl,

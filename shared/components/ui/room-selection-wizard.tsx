@@ -53,14 +53,14 @@ const ROOM_TYPES: RoomType[] = [
     id: "room-4",
     name: "ROOM OF 4",
     capacity: 4,
-    price: 219000,
+    price: 255700,
     color: "bg-green-500",
   },
   {
     id: "room-6",
     name: "ROOM OF 6",
     capacity: 6,
-    price: 219000,
+    price: 255700,
     color: "bg-blue-500",
   },
 ];
