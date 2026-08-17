@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/shared/config/auth";
 import { withRateLimit, rateLimiters } from "@/shared/utils/rate-limit";
+import { ensureStudentResumptionVerification } from "@/shared/utils/resumption-verification";
 
 interface StudentRegistrationData {
   // Personal Information
@@ -321,6 +322,9 @@ async function handlePOST(request: NextRequest) {
           full_name: `${data.first_name} ${data.last_name}`,
         },
       });
+
+      await ensureStudentResumptionVerification(supabaseAdmin, student.id);
+
       return NextResponse.json({
         success: true,
         data: {

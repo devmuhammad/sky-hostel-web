@@ -43,18 +43,58 @@ const HOSTEL_RULES = [
     ],
   },
   {
-    title: "3. Room & Bathroom Cleanliness",
+    title: "3. Admission & Discipline (2026/2027)",
     rules: [
-      "Maintain a high standard of cleanliness in your room at all times.",
-      "Rooms, bathrooms, and toilets must be thoroughly cleaned either bi-weekly or every three days. A schedule will be provided for this.",
-      "Keep your room orderly. Do not place bags, shoes, or any other items under the lower bunk beds.",
-      "You are required to come to the hostel equipped with: disinfectant, toilet wash and brush, room freshener, broom, and mop.",
+      "A blacklist of students with records of dirtiness and rudeness has been sent to the DSA. Such students will NOT be readmitted.",
+      "Zero tolerance: any student caught violating major rules will be issued 2 warnings. On the 3rd offense = Eviction.",
     ],
   },
   {
-    title: "4. Penalties",
+    title: "4. Mandatory Items at Resumption",
     rules: [
-      "Any room found violating these rules will be penalized by having the room locked for the day.",
+      "Entry will not be granted without: 1 bottle of insecticide (replenish every 4 months); 2 bedsheets, 2 bedcovers + 2 pillow cases; mop, broom, dustbin, iron sponges, toilet wash, scrub brushes, and a kitchen sink sieve; airtight food containers.",
+      "If you do not have any item, it will be available for purchase at the hostel gate.",
+    ],
+  },
+  {
+    title: "5. Food Storage (No Sacks, Bags, or Nylons)",
+    rules: [
+      "All food items MUST be kept strictly in airtight containers. Sacks, cellophane bags, or open nylon bags of foodstuff are strictly prohibited.",
+      "Bread, biscuits, garri, rice, beans, and all provisions must be transferred into an airtight container immediately after purchase.",
+      "No cooked food, food wrappers, or dirty plates should be left in the room overnight. Wash plates immediately after eating.",
+      "Rooms found with improper food packaging during inspection will be served a heavy penalty and fine.",
+    ],
+  },
+  {
+    title: "6. Room & Hostel Hygiene",
+    rules: [
+      "Keeping your room, bed area, and personal space clean daily is your sole responsibility.",
+      "Do NOT remove your bed from the bunks to the floor. Anyone found doing this will be penalized.",
+      "Every week, students are responsible for washing the Kitchen, Bathroom, Toilet, and WC in their wing/room.",
+      "Rooms found dirty during weekly inspection will be fined. Beddings must be washed at least every 3 days.",
+      "Optional: professional hostel cleaners may be hired if you need extra support.",
+    ],
+  },
+  {
+    title: "7. Pest Control & Sanitation",
+    rules: [
+      "Clean up immediately after cooking — wipe gas burner, kitchen walls, floors, and sink; use the sink sieve for food debris.",
+      "Dispose of food waste in the dustbin daily. Air out mattresses weekly and report bedbugs immediately.",
+      "Use your compulsory insecticide regularly across beds, wall cracks, and room corners. Seal openings to prevent rodents.",
+      "Cooperate fully with management fumigation exercises. Participate in compulsory monthly general sanitation of the hostel.",
+    ],
+  },
+  {
+    title: "8. Communication & Complaints",
+    rules: [
+      "Use your profile account on skyhostel.ng to log complaints or issues for prompt attention.",
+      "Also relay concerns directly to the porter desk for immediate action.",
+    ],
+  },
+  {
+    title: "9. Penalties",
+    rules: [
+      "Any room found violating these rules may be penalized by having the room locked for the day, fined, or face eviction under the 3-strike rule.",
     ],
   },
 ];
@@ -83,7 +123,6 @@ export function HostelRulesConsent({
 
   const canSubmit = firstName && lastName && date && rulesAccepted;
 
-  // Notify parent component of form changes
   useEffect(() => {
     if (onFormChange) {
       onFormChange({
@@ -97,12 +136,10 @@ export function HostelRulesConsent({
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      {/* Section Title */}
       <h2 className="text-2xl font-bold mb-6">
         Agreement, Rules and Regulations
       </h2>
 
-      {/* Personal Declaration */}
       <div className="mb-8">
         <div className="flex gap-4 mb-4">
           <div className="flex-1">
@@ -133,11 +170,10 @@ export function HostelRulesConsent({
           I <strong>{firstName || "[First Name]"}</strong>{" "}
           <strong>{lastName || "[Last Name]"}</strong> hereby declare that all
           the information given are TRUE and I undertake to abide by the
-          following rules.
+          following rules for the 2026/2027 academic session.
         </p>
       </div>
 
-      {/* Rules List */}
       <div className="mb-8">
         <div className="bg-gray-50 p-6 rounded-lg">
           <p className="text-sm text-gray-600 mb-4">
@@ -167,7 +203,24 @@ export function HostelRulesConsent({
         </div>
       </div>
 
-      {/* Declaration and Penalties */}
+      <div className="mb-8">
+        <div className="bg-amber-50 p-4 rounded-lg border border-amber-300">
+          <p className="text-sm font-semibold text-amber-950 mb-2">
+            Required documents for entry (print & present)
+          </p>
+          <p className="text-sm text-amber-900 mb-2">
+            After you complete registration, you will receive three documents to
+            download. You must print them and present them at the gate on
+            resumption day. Entry may be refused without them:
+          </p>
+          <ul className="list-disc list-inside space-y-1 text-sm text-amber-900">
+            <li>Rules &amp; Regulations</li>
+            <li>Resumption Agreement &amp; Checklist (signed)</li>
+            <li>Gate Verification Checklist (for the porter)</li>
+          </ul>
+        </div>
+      </div>
+
       <div className="mb-8">
         <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
           <p className="text-sm text-yellow-800 mb-3">
@@ -189,26 +242,25 @@ export function HostelRulesConsent({
         </div>
       </div>
 
-      {/* Signature Declaration */}
       <div className="mb-6">
         <Label className="text-base font-medium">Signature Declaration *</Label>
-        <div className="flex items-center mt-2">
+        <div className="flex items-start mt-2">
           <input
             type="checkbox"
             id="rulesAccepted"
             checked={rulesAccepted}
             onChange={(e) => setRulesAccepted(e.target.checked)}
-            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+            className="w-4 h-4 mt-1 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
           />
           <label htmlFor="rulesAccepted" className="ml-3 text-sm text-gray-700">
-            I hereby sign and declare that all the above information is accurate
-            and I would be held responsible for any inaccuracies and breach of
-            any of the rules listed.
+            I hereby sign and declare that all the above information is accurate,
+            I will abide by these rules, and I understand I must print and
+            present the three resumption documents at entry or I may be refused
+            access.
           </label>
         </div>
       </div>
 
-      {/* Date Field */}
       <div className="mb-8">
         <Label htmlFor="date">Date *</Label>
         <Input
@@ -220,7 +272,6 @@ export function HostelRulesConsent({
         />
       </div>
 
-      {/* Navigation */}
       {showNavigation && (
         <div className="flex justify-between">
           <Button variant="outline" onClick={onBack}>

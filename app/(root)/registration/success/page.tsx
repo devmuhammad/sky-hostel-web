@@ -9,6 +9,7 @@ import { Button } from "@/shared/components/ui/button";
 import { createClientSupabaseClient } from "@/shared/config/auth";
 import Image from "next/image";
 import { productionLogger } from "@/shared/utils/production-logger";
+import { RESUMPTION_DOCUMENTS } from "@/shared/constants/resumption-documents";
 
 // Force dynamic rendering for this page
 export const dynamic = "force-dynamic";
@@ -353,6 +354,35 @@ export default function RegistrationSuccess() {
           </CardContainer>
         </div>
 
+        {/* Required for Resumption */}
+        <div className="mb-8 rounded-lg border border-amber-300 bg-amber-50 p-6">
+          <h3 className="text-lg font-semibold text-amber-950 mb-2">
+            Required for Resumption — Print &amp; Bring
+          </h3>
+          <p className="text-sm text-amber-900 mb-4">
+            Download and print all three documents below. You must present them
+            at the gate on resumption day. Entry may be refused without them.
+          </p>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            {RESUMPTION_DOCUMENTS.map((doc) => (
+              <a
+                key={doc.id}
+                href={doc.href}
+                download={doc.filename}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-lg border border-amber-200 bg-white p-4 transition hover:border-amber-400 hover:shadow-sm"
+              >
+                <p className="font-medium text-slate-900">{doc.title}</p>
+                <p className="mt-1 text-xs text-slate-600">{doc.description}</p>
+                <p className="mt-3 text-sm font-semibold text-blue-700">
+                  Download PDF →
+                </p>
+              </a>
+            ))}
+          </div>
+        </div>
+
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button
@@ -380,7 +410,13 @@ export default function RegistrationSuccess() {
             </li>
             <li className="flex items-start">
               <span className="text-blue-500 mr-2">•</span>
-              You will receive an email with check-in instructions shortly.
+              Print all three resumption documents and bring them (plus a valid
+              ID) on resumption day.
+            </li>
+            <li className="flex items-start">
+              <span className="text-blue-500 mr-2">•</span>
+              You will receive an email with the same document links and check-in
+              instructions.
             </li>
             <li className="flex items-start">
               <span className="text-blue-500 mr-2">•</span>

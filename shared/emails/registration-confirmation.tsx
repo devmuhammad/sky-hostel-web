@@ -10,7 +10,12 @@ import {
   Column,
   Hr,
   Img,
+  Link,
 } from "@react-email/components";
+import {
+  RESUMPTION_DOCUMENTS,
+  absoluteDocumentUrl,
+} from "@/shared/constants/resumption-documents";
 
 interface RegistrationConfirmationEmailProps {
   studentName: string;
@@ -250,7 +255,9 @@ export const RegistrationConfirmationEmail = ({
                 • Check-in begins 2 weeks before the academic session starts
               </Text>
               <Text style={importantText}>
-                • Please bring your registration confirmation and valid ID
+                • You MUST print and bring all three resumption documents below,
+                plus your registration confirmation and a valid ID. Entry may be
+                refused without them.
               </Text>
               <Text style={importantText}>
                 • Contact us immediately if you need to change your
@@ -259,6 +266,18 @@ export const RegistrationConfirmationEmail = ({
               <Text style={importantText}>
                 • Keep this email for your records
               </Text>
+            </Section>
+
+            <Section style={card}>
+              <Text style={cardTitle}>📄 Print &amp; Bring on Resumption</Text>
+              {RESUMPTION_DOCUMENTS.map((doc) => (
+                <Text key={doc.id} style={importantText}>
+                  •{" "}
+                  <Link href={absoluteDocumentUrl(doc.href)} style={docLink}>
+                    {doc.title}
+                  </Link>
+                </Text>
+              ))}
             </Section>
 
             {/* Support Information */}
@@ -406,6 +425,11 @@ const importantText = {
   lineHeight: "20px",
   margin: "8px 0",
   color: "#92400e",
+};
+
+const docLink = {
+  color: "#1d4ed8",
+  textDecoration: "underline",
 };
 
 const supportSection = {

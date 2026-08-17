@@ -9,8 +9,20 @@ import { LoadingButton } from "@/shared/components/ui/loading-button";
 import { FileUpload } from "@/shared/components/ui/file-upload";
 import { useToast } from "@/shared/hooks/useToast";
 import { createClientSupabaseClient } from "@/shared/config/auth";
+import {
+  RESUMPTION_DOCUMENTS,
+  RESUMPTION_SESSION,
+} from "@/shared/constants/resumption-documents";
 
 type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
+type ResumptionStatus = "pending" | "cleared" | "denied";
+type PortalTab =
+  | "overview"
+  | "profile"
+  | "resumption"
+  | "report"
+  | "tickets"
+  | "feedback";
 
 interface StudentProfile {
   id: string;
@@ -62,6 +74,30 @@ interface StudentTicket {
   } | null;
 }
 
+interface ResumptionChecklistItem {
+  id: string;
+  code: string;
+  label: string;
+  is_mandatory: boolean;
+  present: boolean | null;
+}
+
+interface ResumptionChecklistData {
+  session_label: string;
+  room: {
+    block: string;
+    room: string;
+    bedspace_label: string;
+  };
+  verification: {
+    status: ResumptionStatus;
+    agreement_submitted: boolean;
+    denied_reason: string | null;
+    cleared_at: string | null;
+  } | null;
+  checklist: ResumptionChecklistItem[];
+}
+
 const STATUS_STYLES: Record<TicketStatus, string> = {
   open: "bg-amber-50 text-amber-700 border-amber-200",
   in_progress: "bg-blue-50 text-blue-700 border-blue-200",
@@ -69,15 +105,23 @@ const STATUS_STYLES: Record<TicketStatus, string> = {
   closed: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
+const RESUMPTION_STATUS_STYLES: Record<ResumptionStatus, string> = {
+  pending: "bg-amber-50 text-amber-800 border-amber-200",
+  cleared: "bg-emerald-50 text-emerald-800 border-emerald-200",
+  denied: "bg-red-50 text-red-800 border-red-200",
+};
+
 export default function StudentPortalPage() {
   const toast = useToast();
 
-  const [activeTab, setActiveTab] = useState<
-    "overview" | "profile" | "report" | "tickets" | "feedback"
-  >("overview");
+  const [activeTab, setActiveTab] = useState<PortalTab>("overview");
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [tickets, setTickets] = useState<StudentTicket[]>([]);
+  const [resumption, setResumption] = useState<ResumptionChecklistData | null>(
+    null
+  );
+  const [resumptionError, setResumptionError] = useState<string | null>(null);
 
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isCreatingTicket, setIsCreatingTicket] = useState(false);
@@ -109,12 +153,10 @@ export default function StudentPortalPage() {
     message: "",
     rating: "",
   });
-  const tabs: {
-    key: "overview" | "profile" | "report" | "tickets" | "feedback";
-    label: string;
-  }[] = [
+  const tabs: { key: PortalTab; label: string }[] = [
     { key: "overview", label: "Overview" },
     { key: "profile", label: "Profile" },
+    { key: "resumption", label: "Resumption" },
     { key: "report", label: "Report Issue" },
     { key: "tickets", label: "My Tickets" },
     { key: "feedback", label: "Feedback" },
@@ -123,13 +165,15 @@ export default function StudentPortalPage() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [profileRes, ticketsRes] = await Promise.all([
+      const [profileRes, ticketsRes, resumptionRes] = await Promise.all([
         fetch("/api/student/me", { cache: "no-store" }),
         fetch("/api/student/tickets", { cache: "no-store" }),
+        fetch("/api/student/resumption-checklist", { cache: "no-store" }),
       ]);
 
       const profileJson = await profileRes.json();
       const ticketsJson = await ticketsRes.json();
+      const resumptionJson = await resumptionRes.json();
 
       if (!profileRes.ok || !profileJson.success) {
         throw new Error(profileJson.error || "Failed to load profile");
@@ -158,6 +202,17 @@ export default function StudentPortalPage() {
         next_of_kin_email: student.next_of_kin_email || "",
         next_of_kin_relationship: student.next_of_kin_relationship || "",
       });
+
+      if (resumptionRes.ok && resumptionJson.success) {
+        setResumption(resumptionJson.data as ResumptionChecklistData);
+        setResumptionError(null);
+      } else {
+        setResumption(null);
+        setResumptionError(
+          resumptionJson.error ||
+            "Resumption checklist is not available yet."
+        );
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to load student portal data");
     } finally {
@@ -424,6 +479,140 @@ export default function StudentPortalPage() {
               </div>
             </div>
           </div>
+
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 lg:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold text-amber-950">
+                  Resumption clearance
+                </h3>
+                <p className="mt-1 text-sm text-amber-900">
+                  Session {RESUMPTION_SESSION}. Print your documents and present
+                  them at the gate.
+                </p>
+              </div>
+              <span
+                className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${
+                  RESUMPTION_STATUS_STYLES[
+                    resumption?.verification?.status || "pending"
+                  ]
+                }`}
+              >
+                {(resumption?.verification?.status || "pending").replace(
+                  "_",
+                  " "
+                )}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab("resumption")}
+              className="mt-3 text-sm font-semibold text-blue-700 hover:text-blue-800"
+            >
+              View checklist &amp; downloads →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "resumption" && (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-5">
+            <h3 className="text-base font-semibold text-amber-950">
+              Print &amp; bring these documents
+            </h3>
+            <p className="mt-1 text-sm text-amber-900">
+              You must print all three and present them at the gate on
+              resumption day. Entry may be refused without them.
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+              {RESUMPTION_DOCUMENTS.map((doc) => (
+                <a
+                  key={doc.id}
+                  href={doc.href}
+                  download={doc.filename}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-amber-200 bg-white p-4 hover:border-amber-400"
+                >
+                  <p className="font-medium text-slate-900">{doc.title}</p>
+                  <p className="mt-1 text-xs text-slate-600">{doc.description}</p>
+                  <p className="mt-3 text-sm font-semibold text-blue-700">
+                    Download PDF →
+                  </p>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {resumptionError ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
+              {resumptionError}
+            </div>
+          ) : resumption ? (
+            <div className="rounded-xl border border-slate-200 bg-white p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900">
+                    Gate verification checklist
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Room {resumption.room.block}
+                    {resumption.room.room} · Bunk{" "}
+                    {resumption.room.bedspace_label} · Session{" "}
+                    {resumption.session_label}
+                  </p>
+                </div>
+                <span
+                  className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${
+                    RESUMPTION_STATUS_STYLES[
+                      resumption.verification?.status || "pending"
+                    ]
+                  }`}
+                >
+                  {(resumption.verification?.status || "pending").replace(
+                    "_",
+                    " "
+                  )}
+                </span>
+              </div>
+
+              {resumption.verification?.denied_reason && (
+                <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                  Remarks: {resumption.verification.denied_reason}
+                </p>
+              )}
+
+              <ul className="mt-4 space-y-2">
+                {resumption.checklist.map((item, index) => (
+                  <li
+                    key={item.id}
+                    className="flex items-start justify-between gap-3 rounded-lg border border-slate-100 px-3 py-2 text-sm"
+                  >
+                    <span className="text-slate-800">
+                      {index + 1}. {item.label}
+                    </span>
+                    <span className="shrink-0 text-xs font-semibold uppercase text-slate-500">
+                      {item.present === true
+                        ? "YES"
+                        : item.present === false
+                          ? "NO"
+                          : "Pending"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              {resumption.verification?.cleared_at && (
+                <p className="mt-4 text-sm text-emerald-700">
+                  Cleared on{" "}
+                  {new Date(
+                    resumption.verification.cleared_at
+                  ).toLocaleString()}
+                </p>
+              )}
+            </div>
+          ) : null}
         </div>
       )}
 
