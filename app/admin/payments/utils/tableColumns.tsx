@@ -32,7 +32,13 @@ export const columns = [
     key: "status",
     header: "Status",
     render: (payment: Payment) => (
-      <StatusBadge status={payment.status} variant="payment" />
+      <div className="space-y-1">
+        <StatusBadge status={payment.status} variant="payment" />
+        {(payment.payment_source === "sponsored" ||
+          payment.payment_source === "waived") && (
+          <div className="text-xs font-medium text-emerald-700">Sponsored</div>
+        )}
+      </div>
     ),
   },
   {

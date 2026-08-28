@@ -14,9 +14,9 @@ export interface Student {
   department?: string;
   level?: string;
   weight: number;
-  block?: string;
-  room?: string;
-  bedspace_label?: string;
+  block?: string | null;
+  room?: string | null;
+  bedspace_label?: string | null;
   date_of_birth?: string;
   lga?: string;
   marital_status?: string;
@@ -28,6 +28,13 @@ export interface Student {
   next_of_kin_relationship?: string;
   passport_photo_url?: string | null;
   payment_id: string;
+  is_active?: boolean;
+  account_status?: "active" | "blacklisted" | "withdrawn";
+  deactivated_at?: string | null;
+  deactivation_reason?: string | null;
+  previous_block?: string | null;
+  previous_room?: string | null;
+  previous_bedspace_label?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -46,6 +53,9 @@ export interface Payment {
   student?: Student;
   paycashless_invoice_id?: string;
   last_webhook_update?: string;
+  payment_source?: "paycashless" | "sponsored" | "waived";
+  waiver_reason?: string | null;
+  customer_name?: string | null;
 }
 
 export interface Room {
