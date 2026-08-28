@@ -55,10 +55,34 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
+    // Block blacklisted students from creating new invoices
+    const { data: existingStudent } = await supabaseAdmin
+      .from("students")
+      .select("id, is_active, account_status")
+      .ilike("email", normalizedEmail)
+      .maybeSingle();
+
+    if (
+      existingStudent &&
+      (existingStudent.is_active === false ||
+        existingStudent.account_status === "blacklisted")
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            message:
+              "This email is not eligible for hostel registration. Please contact the hostel office.",
+          },
+        },
+        { status: 403 }
+      );
+    }
+
     // Check if a payment already exists for this email (using normalized email)
     const { data: existingPayments, error: checkError } = await supabaseAdmin
       .from("payments")
-      .select("id, status, created_at, invoice_id")
+      .select("id, status, created_at, invoice_id, payment_source")
       .eq("email", normalizedEmail)
       .order("created_at", { ascending: false });
 
@@ -67,11 +91,16 @@ async function handlePOST(request: NextRequest) {
         (p) => p.status === "completed"
       );
       if (completedPayment) {
+        const sponsored =
+          completedPayment.payment_source === "sponsored" ||
+          completedPayment.payment_source === "waived";
         return NextResponse.json(
           {
             success: false,
             error: {
-              message: `A payment has already been completed for this email (${normalizedEmail}). Please contact support if you need assistance.`,
+              message: sponsored
+                ? `Payment for this email has already been waived/sponsored. Go to registration to pick a room.`
+                : `A payment has already been completed for this email (${normalizedEmail}). Please contact support if you need assistance.`,
             },
           },
           { status: 400 }

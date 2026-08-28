@@ -28,6 +28,10 @@ export async function getAuthenticatedStudent(): Promise<AuthenticatedStudent | 
     return null;
   }
 
+  if (student.is_active === false || student.account_status === "blacklisted") {
+    return null;
+  }
+
   return {
     userId: user.id,
     email: user.email,

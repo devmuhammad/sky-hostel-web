@@ -157,9 +157,9 @@ async function handlePOST(request: NextRequest) {
       // Check if email already exists
       const { data: existingEmail, error: emailError } = await supabaseAdmin
         .from("students")
-        .select("id")
+        .select("id, is_active, account_status")
         .eq("email", data.email)
-        .single();
+        .maybeSingle();
 
       if (emailError && emailError.code !== "PGRST116") {
         console.error("Error checking existing email:", emailError);
@@ -167,10 +167,17 @@ async function handlePOST(request: NextRequest) {
       }
 
       if (existingEmail) {
+        const blacklisted =
+          existingEmail.is_active === false ||
+          existingEmail.account_status === "blacklisted";
         return NextResponse.json(
           {
             success: false,
-            error: { message: "Email address already registered" },
+            error: {
+              message: blacklisted
+                ? "This email is not eligible for hostel registration. Please contact the hostel office."
+                : "Email address already registered",
+            },
           },
           { status: 400 }
         );
