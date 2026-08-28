@@ -311,6 +311,7 @@ export async function verifyPaycashlessPayment(
       status: string;
       paidAt?: string;
     }>;
+    payment_source?: string;
   };
   error?: string;
 }> {
@@ -318,19 +319,70 @@ export async function verifyPaycashlessPayment(
     // First, check if a student with this email already exists
     const { data: existingStudent, error: studentError } = await supabaseAdmin
       .from("students")
-      .select("id, email, first_name, last_name")
-      .eq("email", email)
-      .single();
+      .select("id, email, first_name, last_name, is_active, account_status")
+      .ilike("email", email)
+      .maybeSingle();
 
     if (studentError && studentError.code !== "PGRST116") {
-      // PGRST116 is "not found" error, which is expected if no student exists
       throw new Error("Failed to check existing student");
     }
 
     if (existingStudent) {
+      if (
+        existingStudent.is_active === false ||
+        existingStudent.account_status === "blacklisted"
+      ) {
+        return {
+          success: false,
+          error:
+            "This email is not eligible for hostel registration. Please contact the hostel office.",
+        };
+      }
+
       return {
         success: false,
         error: `A student with email ${email} is already registered. Please contact support if you need assistance.`,
+      };
+    }
+
+    // Sponsored / waived: trust a completed local payment without Paycashless
+    const { data: localCompleted, error: localCompletedError } =
+      await supabaseAdmin
+        .from("payments")
+        .select(
+          "id, email, amount_paid, amount_to_pay, status, invoice_id, payment_source, paid_at"
+        )
+        .ilike("email", email)
+        .eq("status", "completed")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (localCompletedError && localCompletedError.code !== "PGRST116") {
+      // Column may be missing before migration 13 — fall through to Paycashless
+      console.warn("Local completed payment lookup:", localCompletedError);
+    }
+
+    if (localCompleted) {
+      const totalPaid = Number(localCompleted.amount_paid) || PAYMENT_CONFIG.amount;
+      return {
+        success: true,
+        data: {
+          totalPaid,
+          remainingAmount: 0,
+          isFullyPaid: true,
+          payment_id: localCompleted.id,
+          payment_source: localCompleted.payment_source || "paycashless",
+          payments: [
+            {
+              id: localCompleted.id,
+              reference: localCompleted.invoice_id,
+              amount: totalPaid,
+              status: "completed",
+              paidAt: localCompleted.paid_at || undefined,
+            },
+          ],
+        },
       };
     }
 
@@ -338,28 +390,24 @@ export async function verifyPaycashlessPayment(
     const paycashlessResult = await getPaycashlessPaymentStatus(email, phone);
 
     if (!paycashlessResult.success) {
-      // Return the actual error message from Paycashless instead of generic message
       return {
         success: false,
         error: paycashlessResult.error || "Payment verification failed",
       };
     }
 
-    // If payment is not fully paid, return the error
     if (!paycashlessResult.data?.isFullyPaid) {
       return paycashlessResult;
     }
-
-    // Payment is fully paid, now find the local payment record
 
     // Look up local payment record by email
     const { data: localPayment, error: localPaymentError } = await supabaseAdmin
       .from("payments")
       .select("id, email, amount_paid, status, invoice_id")
-      .eq("email", email)
+      .ilike("email", email)
       .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (localPaymentError && localPaymentError.code !== "PGRST116") {
       return {
@@ -375,12 +423,12 @@ export async function verifyPaycashlessPayment(
       };
     }
 
-    // Return the Paycashless data but with the local payment UUID
     return {
       success: true,
       data: {
         ...paycashlessResult.data,
-        payment_id: localPayment.id, // Use local payment UUID instead of Paycashless invoice ID
+        payment_id: localPayment.id,
+        payment_source: "paycashless",
       },
     };
   } catch (error) {

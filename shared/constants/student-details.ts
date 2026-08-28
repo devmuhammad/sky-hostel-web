@@ -26,9 +26,9 @@ export const getStudentDetailSections = (student: {
   faculty?: string;
   level?: string;
   course?: string;
-  block?: string;
-  room?: string;
-  bedspace_label?: string;
+  block?: string | null;
+  room?: string | null;
+  bedspace_label?: string | null;
   next_of_kin_name?: string;
   next_of_kin_phone?: string;
   next_of_kin_email?: string;
