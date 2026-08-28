@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePaymentManagement } from "./hooks/usePaymentManagement";
 import { useManualPaymentCheck } from "./hooks/useManualPaymentCheck";
 import { ManualPaymentChecker } from "./components/ManualPaymentChecker";
 import { PaymentActions } from "./components/PaymentActions";
 import { ManualCheckModal } from "./components/ManualCheckModal";
+import { SponsorPaymentForm } from "./components/SponsorPaymentForm";
 import { DataTable } from "@/shared/components/ui/data-table";
 import { TableLoadingSkeleton } from "@/shared/components/ui/loading-skeleton";
 import { useAppStore } from "@/shared/store/appStore";
@@ -14,6 +16,25 @@ export default function PaymentsPage() {
   const { payments, loading } = useAppStore();
   const paymentManagement = usePaymentManagement();
   const manualCheck = useManualPaymentCheck();
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/users/me");
+        const json = await res.json();
+        if (!cancelled && res.ok && json.success) {
+          setRole(json.data?.role || null);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (loading.payments) {
     return <TableLoadingSkeleton />;
@@ -30,6 +51,8 @@ export default function PaymentsPage() {
             Manage and track all student payments
           </p>
         </div>
+
+        {role === "super_admin" && <SponsorPaymentForm />}
 
         <ManualPaymentChecker
           email={manualCheck.manualEmail}
