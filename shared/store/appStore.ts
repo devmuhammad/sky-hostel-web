@@ -56,6 +56,9 @@ export interface Payment {
   payment_source?: "paycashless" | "sponsored" | "waived";
   waiver_reason?: string | null;
   customer_name?: string | null;
+  session_label?: string | null;
+  invoice_created_at?: string | null;
+  invoice_paid_at?: string | null;
 }
 
 export interface Room {

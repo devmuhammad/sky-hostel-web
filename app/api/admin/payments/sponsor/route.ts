@@ -3,6 +3,7 @@ import { requireRole } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
 import { PAYMENT_CONFIG } from "@/shared/config/constants";
 import { sanitizeEmail } from "@/shared/utils/sanitize";
+import { getCurrentAcademicSession } from "@/shared/config/academic-session";
 
 /**
  * Super admin: waive payment for a sponsored student.
@@ -117,6 +118,7 @@ export async function POST(request: NextRequest) {
           waived_by: admin.id,
           customer_name: customerName || null,
           phone,
+          session_label: getCurrentAcademicSession(),
         })
         .eq("id", pending.id)
         .select()
@@ -158,6 +160,7 @@ export async function POST(request: NextRequest) {
           waiver_reason: reason,
           waived_by: admin.id,
           customer_name: customerName || null,
+          session_label: getCurrentAcademicSession(),
         })
         .select()
         .single();

@@ -111,14 +111,13 @@ export function usePaymentManagement() {
       const response = await fetch("/api/payments/sync-all", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminKey: "admin123" }),
+        body: JSON.stringify({}),
       });
 
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          toast.success("All payments synced successfully");
-          // Refresh payments data
+          toast.success(result.message || "All payments synced successfully");
           const refreshResponse = await fetch("/api/payments", {
             method: "GET",
             headers: { "Content-Type": "application/json" },
@@ -129,12 +128,16 @@ export function usePaymentManagement() {
               setPayments(data.payments);
               useAppStore.getState().setLastDataFetch(Date.now());
             }
+          } else {
+            // Store is often loaded via supabase client; force a soft refresh
+            window.location.reload();
           }
         } else {
           toast.error(result.message || "Failed to sync payments");
         }
       } else {
-        toast.error("Failed to sync payments");
+        const err = await response.json().catch(() => null);
+        toast.error(err?.message || "Failed to sync payments");
       }
     } catch (error) {
       toast.error("Error syncing payments");

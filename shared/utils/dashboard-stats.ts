@@ -1,5 +1,9 @@
 import { createServerSupabaseClient } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
+import {
+  getAcademicSessionForDate,
+  getCurrentAcademicSession,
+} from "@/shared/config/academic-session";
 
 export interface DashboardStats {
   totalStudents: number;
@@ -12,38 +16,43 @@ export interface DashboardStats {
   unresolvedReports: number;
   itemsNeedingRepair: number;
   pendingLogs: number;
+  sessionLabel: string;
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
+export async function getDashboardStats(
+  sessionLabel: string = getCurrentAcademicSession()
+): Promise<DashboardStats> {
   const supabase = supabaseAdmin;
 
   const { count: totalStudents } = await supabase
     .from("students")
-    .select("*", { count: "exact", head: true });
-
-  const { count: totalPayments } = await supabase
-    .from("payments")
-    .select("*", { count: "exact", head: true });
-
-  const { count: completedPayments } = await supabase
-    .from("payments")
     .select("*", { count: "exact", head: true })
-    .eq("status", "completed");
+    .or("is_active.is.null,is_active.eq.true");
 
   const { data: allPayments } = await supabase
     .from("payments")
-    .select("amount_paid, amount_to_pay, status");
+    .select("amount_paid, amount_to_pay, status, session_label, created_at");
+
+  const sessionPayments = (allPayments || []).filter((payment) => {
+    if (payment.session_label) {
+      return payment.session_label === sessionLabel;
+    }
+    if (!payment.created_at) return false;
+    return getAcademicSessionForDate(payment.created_at) === sessionLabel;
+  });
+
+  const totalPayments = sessionPayments.length;
+  const completedPayments = sessionPayments.filter(
+    (p) => p.status === "completed"
+  ).length;
 
   let totalRevenue = 0;
-  if (allPayments) {
-    totalRevenue = allPayments.reduce((sum, payment) => {
-      if (payment.status === "completed") {
-        return sum + (payment.amount_to_pay || 0);
-      } else if (payment.status === "partially_paid") {
-        return sum + (payment.amount_paid || 0);
-      }
-      return sum;
-    }, 0);
+  for (const payment of sessionPayments) {
+    if (payment.status === "completed") {
+      totalRevenue += Number(payment.amount_to_pay) || 0;
+    } else if (payment.status === "partially_paid") {
+      totalRevenue += Number(payment.amount_paid) || 0;
+    }
   }
 
   const { data: rooms } = await supabase
@@ -55,7 +64,6 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     rooms?.reduce((sum, room) => sum + room.available_beds.length, 0) || 0;
   const occupiedBeds = totalBeds - availableBeds;
 
-  // New Module Stats
   const { count: unresolvedReports } = await supabase
     .from("student_reports")
     .select("*", { count: "exact", head: true })
@@ -73,8 +81,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
   return {
     totalStudents: totalStudents || 0,
-    totalPayments: totalPayments || 0,
-    completedPayments: completedPayments || 0,
+    totalPayments,
+    completedPayments,
     totalRevenue,
     occupiedBeds,
     totalBeds,
@@ -83,6 +91,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     unresolvedReports: unresolvedReports || 0,
     itemsNeedingRepair: itemsNeedingRepair || 0,
     pendingLogs: pendingLogs || 0,
+    sessionLabel,
   };
 }
 
@@ -111,6 +120,9 @@ export async function getCurrentUserRole() {
     return null;
   }
 
-  console.log("getCurrentUserRole: Found admin user", { email: user.email, role: adminUser?.role });
+  console.log("getCurrentUserRole: Found admin user", {
+    email: user.email,
+    role: adminUser?.role,
+  });
   return adminUser?.role || null;
 }

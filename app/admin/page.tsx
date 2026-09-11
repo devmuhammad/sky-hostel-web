@@ -53,7 +53,7 @@ async function DashboardStats({ userRole }: { userRole: string }) {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {canViewFinancials && (
         <>
-          <StatsCard
+            <StatsCard
             title="Total Students"
             value={stats.totalStudents}
             change={{ value: 12, type: "increase" }}
@@ -75,7 +75,7 @@ async function DashboardStats({ userRole }: { userRole: string }) {
           />
           {isSuperAdmin && (
             <StatsCard
-              title="Total Revenue"
+              title={`Revenue (${stats.sessionLabel})`}
               value={`₦${stats.totalRevenue.toLocaleString()}`}
               change={{ value: 8.2, type: "increase" }}
               icon={
@@ -96,7 +96,7 @@ async function DashboardStats({ userRole }: { userRole: string }) {
             />
           )}
           <StatsCard
-            title="Total Payments"
+            title={`Payments (${stats.sessionLabel})`}
             value={stats.totalPayments}
             change={{ value: 5.4, type: "increase" }}
             icon={

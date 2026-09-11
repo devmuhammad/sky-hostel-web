@@ -472,6 +472,7 @@ export async function getAllPaycashlessInvoices(params?: {
         name?: string;
       };
       createdAt: string;
+      paidAt?: string | null;
       dueDate: string;
       acceptPartialPayments: boolean;
     }>;
@@ -581,6 +582,7 @@ export async function getAllPaycashlessInvoices(params?: {
             name: extractNameFromMetadata(invoice.metadata),
           },
           createdAt: invoice.createdAt,
+          paidAt: invoice.paidAt || null,
           dueDate: invoice.dueDate,
           acceptPartialPayments: invoice.acceptPartialPayments,
         };

@@ -38,6 +38,9 @@ export const columns = [
           payment.payment_source === "waived") && (
           <div className="text-xs font-medium text-emerald-700">Sponsored</div>
         )}
+        {payment.session_label && (
+          <div className="text-xs text-slate-500">{payment.session_label}</div>
+        )}
       </div>
     ),
   },

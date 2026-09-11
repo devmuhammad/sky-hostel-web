@@ -1,15 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/shared/config/auth";
+import { createServerSupabaseClient, requireRole } from "@/shared/config/auth";
 import { createPaycashlessInvoice } from "@/shared/utils/paycashless";
 import { withRateLimit, rateLimiters } from "@/shared/utils/rate-limit";
 import { PAYMENT_CONFIG } from "@/shared/config/constants";
 import { sanitizeEmail } from "@/shared/utils/sanitize";
+import { getCurrentAcademicSession } from "@/shared/config/academic-session";
+import { supabaseAdmin } from "@/shared/config/supabase";
 
 interface PaymentData {
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    await requireRole(["super_admin", "admin", "porter", "other"]);
+    const { searchParams } = new URL(request.url);
+    const session = searchParams.get("session");
+
+    let query = supabaseAdmin
+      .from("payments")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (session && session !== "all") {
+      query = query.eq("session_label", session);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, payments: data || [] });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
 }
 
 async function handlePOST(request: NextRequest) {
@@ -184,6 +218,8 @@ async function handlePOST(request: NextRequest) {
           invoice_id: invoice.reference,
           paycashless_invoice_id: invoice.id,
           status: "pending",
+          session_label: getCurrentAcademicSession(),
+          payment_source: "paycashless",
         })
         .select()
         .single();
