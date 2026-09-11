@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
-import { RESUMPTION_SESSION } from "@/shared/constants/resumption-documents";
+import { getResumptionSessionLabel } from "@/shared/constants/resumption-documents";
 import { getResumptionChecklistBundle } from "@/shared/utils/resumption-verification";
 
 const STAFF_ROLES = ["super_admin", "admin", "porter", "other"];
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const studentId = searchParams.get("student_id");
     const q = (searchParams.get("q") || "").trim();
     const sessionLabel =
-      searchParams.get("session") || RESUMPTION_SESSION;
+      searchParams.get("session") || (await getResumptionSessionLabel());
 
     if (studentId) {
       const { data: student, error: studentError } = await supabaseAdmin
@@ -111,7 +111,8 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
 
     const studentId = body.student_id as string | undefined;
-    const sessionLabel = (body.session as string) || RESUMPTION_SESSION;
+    const sessionLabel =
+      (body.session as string) || (await getResumptionSessionLabel());
     const status = body.status as "pending" | "cleared" | "denied" | undefined;
     const deniedReason =
       typeof body.denied_reason === "string" ? body.denied_reason : undefined;

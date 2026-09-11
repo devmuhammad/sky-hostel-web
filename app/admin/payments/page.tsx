@@ -23,17 +23,28 @@ export default function PaymentsPage() {
   const manualCheck = useManualPaymentCheck();
   const toast = useToast();
   const [role, setRole] = useState<string | null>(null);
-  const [sessionLabel, setSessionLabel] = useState(getCurrentAcademicSession());
+  const [sessionLabel, setSessionLabel] = useState("all");
+  const [activeSessionLabel, setActiveSessionLabel] = useState(
+    getCurrentAcademicSession()
+  );
   const [isReconciling, setIsReconciling] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/admin/users/me");
-        const json = await res.json();
-        if (!cancelled && res.ok && json.success) {
-          setRole(json.data?.role || null);
+        const [meRes, sessionRes] = await Promise.all([
+          fetch("/api/admin/users/me"),
+          fetch("/api/settings/session"),
+        ]);
+        const meJson = await meRes.json();
+        const sessionJson = await sessionRes.json();
+        if (!cancelled && meRes.ok && meJson.success) {
+          setRole(meJson.data?.role || null);
+        }
+        if (!cancelled && sessionJson.success && sessionJson.data?.label) {
+          setActiveSessionLabel(sessionJson.data.label);
+          setSessionLabel(sessionJson.data.label);
         }
       } catch {
         // ignore
@@ -46,6 +57,7 @@ export default function PaymentsPage() {
 
   const sessionOptions = useMemo(() => {
     const set = new Set<string>([
+      activeSessionLabel,
       getCurrentAcademicSession(),
       "2026/2027",
       "2025/2026",
@@ -58,7 +70,7 @@ export default function PaymentsPage() {
       }
     }
     return Array.from(set).sort().reverse();
-  }, [payments]);
+  }, [payments, activeSessionLabel]);
 
   const filteredPayments = useMemo(() => {
     if (sessionLabel === "all") return payments;

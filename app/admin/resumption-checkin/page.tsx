@@ -1,13 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { LoadingButton } from "@/shared/components/ui/loading-button";
 import { useToast } from "@/shared/hooks/useToast";
-import { RESUMPTION_SESSION } from "@/shared/constants/resumption-documents";
 
 type VerificationStatus = "pending" | "cleared" | "denied";
 
@@ -59,6 +58,7 @@ const STATUS_STYLES: Record<VerificationStatus, string> = {
 
 export default function ResumptionCheckinPage() {
   const toast = useToast();
+  const [sessionLabel, setSessionLabel] = useState("…");
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -68,6 +68,24 @@ export default function ResumptionCheckinPage() {
     Record<string, { present: boolean | null; sold_at_gate: boolean | null }>
   >({});
   const [deniedReason, setDeniedReason] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/settings/session");
+        const json = await res.json();
+        if (!cancelled && json.success && json.data?.label) {
+          setSessionLabel(json.data.label);
+        }
+      } catch {
+        // keep placeholder
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const searchStudents = useCallback(async () => {
     if (query.trim().length < 2) {
@@ -146,7 +164,7 @@ export default function ResumptionCheckinPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           student_id: bundle.student.id,
-          session: RESUMPTION_SESSION,
+          session: sessionLabel,
           status,
           denied_reason: deniedReason,
           item_checks,
@@ -194,7 +212,7 @@ export default function ResumptionCheckinPage() {
           Resumption Check-in
         </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Session {RESUMPTION_SESSION}. Search a student, verify mandatory
+          Session {sessionLabel}. Search a student, verify mandatory
           items at the gate, then grant or deny entry.
         </p>
       </div>

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
-import { PAYMENT_CONFIG } from "@/shared/config/constants";
 import { sanitizeEmail } from "@/shared/utils/sanitize";
-import { getCurrentAcademicSession } from "@/shared/config/academic-session";
+import { getActiveSessionConfig } from "@/shared/utils/active-session";
 
 /**
  * Super admin: waive payment for a sponsored student.
@@ -41,9 +40,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const activeSession = await getActiveSessionConfig(supabaseAdmin);
+    const sessionLabel = activeSession.label;
+    const amount = activeSession.feeAmount;
+
     const { data: existingStudent } = await supabaseAdmin
       .from("students")
-      .select("id, is_active, account_status, email")
+      .select(
+        "id, is_active, account_status, email, bedspace_label, enrollment_session"
+      )
       .ilike("email", email)
       .maybeSingle();
 
@@ -62,20 +67,26 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "This email is already registered as a student. Sponsorship is only for new applicants.",
-        },
-        { status: 400 }
-      );
+      if (
+        existingStudent.bedspace_label ||
+        existingStudent.enrollment_session === sessionLabel
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `This email is already registered for ${sessionLabel}.`,
+          },
+          { status: 400 }
+        );
+      }
+      // Returning student without a current placement — allow sponsorship
     }
 
     const { data: existingPayments } = await supabaseAdmin
       .from("payments")
-      .select("id, status, payment_source, invoice_id")
+      .select("id, status, payment_source, invoice_id, session_label")
       .ilike("email", email)
+      .eq("session_label", sessionLabel)
       .order("created_at", { ascending: false });
 
     const completed = (existingPayments || []).find(
@@ -85,8 +96,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "A completed payment already exists for this email. They can proceed to registration.",
+          error: `A completed ${sessionLabel} payment already exists for this email. They can proceed to registration.`,
           data: { payment_id: completed.id },
         },
         { status: 400 }
@@ -101,7 +111,6 @@ export async function POST(request: NextRequest) {
 
     const customerName = [firstName, lastName].filter(Boolean).join(" ").trim();
     const now = new Date().toISOString();
-    const amount = PAYMENT_CONFIG.amount;
 
     let payment;
 
@@ -118,7 +127,7 @@ export async function POST(request: NextRequest) {
           waived_by: admin.id,
           customer_name: customerName || null,
           phone,
-          session_label: getCurrentAcademicSession(),
+          session_label: sessionLabel,
         })
         .eq("id", pending.id)
         .select()
@@ -160,7 +169,7 @@ export async function POST(request: NextRequest) {
           waiver_reason: reason,
           waived_by: admin.id,
           customer_name: customerName || null,
-          session_label: getCurrentAcademicSession(),
+          session_label: sessionLabel,
         })
         .select()
         .single();

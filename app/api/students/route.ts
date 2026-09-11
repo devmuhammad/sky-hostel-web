@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/shared/config/auth";
 import { withRateLimit, rateLimiters } from "@/shared/utils/rate-limit";
 import { ensureStudentResumptionVerification } from "@/shared/utils/resumption-verification";
+import { getActiveSessionConfig } from "@/shared/utils/active-session";
 
 interface StudentRegistrationData {
   // Personal Information
@@ -79,18 +80,20 @@ async function handlePOST(request: NextRequest) {
 
     console.log("All required fields present, connecting to database...");
     const supabaseAdmin = await createServerSupabaseClient();
+    const activeSessionEarly = await getActiveSessionConfig(supabaseAdmin);
 
     if (data.payment_id) {
       // Check if this looks like a Paycashless invoice ID (starts with 'inv_')
       if (data.payment_id.startsWith("inv_")) {
-        // Look up local payment record by email (since Paycashless invoice ID != our invoice_id)
+        // Look up local payment record by email for the active session
         const { data: paymentExists, error: paymentError } = await supabaseAdmin
           .from("payments")
-          .select("id, email, amount_paid, status, invoice_id")
+          .select("id, email, amount_paid, status, invoice_id, session_label")
           .eq("email", data.email)
+          .eq("session_label", activeSessionEarly.label)
           .order("created_at", { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (paymentError && paymentError.code !== "PGRST116") {
           console.error("Error looking up local payment:", paymentError);
@@ -132,19 +135,124 @@ async function handlePOST(request: NextRequest) {
     }
 
     try {
-      // Check if matric number already exists
+      const activeSession = await getActiveSessionConfig(supabaseAdmin);
+      const sessionLabel = activeSession.label;
+
+      // Require a completed payment for the active session
+      if (data.payment_id) {
+        const { data: sessionPayment, error: sessionPaymentError } =
+          await supabaseAdmin
+            .from("payments")
+            .select("id, status, session_label, email")
+            .eq("id", data.payment_id)
+            .maybeSingle();
+
+        if (sessionPaymentError || !sessionPayment) {
+          return NextResponse.json(
+            { success: false, error: { message: "Invalid payment reference" } },
+            { status: 400 }
+          );
+        }
+
+        if (sessionPayment.status !== "completed") {
+          return NextResponse.json(
+            {
+              success: false,
+              error: {
+                message: "Payment must be completed before registration",
+              },
+            },
+            { status: 400 }
+          );
+        }
+
+        if (
+          sessionPayment.session_label &&
+          sessionPayment.session_label !== sessionLabel
+        ) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: {
+                message: `This payment belongs to session ${sessionPayment.session_label}, not ${sessionLabel}`,
+              },
+            },
+            { status: 400 }
+          );
+        }
+      } else {
+        return NextResponse.json(
+          {
+            success: false,
+            error: { message: "Payment reference is required" },
+          },
+          { status: 400 }
+        );
+      }
+
+      // Existing student lookup (returning vs new)
+      const { data: existingByEmail } = await supabaseAdmin
+        .from("students")
+        .select(
+          "id, is_active, account_status, bedspace_label, enrollment_session, block, room, phone, matric_number"
+        )
+        .eq("email", data.email)
+        .maybeSingle();
+
+      if (
+        existingByEmail &&
+        (existingByEmail.is_active === false ||
+          existingByEmail.account_status === "blacklisted")
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              message:
+                "This email is not eligible for hostel registration. Please contact the hostel office.",
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      const isReturning =
+        Boolean(existingByEmail) &&
+        !existingByEmail!.bedspace_label &&
+        existingByEmail!.enrollment_session !== sessionLabel;
+
+      if (
+        existingByEmail &&
+        (existingByEmail.bedspace_label ||
+          existingByEmail.enrollment_session === sessionLabel)
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              message: `Email address already registered for ${sessionLabel}`,
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      // Matric uniqueness (allow same matric when updating returning student)
       const { data: existingStudent, error: checkError } = await supabaseAdmin
         .from("students")
         .select("id")
         .eq("matric_number", data.matric_number)
-        .single();
+        .maybeSingle();
 
       if (checkError && checkError.code !== "PGRST116") {
         console.error("Error checking existing student:", checkError);
         throw new Error("Error checking existing student");
       }
 
-      if (existingStudent) {
+      if (
+        existingStudent &&
+        (!isReturning || existingStudent.id !== existingByEmail!.id)
+      ) {
         return NextResponse.json(
           {
             success: false,
@@ -154,48 +262,22 @@ async function handlePOST(request: NextRequest) {
         );
       }
 
-      // Check if email already exists
-      const { data: existingEmail, error: emailError } = await supabaseAdmin
-        .from("students")
-        .select("id, is_active, account_status")
-        .eq("email", data.email)
-        .maybeSingle();
-
-      if (emailError && emailError.code !== "PGRST116") {
-        console.error("Error checking existing email:", emailError);
-        throw new Error("Error checking existing email");
-      }
-
-      if (existingEmail) {
-        const blacklisted =
-          existingEmail.is_active === false ||
-          existingEmail.account_status === "blacklisted";
-        return NextResponse.json(
-          {
-            success: false,
-            error: {
-              message: blacklisted
-                ? "This email is not eligible for hostel registration. Please contact the hostel office."
-                : "Email address already registered",
-            },
-          },
-          { status: 400 }
-        );
-      }
-
-      // Check if phone already exists
+      // Phone uniqueness
       const { data: existingPhone, error: phoneError } = await supabaseAdmin
         .from("students")
         .select("id")
         .eq("phone", data.phone)
-        .single();
+        .maybeSingle();
 
       if (phoneError && phoneError.code !== "PGRST116") {
         console.error("Error checking existing phone:", phoneError);
         throw new Error("Error checking existing phone");
       }
 
-      if (existingPhone) {
+      if (
+        existingPhone &&
+        (!isReturning || existingPhone.id !== existingByEmail!.id)
+      ) {
         return NextResponse.json(
           {
             success: false,
@@ -267,76 +349,150 @@ async function handlePOST(request: NextRequest) {
         throw new Error("Failed to update room availability");
       }
 
-      // Create student record with all new fields
-      const { data: student, error: studentError } = await supabaseAdmin
-        .from("students")
-        .insert({
-          // Personal Information
-          first_name: data.first_name,
-          last_name: data.last_name,
-          email: data.email,
-          phone: data.phone,
-          date_of_birth: data.date_of_birth,
-          address: data.address,
-          state_of_origin: data.state_of_origin,
-          lga: data.lga,
-          marital_status: data.marital_status,
-          religion: data.religion,
-          weight: data.weight,
+      const studentPayload = {
+        first_name: data.first_name,
+        last_name: data.last_name,
+        email: data.email,
+        phone: data.phone,
+        date_of_birth: data.date_of_birth,
+        address: data.address,
+        state_of_origin: data.state_of_origin,
+        lga: data.lga,
+        marital_status: data.marital_status,
+        religion: data.religion,
+        weight: data.weight,
+        matric_number: data.matric_number,
+        course: data.course,
+        level: data.level,
+        faculty: data.faculty,
+        department: data.department,
+        next_of_kin_name: data.next_of_kin_name,
+        next_of_kin_phone: data.next_of_kin_phone,
+        next_of_kin_email: data.next_of_kin_email,
+        next_of_kin_relationship: data.next_of_kin_relationship,
+        block: data.block,
+        room: data.room,
+        bedspace_label: data.bedspace_label,
+        payment_id: data.payment_id,
+        passport_photo_url: data.passport_photo_url,
+        enrollment_session: sessionLabel,
+        is_active: true,
+        account_status: "active",
+      };
 
-          // Academic Information
-          matric_number: data.matric_number,
-          course: data.course,
-          level: data.level,
-          faculty: data.faculty,
-          department: data.department,
+      let student: { id: string } | null = null;
 
-          // Next of Kin Information
-          next_of_kin_name: data.next_of_kin_name,
-          next_of_kin_phone: data.next_of_kin_phone,
-          next_of_kin_email: data.next_of_kin_email,
-          next_of_kin_relationship: data.next_of_kin_relationship,
+      if (isReturning && existingByEmail) {
+        const { data: updated, error: updateError } = await supabaseAdmin
+          .from("students")
+          .update(studentPayload)
+          .eq("id", existingByEmail.id)
+          .select("id")
+          .single();
 
-          // Accommodation
-          block: data.block,
-          room: data.room,
-          bedspace_label: data.bedspace_label,
+        if (updateError) {
+          // Retry without enrollment_session if column missing
+          if (
+            updateError.code === "PGRST204" ||
+            updateError.message?.includes("enrollment_session")
+          ) {
+            const { enrollment_session: _ignored, ...withoutSession } =
+              studentPayload;
+            const { data: fallbackUpdated, error: fallbackError } =
+              await supabaseAdmin
+                .from("students")
+                .update(withoutSession)
+                .eq("id", existingByEmail.id)
+                .select("id")
+                .single();
+            if (fallbackError) {
+              console.error("Student re-enroll error:", fallbackError);
+              throw new Error("Failed to update returning student");
+            }
+            student = fallbackUpdated;
+          } else {
+            console.error("Student re-enroll error:", updateError);
+            throw new Error("Failed to update returning student");
+          }
+        } else {
+          student = updated;
+        }
 
-          // System Information
-          payment_id: data.payment_id,
+        await supabaseAdmin.from("activity_logs").insert({
+          action: "student_reenrolled",
+          resource_type: "student",
+          resource_id: student!.id,
+          metadata: {
+            session_label: sessionLabel,
+            block: data.block,
+            room: data.room,
+            bedspace: data.bedspace_label,
+            payment_id: data.payment_id,
+            full_name: `${data.first_name} ${data.last_name}`,
+          },
+        });
+      } else {
+        const { data: created, error: studentError } = await supabaseAdmin
+          .from("students")
+          .insert(studentPayload)
+          .select("id")
+          .single();
 
-          // File Storage
-          passport_photo_url: data.passport_photo_url,
-        })
-        .select()
-        .single();
+        if (studentError) {
+          if (
+            studentError.code === "PGRST204" ||
+            studentError.message?.includes("enrollment_session")
+          ) {
+            const { enrollment_session: _ignored, ...withoutSession } =
+              studentPayload;
+            const { data: fallbackCreated, error: fallbackError } =
+              await supabaseAdmin
+                .from("students")
+                .insert(withoutSession)
+                .select("id")
+                .single();
+            if (fallbackError) {
+              console.error("Student creation error:", fallbackError);
+              throw new Error("Failed to create student record");
+            }
+            student = fallbackCreated;
+          } else {
+            console.error("Student creation error:", studentError);
+            throw new Error("Failed to create student record");
+          }
+        } else {
+          student = created;
+        }
 
-      if (studentError) {
-        console.error("Student creation error:", studentError);
-        throw new Error("Failed to create student record");
+        await supabaseAdmin.from("activity_logs").insert({
+          action: "student_registered",
+          resource_type: "student",
+          resource_id: student!.id,
+          metadata: {
+            session_label: sessionLabel,
+            block: data.block,
+            room: data.room,
+            bedspace: data.bedspace_label,
+            payment_id: data.payment_id,
+            full_name: `${data.first_name} ${data.last_name}`,
+          },
+        });
       }
 
-      // Log the registration activity
-      await supabaseAdmin.from("activity_logs").insert({
-        action: "student_registered",
-        resource_type: "student",
-        resource_id: student.id,
-        metadata: {
-          block: data.block,
-          room: data.room,
-          bedspace: data.bedspace_label,
-          payment_id: data.payment_id,
-          full_name: `${data.first_name} ${data.last_name}`,
-        },
-      });
-
-      await ensureStudentResumptionVerification(supabaseAdmin, student.id);
+      await ensureStudentResumptionVerification(
+        supabaseAdmin,
+        student!.id,
+        sessionLabel
+      );
 
       return NextResponse.json({
         success: true,
         data: {
-          student_id: student.id,
-          message: "Registration successful",
+          student_id: student!.id,
+          message: isReturning
+            ? "Re-enrollment successful"
+            : "Registration successful",
+          session_label: sessionLabel,
         },
       });
     } catch (error: unknown) {

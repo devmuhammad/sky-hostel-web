@@ -9,6 +9,7 @@ import { supabaseAdmin } from "@/shared/config/supabase";
 
 import { paycashlessConfig } from "@/shared/config/env";
 import { PAYMENT_CONFIG } from "@/shared/config/constants";
+import { getActiveSessionConfig } from "@/shared/utils/active-session";
 
 const PAYCASHLESS_API_URL = paycashlessConfig.apiUrl;
 const PAYCASHLESS_API_KEY = paycashlessConfig.apiKey;
@@ -160,7 +161,8 @@ export async function createPaycashlessInvoice(
 
 export async function getPaycashlessPaymentStatus(
   email: string,
-  phone?: string
+  phone?: string,
+  expectedAmount: number = PAYMENT_CONFIG.amount
 ): Promise<{
   success: boolean;
   data?: {
@@ -178,6 +180,11 @@ export async function getPaycashlessPaymentStatus(
   };
   error?: string;
 }> {
+  const dueAmount =
+    Number.isFinite(expectedAmount) && expectedAmount > 0
+      ? expectedAmount
+      : PAYMENT_CONFIG.amount;
+
   try {
     if (!PAYCASHLESS_API_KEY || !PAYCASHLESS_API_SECRET) {
       throw new Error("Paycashless API credentials are not configured");
@@ -215,7 +222,7 @@ export async function getPaycashlessPaymentStatus(
         success: true,
         data: {
           totalPaid: 0,
-          remainingAmount: PAYMENT_CONFIG.amount,
+          remainingAmount: dueAmount,
           isFullyPaid: false,
           payment_id: undefined,
           payments: [],
@@ -262,14 +269,14 @@ export async function getPaycashlessPaymentStatus(
       }
     });
 
-    const remainingAmount = Math.max(0, PAYMENT_CONFIG.amount - totalPaid);
-    const isFullyPaid = totalPaid >= PAYMENT_CONFIG.amount;
+    const remainingAmount = Math.max(0, dueAmount - totalPaid);
+    const isFullyPaid = totalPaid >= dueAmount;
 
     // If not fully paid, return error
     if (!isFullyPaid && totalPaid > 0) {
       return {
         success: false,
-        error: `Payment incomplete. You have paid ₦${totalPaid.toLocaleString()} out of ₦${PAYMENT_CONFIG.amount.toLocaleString()}. Please complete your payment before registering.`,
+        error: `Payment incomplete. You have paid ₦${totalPaid.toLocaleString()} out of ₦${dueAmount.toLocaleString()}. Please complete your payment before registering.`,
       };
     }
 
@@ -316,10 +323,16 @@ export async function verifyPaycashlessPayment(
   error?: string;
 }> {
   try {
+    const activeSession = await getActiveSessionConfig(supabaseAdmin);
+    const sessionLabel = activeSession.label;
+    const feeAmount = activeSession.feeAmount;
+
     // First, check if a student with this email already exists
     const { data: existingStudent, error: studentError } = await supabaseAdmin
       .from("students")
-      .select("id, email, first_name, last_name, is_active, account_status")
+      .select(
+        "id, email, first_name, last_name, is_active, account_status, bedspace_label, enrollment_session"
+      )
       .ilike("email", email)
       .maybeSingle();
 
@@ -339,32 +352,40 @@ export async function verifyPaycashlessPayment(
         };
       }
 
-      return {
-        success: false,
-        error: `A student with email ${email} is already registered. Please contact support if you need assistance.`,
-      };
+      const alreadyPlaced = Boolean(existingStudent.bedspace_label);
+      const enrolledThisSession =
+        existingStudent.enrollment_session === sessionLabel;
+
+      if (alreadyPlaced || enrolledThisSession) {
+        return {
+          success: false,
+          error: `A student with email ${email} is already registered for ${sessionLabel}. Please contact support if you need assistance.`,
+        };
+      }
+      // Returning student without a current bed — allow verify with this session's payment
     }
 
-    // Sponsored / waived: trust a completed local payment without Paycashless
+    // Sponsored / waived: trust a completed local payment for the active session
     const { data: localCompleted, error: localCompletedError } =
       await supabaseAdmin
         .from("payments")
         .select(
-          "id, email, amount_paid, amount_to_pay, status, invoice_id, payment_source, paid_at"
+          "id, email, amount_paid, amount_to_pay, status, invoice_id, payment_source, paid_at, session_label"
         )
         .ilike("email", email)
         .eq("status", "completed")
+        .eq("session_label", sessionLabel)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
     if (localCompletedError && localCompletedError.code !== "PGRST116") {
-      // Column may be missing before migration 13 — fall through to Paycashless
+      // Column may be missing before migration 13/14 — fall through to Paycashless
       console.warn("Local completed payment lookup:", localCompletedError);
     }
 
     if (localCompleted) {
-      const totalPaid = Number(localCompleted.amount_paid) || PAYMENT_CONFIG.amount;
+      const totalPaid = Number(localCompleted.amount_paid) || feeAmount;
       return {
         success: true,
         data: {
@@ -387,7 +408,11 @@ export async function verifyPaycashlessPayment(
     }
 
     // Call the actual Paycashless API to get real payment data
-    const paycashlessResult = await getPaycashlessPaymentStatus(email, phone);
+    const paycashlessResult = await getPaycashlessPaymentStatus(
+      email,
+      phone,
+      feeAmount
+    );
 
     if (!paycashlessResult.success) {
       return {
@@ -400,11 +425,12 @@ export async function verifyPaycashlessPayment(
       return paycashlessResult;
     }
 
-    // Look up local payment record by email
+    // Look up local payment record for this session
     const { data: localPayment, error: localPaymentError } = await supabaseAdmin
       .from("payments")
-      .select("id, email, amount_paid, status, invoice_id")
+      .select("id, email, amount_paid, status, invoice_id, session_label")
       .ilike("email", email)
+      .eq("session_label", sessionLabel)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -419,7 +445,7 @@ export async function verifyPaycashlessPayment(
     if (!localPayment) {
       return {
         success: false,
-        error: "No payment record found for this email",
+        error: `No ${sessionLabel} payment record found for this email`,
       };
     }
 

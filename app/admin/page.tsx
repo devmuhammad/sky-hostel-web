@@ -16,6 +16,7 @@ import {
 import { createServerSupabaseClient } from "@/shared/config/auth";
 import { Database } from "@/shared/types/database";
 import { RegistrationStatusToggle } from "@/features/dashboard/components/RegistrationStatusToggle";
+import { OpenAcademicSessionCard } from "@/features/dashboard/components/OpenAcademicSessionCard";
 import { PAYMENT_CONFIG } from "@/shared/config/constants";
 
 type Student = Database["public"]["Tables"]["students"]["Row"];
@@ -289,6 +290,7 @@ export default async function AdminDashboard() {
   const canViewFinancials = ["super_admin", "admin", "hostel_manager", "accountant"].includes(userRole);
   const canManageUsers = ["super_admin"].includes(userRole);
   const canToggleRegistration = ["super_admin", "admin"].includes(userRole);
+  const canOpenSession = userRole === "super_admin";
 
   return (
     <div className="p-4 lg:p-6 pb-8 lg:pb-12">
@@ -298,6 +300,8 @@ export default async function AdminDashboard() {
 
         {/* Registration Open/Closed */}
         <RegistrationStatusToggle canToggle={canToggleRegistration} />
+
+        <OpenAcademicSessionCard canManage={canOpenSession} />
 
         {/* Stats Cards */}
         <Suspense fallback={<CardLoadingSkeleton cards={4} />}>

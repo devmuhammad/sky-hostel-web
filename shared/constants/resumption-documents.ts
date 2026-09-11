@@ -1,4 +1,13 @@
+import { getActiveSessionConfig } from "@/shared/utils/active-session";
+import { supabaseAdmin } from "@/shared/config/supabase";
+
+/** Fallback when settings are unavailable (keep in sync with migration 15 seed). */
 export const RESUMPTION_SESSION = "2026/2027";
+
+export async function getResumptionSessionLabel(): Promise<string> {
+  const session = await getActiveSessionConfig(supabaseAdmin);
+  return session.label || RESUMPTION_SESSION;
+}
 
 export const RESUMPTION_DOCUMENTS = [
   {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedStudent } from "@/shared/server/student-auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
-import { RESUMPTION_SESSION } from "@/shared/constants/resumption-documents";
+import { getResumptionSessionLabel } from "@/shared/constants/resumption-documents";
 import { getResumptionChecklistBundle } from "@/shared/utils/resumption-verification";
 
 export async function GET() {
@@ -16,16 +16,17 @@ export async function GET() {
     }
 
     try {
+      const sessionLabel = await getResumptionSessionLabel();
       const bundle = await getResumptionChecklistBundle(
         supabaseAdmin,
         authStudent.student.id,
-        RESUMPTION_SESSION
+        sessionLabel
       );
 
       return NextResponse.json({
         success: true,
         data: {
-          session_label: RESUMPTION_SESSION,
+          session_label: sessionLabel,
           room: {
             block: authStudent.student.block,
             room: authStudent.student.room,

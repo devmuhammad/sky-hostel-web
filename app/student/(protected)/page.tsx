@@ -11,7 +11,6 @@ import { useToast } from "@/shared/hooks/useToast";
 import { createClientSupabaseClient } from "@/shared/config/auth";
 import {
   RESUMPTION_DOCUMENTS,
-  RESUMPTION_SESSION,
 } from "@/shared/constants/resumption-documents";
 
 type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
@@ -487,7 +486,7 @@ export default function StudentPortalPage() {
                   Resumption clearance
                 </h3>
                 <p className="mt-1 text-sm text-amber-900">
-                  Session {RESUMPTION_SESSION}. Print your documents and present
+                  Session {resumption?.session_label || "…"}. Print your documents and present
                   them at the gate.
                 </p>
               </div>

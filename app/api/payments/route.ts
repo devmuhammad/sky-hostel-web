@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient, requireRole } from "@/shared/config/auth";
 import { createPaycashlessInvoice } from "@/shared/utils/paycashless";
 import { withRateLimit, rateLimiters } from "@/shared/utils/rate-limit";
-import { PAYMENT_CONFIG } from "@/shared/config/constants";
 import { sanitizeEmail } from "@/shared/utils/sanitize";
-import { getCurrentAcademicSession } from "@/shared/config/academic-session";
+import { getActiveSessionConfig } from "@/shared/utils/active-session";
 import { supabaseAdmin } from "@/shared/config/supabase";
 
 interface PaymentData {
@@ -63,10 +62,11 @@ async function handlePOST(request: NextRequest) {
     // Normalize email to lowercase to prevent case sensitivity issues
     const normalizedEmail = sanitizeEmail(data.email);
 
-    // Fixed amount for hostel accommodation
-    const amount = PAYMENT_CONFIG.amount;
-
     const supabaseAdmin = await createServerSupabaseClient();
+    const activeSession = await getActiveSessionConfig(supabaseAdmin);
+    const amount = activeSession.feeAmount;
+    const amountInKobo = Math.round(amount * 100);
+    const sessionLabel = activeSession.label;
 
     // Hard server-side stop: don't allow new invoices while an admin has
     // marked registration as closed, even if someone bypasses the UI.
@@ -89,10 +89,12 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
-    // Block blacklisted students from creating new invoices
+    // Block blacklisted / already-placed students from creating new invoices
     const { data: existingStudent } = await supabaseAdmin
       .from("students")
-      .select("id, is_active, account_status")
+      .select(
+        "id, is_active, account_status, bedspace_label, enrollment_session"
+      )
       .ilike("email", normalizedEmail)
       .maybeSingle();
 
@@ -113,11 +115,28 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
-    // Check if a payment already exists for this email (using normalized email)
+    if (
+      existingStudent &&
+      (existingStudent.bedspace_label ||
+        existingStudent.enrollment_session === sessionLabel)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            message: `This email is already registered for ${sessionLabel}.`,
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    // Check payments for this email in the active session only
     const { data: existingPayments, error: checkError } = await supabaseAdmin
       .from("payments")
-      .select("id, status, created_at, invoice_id, payment_source")
+      .select("id, status, created_at, invoice_id, payment_source, session_label")
       .eq("email", normalizedEmail)
+      .eq("session_label", sessionLabel)
       .order("created_at", { ascending: false });
 
     if (existingPayments && existingPayments.length > 0 && !checkError) {
@@ -133,8 +152,8 @@ async function handlePOST(request: NextRequest) {
             success: false,
             error: {
               message: sponsored
-                ? `Payment for this email has already been waived/sponsored. Go to registration to pick a room.`
-                : `A payment has already been completed for this email (${normalizedEmail}). Please contact support if you need assistance.`,
+                ? `Payment for ${sessionLabel} has already been waived/sponsored. Go to registration to pick a room.`
+                : `A payment for session ${sessionLabel} has already been completed for this email (${normalizedEmail}). Please contact support if you need assistance.`,
             },
           },
           { status: 400 }
@@ -148,7 +167,7 @@ async function handlePOST(request: NextRequest) {
           {
             success: false,
             error: {
-              message: `A payment already exists for this email (${normalizedEmail}). Please complete your existing payment before creating a new one.`,
+              message: `A ${sessionLabel} payment already exists for this email (${normalizedEmail}). Please complete your existing payment before creating a new one.`,
             },
           },
           { status: 400 }
@@ -181,8 +200,8 @@ async function handlePOST(request: NextRequest) {
         items: [
           {
             name: "Hostel Accommodation Fee",
-            description: "Annual accommodation fee for Sky Student Hostel",
-            price: PAYMENT_CONFIG.amountInKobo, // Amount in kobo
+            description: `Annual accommodation fee for Sky Student Hostel (${sessionLabel})`,
+            price: amountInKobo, // Amount in kobo
             quantity: 1,
           },
         ],
@@ -218,7 +237,7 @@ async function handlePOST(request: NextRequest) {
           invoice_id: invoice.reference,
           paycashless_invoice_id: invoice.id,
           status: "pending",
-          session_label: getCurrentAcademicSession(),
+          session_label: sessionLabel,
           payment_source: "paycashless",
         })
         .select()

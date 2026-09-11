@@ -1,9 +1,7 @@
 import { createServerSupabaseClient } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
-import {
-  getAcademicSessionForDate,
-  getCurrentAcademicSession,
-} from "@/shared/config/academic-session";
+import { getAcademicSessionForDate } from "@/shared/config/academic-session";
+import { getActiveSessionConfig } from "@/shared/utils/active-session";
 
 export interface DashboardStats {
   totalStudents: number;
@@ -20,9 +18,13 @@ export interface DashboardStats {
 }
 
 export async function getDashboardStats(
-  sessionLabel: string = getCurrentAcademicSession()
+  sessionLabel?: string
 ): Promise<DashboardStats> {
   const supabase = supabaseAdmin;
+  const active = sessionLabel
+    ? { label: sessionLabel }
+    : await getActiveSessionConfig(supabase);
+  const resolvedSession = active.label;
 
   const { count: totalStudents } = await supabase
     .from("students")
@@ -35,10 +37,10 @@ export async function getDashboardStats(
 
   const sessionPayments = (allPayments || []).filter((payment) => {
     if (payment.session_label) {
-      return payment.session_label === sessionLabel;
+      return payment.session_label === resolvedSession;
     }
     if (!payment.created_at) return false;
-    return getAcademicSessionForDate(payment.created_at) === sessionLabel;
+    return getAcademicSessionForDate(payment.created_at) === resolvedSession;
   });
 
   const totalPayments = sessionPayments.length;
@@ -91,7 +93,7 @@ export async function getDashboardStats(
     unresolvedReports: unresolvedReports || 0,
     itemsNeedingRepair: itemsNeedingRepair || 0,
     pendingLogs: pendingLogs || 0,
-    sessionLabel,
+    sessionLabel: resolvedSession,
   };
 }
 
