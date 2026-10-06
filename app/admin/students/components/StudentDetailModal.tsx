@@ -22,7 +22,7 @@ export function StudentDetailModal({
   onClose,
 }: StudentDetailModalProps) {
   const toast = useToast();
-  const { updateStudent } = useAppStore();
+  const { updateStudent, students } = useAppStore();
   const [activeTab, setActiveTab] = useState<"overview" | "behaviour">(
     "overview"
   );
@@ -49,11 +49,15 @@ export function StudentDetailModal({
     };
   }, []);
 
-  if (!student) return null;
+  const liveStudent =
+    (student && students.find((s) => s.id === student.id)) || student;
+
+  if (!liveStudent) return null;
 
   const isSuperAdmin = role === "super_admin";
   const isBlacklisted =
-    student.is_active === false || student.account_status === "blacklisted";
+    liveStudent.is_active === false ||
+    liveStudent.account_status === "blacklisted";
 
   const handleBlacklist = async () => {
     if (reason.trim().length < 5) {
@@ -63,18 +67,21 @@ export function StudentDetailModal({
 
     setIsBlacklisting(true);
     try {
-      const res = await fetch(`/api/admin/students/${student.id}/blacklist`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: reason.trim() }),
-      });
+      const res = await fetch(
+        `/api/admin/students/${liveStudent.id}/blacklist`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: reason.trim() }),
+        }
+      );
       const json = await res.json();
       if (!res.ok || !json.success) {
         throw new Error(json.error || "Failed to blacklist student");
       }
 
       if (json.data?.student) {
-        updateStudent(student.id, json.data.student);
+        updateStudent(liveStudent.id, json.data.student);
       }
       toast.success(
         json.data?.message ||
@@ -99,7 +106,7 @@ export function StudentDetailModal({
           setActiveTab("overview");
           setShowBlacklist(false);
         }}
-        title={`Student Details - ${student.first_name} ${student.last_name}`}
+        title={`Student Details - ${liveStudent.first_name} ${liveStudent.last_name}`}
         size="lg"
       >
         <div className="border-b border-gray-200 mb-6">
@@ -134,7 +141,7 @@ export function StudentDetailModal({
         </div>
 
         <div className="mt-4 space-y-4">
-          {(isBlacklisted || student.account_status) && (
+          {(isBlacklisted || liveStudent.account_status) && (
             <div
               className={`rounded-lg border px-3 py-2 text-sm ${
                 isBlacklisted
@@ -144,26 +151,27 @@ export function StudentDetailModal({
             >
               Status:{" "}
               <strong>
-                {(student.account_status || "active").replace("_", " ")}
+                {(liveStudent.account_status || "active").replace("_", " ")}
               </strong>
-              {student.previous_room && (
+              {liveStudent.previous_room && (
                 <span className="ml-2 text-xs">
-                  (was Room {student.previous_block}
-                  {student.previous_room} · {student.previous_bedspace_label})
+                  (was Room {liveStudent.previous_block}
+                  {liveStudent.previous_room} ·{" "}
+                  {liveStudent.previous_bedspace_label})
                 </span>
               )}
-              {student.deactivation_reason && (
+              {liveStudent.deactivation_reason && (
                 <p className="mt-1 text-xs">
-                  Reason: {student.deactivation_reason}
+                  Reason: {liveStudent.deactivation_reason}
                 </p>
               )}
             </div>
           )}
 
           {activeTab === "overview" ? (
-            <DetailGrid sections={getStudentDetailSections(student)} />
+            <DetailGrid sections={getStudentDetailSections(liveStudent)} />
           ) : (
-            <ReportTimeline studentId={student.id} />
+            <ReportTimeline studentId={liveStudent.id} />
           )}
 
           {isSuperAdmin && !isBlacklisted && (

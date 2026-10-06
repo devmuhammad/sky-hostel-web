@@ -46,6 +46,9 @@ interface RoomSelectionWizardProps {
     weight: number;
     [key: string]: any;
   };
+  /** When reassigning, treat this student's current bed as selectable. */
+  excludeStudentId?: string;
+  confirmLabel?: string;
 }
 
 const ROOM_TYPES: RoomType[] = [
@@ -69,6 +72,8 @@ export function RoomSelectionWizard({
   onComplete,
   onBack,
   studentData,
+  excludeStudentId,
+  confirmLabel = "Continue",
 }: RoomSelectionWizardProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedRoomType, setSelectedRoomType] = useState<RoomType | null>(
@@ -102,7 +107,8 @@ export function RoomSelectionWizard({
   const availableRooms = getRoomsWithAvailableBedspaces(
     databaseRooms,
     students,
-    studentData?.weight
+    studentData?.weight,
+    excludeStudentId
   );
   const availableRoomsCount = availableRooms.length;
 
@@ -424,7 +430,8 @@ export function RoomSelectionWizard({
               getAvailableBedspacesForRoom(
                 selectedRoom,
                 students,
-                studentData?.weight
+                studentData?.weight,
+                excludeStudentId
               ).length
             }{" "}
             bed(s) available in this room
@@ -439,7 +446,8 @@ export function RoomSelectionWizard({
           const availableBedspaces = getAvailableBedspacesForRoom(
             selectedRoom,
             students,
-            studentData?.weight
+            studentData?.weight,
+            excludeStudentId
           );
 
           if (availableBedspaces.length === 0) {
@@ -527,7 +535,7 @@ export function RoomSelectionWizard({
             Back
           </Button>
           <Button onClick={handleContinue} disabled={!selectedBedspace}>
-            Continue
+            {confirmLabel}
           </Button>
         </div>
       </div>

@@ -44,12 +44,10 @@ export function getStudentInBed(
 export function isBedActuallyAvailable(
   room: RoomData,
   bedLabel: string,
-  students: StudentData[]
+  students: StudentData[],
+  excludeStudentId?: string
 ): boolean {
-  // Check if bed is in the available_beds array
-  const isInAvailableBeds = room.available_beds.includes(bedLabel);
-
-  // Check if any student is assigned to this bed
+  // Check if any other student is assigned to this bed
   const studentInBed = getStudentInBed(
     students,
     room.block,
@@ -57,14 +55,24 @@ export function isBedActuallyAvailable(
     bedLabel
   );
 
-  // Bed is available only if it's in available_beds AND no student is assigned
-  return isInAvailableBeds && !studentInBed;
+  if (studentInBed && studentInBed.id !== excludeStudentId) {
+    return false;
+  }
+
+  // Current occupant's own bed counts as selectable when reassigning them,
+  // even though it is not listed in available_beds.
+  if (studentInBed && studentInBed.id === excludeStudentId) {
+    return true;
+  }
+
+  return room.available_beds.includes(bedLabel);
 }
 
 export function getAvailableBedspacesForRoom(
   room: RoomData,
   students: StudentData[],
-  studentWeight?: number
+  studentWeight?: number,
+  excludeStudentId?: string
 ): Bedspace[] {
   const is6BedRoom = room.bed_type === "6_bed";
 
@@ -108,7 +116,8 @@ export function getAvailableBedspacesForRoom(
       const isTopAvailable = isBedActuallyAvailable(
         room,
         topBedLabel,
-        students
+        students,
+        excludeStudentId
       );
       const canUseTop = !studentWeight || studentWeight <= 60;
 
@@ -127,7 +136,8 @@ export function getAvailableBedspacesForRoom(
       const isBottomAvailable = isBedActuallyAvailable(
         room,
         bottomBedLabel,
-        students
+        students,
+        excludeStudentId
       );
 
       if (isBottomAvailable) {
@@ -149,13 +159,15 @@ export function getAvailableBedspacesForRoom(
 export function getRoomsWithAvailableBedspaces(
   rooms: RoomData[],
   students: StudentData[],
-  studentWeight?: number
+  studentWeight?: number,
+  excludeStudentId?: string
 ): RoomData[] {
   return rooms.filter((room) => {
     const availableBedspaces = getAvailableBedspacesForRoom(
       room,
       students,
-      studentWeight
+      studentWeight,
+      excludeStudentId
     );
     return availableBedspaces.length > 0;
   });
