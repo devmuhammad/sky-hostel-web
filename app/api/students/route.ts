@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/shared/config/auth";
 import { withRateLimit, rateLimiters } from "@/shared/utils/rate-limit";
 import { ensureStudentResumptionVerification } from "@/shared/utils/resumption-verification";
 import { getActiveSessionConfig } from "@/shared/utils/active-session";
+import { restoreBedspaceById } from "@/shared/utils/room-beds";
 
 interface StudentRegistrationData {
   // Personal Information
@@ -133,6 +134,9 @@ async function handlePOST(request: NextRequest) {
         );
       }
     }
+
+    let bedClaimed = false;
+    let studentSaved = false;
 
     try {
       const activeSession = await getActiveSessionConfig(supabaseAdmin);
@@ -348,6 +352,7 @@ async function handlePOST(request: NextRequest) {
         console.error("Error updating room availability:", updateRoomError);
         throw new Error("Failed to update room availability");
       }
+      bedClaimed = true;
 
       const studentPayload = {
         first_name: data.first_name,
@@ -478,6 +483,7 @@ async function handlePOST(request: NextRequest) {
           },
         });
       }
+      studentSaved = true;
 
       await ensureStudentResumptionVerification(
         supabaseAdmin,
@@ -497,6 +503,20 @@ async function handlePOST(request: NextRequest) {
       });
     } catch (error: unknown) {
       console.error("Registration error:", error);
+      if (bedClaimed && !studentSaved) {
+        const release = await restoreBedspaceById(supabaseAdmin, {
+          roomId: data.room_id,
+          bedspace_label: data.bedspace_label,
+        });
+        if (!release.released) {
+          console.error(
+            "Failed to restore bedspace after registration error:",
+            data.room_id,
+            data.bedspace_label,
+            release.error
+          );
+        }
+      }
       throw error;
     }
   } catch (error: unknown) {

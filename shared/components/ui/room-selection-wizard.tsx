@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "./button";
 import { useRoomSelectionData } from "@/shared/hooks/useRoomSelectionData";
 import {
+  countSelectableBedspaces,
   getAvailableBedspacesForRoom,
   getRoomsWithAvailableBedspaces,
 } from "@/shared/utils/roomSelectionUtils";
@@ -111,6 +112,7 @@ export function RoomSelectionWizard({
     excludeStudentId
   );
   const availableRoomsCount = availableRooms.length;
+  const selectableRoomIds = new Set(availableRooms.map((room) => room.id));
 
   // Loading state
   if (loading) {
@@ -168,6 +170,7 @@ export function RoomSelectionWizard({
   };
 
   const handleBedspaceSelect = (bedspace: Bedspace) => {
+    if (!bedspace.available) return;
     setSelectedBedspace(bedspace);
   };
 
@@ -253,7 +256,7 @@ export function RoomSelectionWizard({
               />
             </svg>
             <span className="text-gray-700">
-              {availableRoomsCount} rooms available with at least 2 spaces left
+              {availableRoomsCount} rooms with space available
             </span>
           </div>
           <Button
@@ -377,7 +380,7 @@ export function RoomSelectionWizard({
                 ) : (
                   <div className="grid grid-cols-5 gap-2 max-h-60 overflow-y-auto">
                     {typeRooms.map((room) => {
-                      const isAvailable = room.available_beds.length > 0;
+                      const isAvailable = selectableRoomIds.has(room.id);
                       return (
                         <button
                           key={room.id}
@@ -413,6 +416,15 @@ export function RoomSelectionWizard({
 
   // Step 3: Bedspace Selection
   if (currentStep === 3 && selectedRoom) {
+    const availableBedspaces = getAvailableBedspacesForRoom(
+      selectedRoom,
+      students,
+      studentData?.weight,
+      excludeStudentId
+    );
+    const freeCount = availableBedspaces.length;
+    const selectableCount = countSelectableBedspaces(availableBedspaces);
+
     return (
       <div className="max-w-4xl mx-auto p-6">
         <h2 className="text-2xl font-bold mb-2">BEDSPACES</h2>
@@ -426,31 +438,19 @@ export function RoomSelectionWizard({
             Available Bed Spaces
           </h3>
           <p className="text-sm text-blue-700">
-            {
-              getAvailableBedspacesForRoom(
-                selectedRoom,
-                students,
-                studentData?.weight,
-                excludeStudentId
-              ).length
-            }{" "}
-            bed(s) available in this room
+            {freeCount} bed(s) free in this room
+            {selectableCount < freeCount &&
+              `, ${selectableCount} available for you`}
           </p>
-          <p className="text-xs text-blue-600 mt-2">
-            Only truly available beds are shown (considers student assignments)
-          </p>
+          {selectableCount < freeCount && (
+            <p className="text-xs text-blue-600 mt-2">
+              Some top bunks are unavailable because of the weight limit.
+            </p>
+          )}
         </div>
 
-        {/* Get truly available bedspaces (considers student assignments) */}
         {(() => {
-          const availableBedspaces = getAvailableBedspacesForRoom(
-            selectedRoom,
-            students,
-            studentData?.weight,
-            excludeStudentId
-          );
-
-          if (availableBedspaces.length === 0) {
+          if (selectableCount === 0) {
             return (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <h3 className="font-semibold text-red-800 mb-2">
@@ -503,10 +503,14 @@ export function RoomSelectionWizard({
                         <button
                           key={bedspace.id}
                           onClick={() => handleBedspaceSelect(bedspace)}
+                          disabled={!bedspace.available}
+                          title={bedspace.weightRestriction}
                           className={`p-3 text-sm rounded border transition-colors ${
-                            selectedBedspace?.id === bedspace.id
-                              ? "bg-blue-500 border-blue-500 text-white font-semibold"
-                              : "bg-white border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                            !bedspace.available
+                              ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                              : selectedBedspace?.id === bedspace.id
+                                ? "bg-blue-500 border-blue-500 text-white font-semibold"
+                                : "bg-white border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                           }`}
                         >
                           <div className="text-center">
@@ -515,6 +519,11 @@ export function RoomSelectionWizard({
                                 ? "Top Bunk"
                                 : "Bottom Bunk"}
                             </div>
+                            {bedspace.weightRestriction && (
+                              <div className="text-xs mt-1">
+                                Over weight limit
+                              </div>
+                            )}
                             {selectedBedspace?.id === bedspace.id && (
                               <span className="ml-1">✓</span>
                             )}

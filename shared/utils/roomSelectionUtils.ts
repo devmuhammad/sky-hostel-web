@@ -27,6 +27,10 @@ interface Bedspace {
   weightRestriction?: string;
 }
 
+export const TOP_BUNK_MAX_WEIGHT_KG = 60;
+
+export const TOP_BUNK_WEIGHT_MESSAGE = `Top bunks are limited to students ${TOP_BUNK_MAX_WEIGHT_KG}kg or under`;
+
 export function getStudentInBed(
   students: StudentData[],
   block: string,
@@ -112,23 +116,25 @@ export function getAvailableBedspacesForRoom(
       const bottomBedLabel =
         bunkMapping[bunkName as keyof typeof bunkMapping]?.bottom || "";
 
-      // Check if top bunk is available and user can use it
+      // Free top bunks are always listed; students over the weight limit
+      // see them as unavailable with the reason instead of not at all.
       const isTopAvailable = isBedActuallyAvailable(
         room,
         topBedLabel,
         students,
         excludeStudentId
       );
-      const canUseTop = !studentWeight || studentWeight <= 60;
+      const canUseTop =
+        !studentWeight || studentWeight <= TOP_BUNK_MAX_WEIGHT_KG;
 
-      if (isTopAvailable && canUseTop) {
+      if (isTopAvailable) {
         availableBedspaces.push({
           id: `${bunkName}-top`,
           bunk: bunkName,
           position: "top" as const,
-          available: true,
+          available: canUseTop,
           label: `${bunkName} Top Bunk`,
-          weightRestriction: undefined,
+          weightRestriction: canUseTop ? undefined : TOP_BUNK_WEIGHT_MESSAGE,
         });
       }
 
@@ -156,6 +162,10 @@ export function getAvailableBedspacesForRoom(
   return availableBedspaces;
 }
 
+export function countSelectableBedspaces(bedspaces: Bedspace[]): number {
+  return bedspaces.filter((bedspace) => bedspace.available).length;
+}
+
 export function getRoomsWithAvailableBedspaces(
   rooms: RoomData[],
   students: StudentData[],
@@ -169,6 +179,6 @@ export function getRoomsWithAvailableBedspaces(
       studentWeight,
       excludeStudentId
     );
-    return availableBedspaces.length > 0;
+    return countSelectableBedspaces(availableBedspaces) > 0;
   });
 }

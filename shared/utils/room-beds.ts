@@ -62,6 +62,52 @@ export async function releaseBedspace(
 }
 
 /**
+ * Returns a bedspace to rooms.available_beds by room id, e.g. to undo a claim
+ * when the student record could not be saved.
+ */
+export async function restoreBedspaceById(
+  supabase: SupabaseLike,
+  params: { roomId: string; bedspace_label: string }
+): Promise<{ released: boolean; error?: string }> {
+  const { roomId, bedspace_label } = params;
+
+  const { data: roomRow, error: roomError } = await supabase
+    .from("rooms")
+    .select("id, available_beds")
+    .eq("id", roomId)
+    .maybeSingle();
+
+  if (roomError || !roomRow) {
+    return {
+      released: false,
+      error: roomError?.message || "Room not found",
+    };
+  }
+
+  const beds: string[] = Array.isArray(roomRow.available_beds)
+    ? [...roomRow.available_beds]
+    : [];
+
+  if (beds.includes(bedspace_label)) {
+    return { released: true };
+  }
+
+  const { error: updateError } = await supabase
+    .from("rooms")
+    .update({ available_beds: [...beds, bedspace_label] })
+    .eq("id", roomId);
+
+  if (updateError) {
+    return {
+      released: false,
+      error: updateError.message || "Failed to restore bedspace",
+    };
+  }
+
+  return { released: true };
+}
+
+/**
  * Removes a bedspace from rooms.available_beds (claims it for a student).
  */
 export async function claimBedspace(
