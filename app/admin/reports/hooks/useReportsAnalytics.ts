@@ -1,12 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStudents, usePayments, useRooms } from "@/shared/hooks/useAppData";
+import {
+  getCurrentAcademicSession,
+  getSessionDateRange,
+} from "@/shared/config/academic-session";
+import {
+  cashReceived,
+  computeHostelStats,
+  paymentInSession,
+  studentInSession,
+  type HostelStats,
+} from "@/shared/utils/hostel-stats";
 
 interface ReportData {
   totalStudents: number;
   totalRevenue: number;
   occupancyRate: number;
+  occupiedBeds: number;
+  totalBeds: number;
+  completedPayments: number;
+  sessionLabel: string;
   studentsByFaculty: Record<string, number>;
   studentsByLevel: Record<string, number>;
   studentsByState: Record<string, number>;
@@ -15,23 +30,29 @@ interface ReportData {
   revenueByMonth: Array<{ month: string; revenue: number }>;
 }
 
-type RangePreset = "last_30_days" | "last_12_months" | "all_time";
+type RangePreset = "this_session" | "last_30_days" | "last_12_months" | "all_time";
 
 const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
-const getDefaultRange = () => {
+function rangeForSession(sessionLabel: string) {
+  const sessionRange = getSessionDateRange(sessionLabel);
   const now = new Date();
-  const oneYearAgo = new Date(now);
-  oneYearAgo.setFullYear(now.getFullYear() - 1);
-  return {
-    from: formatDate(oneYearAgo),
-    to: formatDate(now),
-  };
-};
+  if (!sessionRange) {
+    const start = new Date(now);
+    start.setFullYear(now.getFullYear() - 1);
+    return { from: formatDate(start), to: formatDate(now) };
+  }
+  const to =
+    sessionRange.end.getTime() < now.getTime() ? sessionRange.end : now;
+  return { from: formatDate(sessionRange.start), to: formatDate(to) };
+}
 
 export function useReportsAnalytics() {
-  const [dateRange, setDateRange] = useState(getDefaultRange);
-  const hasAutoAdjustedRange = useRef(false);
+  const [sessionLabel, setSessionLabel] = useState(getCurrentAcademicSession);
+  const [headline, setHeadline] = useState<HostelStats | null>(null);
+  const [dateRange, setDateRange] = useState(() =>
+    rangeForSession(getCurrentAcademicSession())
+  );
 
   const {
     data: studentsData,
@@ -49,75 +70,84 @@ export function useReportsAnalytics() {
     error: roomsError,
   } = useRooms();
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [sessionRes, statsRes] = await Promise.all([
+          fetch("/api/settings/session"),
+          fetch("/api/admin/stats"),
+        ]);
+        const sessionJson = await sessionRes.json();
+        const statsJson = await statsRes.json();
+        if (cancelled) return;
+
+        const label = sessionJson?.data?.label;
+        if (sessionRes.ok && sessionJson.success && label) {
+          setSessionLabel(label);
+          setDateRange((current) => {
+            const sessionDates = rangeForSession(label);
+            // Keep a custom range if the user already moved it.
+            const defaultDates = rangeForSession(getCurrentAcademicSession());
+            if (
+              current.from === defaultDates.from &&
+              current.to === defaultDates.to
+            ) {
+              return sessionDates;
+            }
+            return current;
+          });
+        }
+
+        if (statsRes.ok && statsJson.success && statsJson.data) {
+          setHeadline(statsJson.data);
+        }
+      } catch {
+        // Client-side computeHostelStats is the fallback.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const isLoading = studentsLoading || paymentsLoading || roomsLoading;
   const isError = Boolean(studentsError || paymentsError || roomsError);
-
-  const availableRange = useMemo(() => {
-    const timestamps = [
-      ...((studentsData as any[]) || []).map((student) => student.created_at),
-      ...((paymentsData as any[]) || []).map((payment) => payment.created_at),
-    ]
-      .filter(Boolean)
-      .map((value) => new Date(value).getTime())
-      .filter((value) => !Number.isNaN(value));
-
-    if (!timestamps.length) {
-      const defaultRange = getDefaultRange();
-      return defaultRange;
-    }
-
-    const minTime = Math.min(...timestamps);
-    const maxTime = Math.max(...timestamps);
-    return {
-      from: formatDate(new Date(minTime)),
-      to: formatDate(new Date(maxTime)),
-    };
-  }, [studentsData, paymentsData]);
 
   const reportData = useMemo<ReportData | null>(() => {
     if (!studentsData || !paymentsData || !roomsData) return null;
 
+    const sessionStudents = (studentsData as any[]).filter((student) =>
+      studentInSession(student, sessionLabel)
+    );
+    const sessionPayments = (paymentsData as any[]).filter((payment) =>
+      paymentInSession(payment, sessionLabel)
+    );
+
+    const fallback = computeHostelStats({
+      students: studentsData as any[],
+      payments: paymentsData as any[],
+      rooms: roomsData as any[],
+      sessionLabel,
+    });
+    const stats = headline || fallback;
+
     const fromDate = new Date(`${dateRange.from}T00:00:00`);
     const toDate = new Date(`${dateRange.to}T23:59:59`);
+    const inDateRange = (value?: string) => {
+      if (!value) return false;
+      const createdAt = new Date(value);
+      return createdAt >= fromDate && createdAt <= toDate;
+    };
 
-    const filteredStudents = (studentsData as any[]).filter(
-      (student: any) => {
-        const createdAt = new Date(student.created_at);
-        return createdAt >= fromDate && createdAt <= toDate;
-      }
+    const chartStudents = sessionStudents.filter((student) =>
+      inDateRange(student.created_at)
+    );
+    const chartPayments = sessionPayments.filter((payment) =>
+      inDateRange(payment.created_at)
     );
 
-    const filteredPayments = (paymentsData as any[]).filter(
-      (payment: any) => {
-        const createdAt = new Date(payment.created_at);
-        return createdAt >= fromDate && createdAt <= toDate;
-      }
-    );
-
-    const totalStudents = filteredStudents.length;
-    const totalRevenue = filteredPayments.reduce((sum: number, p: any) => {
-      if (p.status === "completed") {
-        return sum + (p.amount_to_pay || 0);
-      } else if (p.status === "partially_paid") {
-        return sum + (p.amount_paid || 0);
-      }
-      return sum;
-    }, 0);
-
-    const totalBeds = (roomsData as any[]).reduce(
-      (sum: number, room: any) => sum + room.total_beds,
-      0
-    );
-    const availableBeds = (roomsData as any[]).reduce(
-      (sum: number, room: any) => sum + room.available_beds.length,
-      0
-    );
-    const occupancyRate =
-      totalBeds > 0
-        ? Math.round(((totalBeds - availableBeds) / totalBeds) * 100)
-        : 0;
-
-    const studentsByFaculty = filteredStudents.reduce(
+    const studentsByFaculty = chartStudents.reduce(
       (acc, student) => {
         acc[student.faculty] = (acc[student.faculty] || 0) + 1;
         return acc;
@@ -125,7 +155,7 @@ export function useReportsAnalytics() {
       {} as Record<string, number>
     );
 
-    const studentsByLevel = filteredStudents.reduce(
+    const studentsByLevel = chartStudents.reduce(
       (acc, student) => {
         acc[student.level] = (acc[student.level] || 0) + 1;
         return acc;
@@ -133,15 +163,16 @@ export function useReportsAnalytics() {
       {} as Record<string, number>
     );
 
-    const studentsByState = filteredStudents.reduce(
+    const studentsByState = chartStudents.reduce(
       (acc, student) => {
-        acc[student.state_of_origin] = (acc[student.state_of_origin] || 0) + 1;
+        acc[student.state_of_origin] =
+          (acc[student.state_of_origin] || 0) + 1;
         return acc;
       },
       {} as Record<string, number>
     );
 
-    const paymentsByStatus = filteredPayments.reduce(
+    const paymentsByStatus = chartPayments.reduce(
       (acc, payment) => {
         acc[payment.status] = (acc[payment.status] || 0) + 1;
         return acc;
@@ -161,8 +192,8 @@ export function useReportsAnalytics() {
 
     const registrationTrend = getLast30Days().map((date) => ({
       date,
-      count: filteredStudents.filter((student) =>
-        student.created_at.startsWith(date)
+      count: sessionStudents.filter((student) =>
+        student.created_at?.startsWith(date)
       ).length,
     }));
 
@@ -177,19 +208,19 @@ export function useReportsAnalytics() {
 
     const revenueByMonth = getMonthsOfYear().map((month) => ({
       month,
-      revenue: filteredPayments
-        .filter(
-          (payment) =>
-            payment.status === "completed" &&
-            payment.created_at.startsWith(month)
-        )
-        .reduce((sum, payment) => sum + (payment.amount_paid || 0), 0),
+      revenue: sessionPayments
+        .filter((payment) => payment.created_at?.startsWith(month))
+        .reduce((sum, payment) => sum + cashReceived(payment), 0),
     }));
 
     return {
-      totalStudents,
-      totalRevenue,
-      occupancyRate,
+      totalStudents: stats.totalStudents,
+      totalRevenue: stats.totalRevenue,
+      occupancyRate: stats.occupancyRate,
+      occupiedBeds: stats.occupiedBeds,
+      totalBeds: stats.totalBeds,
+      completedPayments: stats.completedPayments,
+      sessionLabel: stats.sessionLabel || sessionLabel,
       studentsByFaculty,
       studentsByLevel,
       studentsByState,
@@ -197,7 +228,14 @@ export function useReportsAnalytics() {
       registrationTrend,
       revenueByMonth,
     };
-  }, [studentsData, paymentsData, roomsData, dateRange]);
+  }, [
+    studentsData,
+    paymentsData,
+    roomsData,
+    dateRange,
+    sessionLabel,
+    headline,
+  ]);
 
   const hasDataInRange = useMemo(() => {
     if (!reportData) return false;
@@ -213,37 +251,39 @@ export function useReportsAnalytics() {
     );
   }, [reportData]);
 
-  useEffect(() => {
-    if (hasAutoAdjustedRange.current) return;
-    if (!reportData) return;
-
-    const hasAnyDataLoaded =
-      (((studentsData as any[]) || []).length > 0 ||
-        ((paymentsData as any[]) || []).length > 0);
-
-    if (hasAnyDataLoaded && !hasDataInRange) {
-      hasAutoAdjustedRange.current = true;
-      setDateRange(availableRange);
-    }
-  }, [reportData, hasDataInRange, availableRange, studentsData, paymentsData]);
-
   const setPresetRange = (preset: RangePreset) => {
     const now = new Date();
+    if (preset === "this_session") {
+      setDateRange(rangeForSession(sessionLabel));
+      return;
+    }
     if (preset === "last_30_days") {
       const start = new Date(now);
       start.setDate(now.getDate() - 29);
       setDateRange({ from: formatDate(start), to: formatDate(now) });
       return;
     }
-
     if (preset === "last_12_months") {
       const start = new Date(now);
       start.setFullYear(now.getFullYear() - 1);
       setDateRange({ from: formatDate(start), to: formatDate(now) });
       return;
     }
-
-    setDateRange(availableRange);
+    const timestamps = [
+      ...((studentsData as any[]) || []).map((student) => student.created_at),
+      ...((paymentsData as any[]) || []).map((payment) => payment.created_at),
+    ]
+      .filter(Boolean)
+      .map((value) => new Date(value).getTime())
+      .filter((value) => !Number.isNaN(value));
+    if (!timestamps.length) {
+      setDateRange(rangeForSession(sessionLabel));
+      return;
+    }
+    setDateRange({
+      from: formatDate(new Date(Math.min(...timestamps))),
+      to: formatDate(new Date(Math.max(...timestamps))),
+    });
   };
 
   return {

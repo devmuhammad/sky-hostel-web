@@ -13,6 +13,7 @@ import {
   normalizePaymentPhone,
   upsertPaymentFromInvoice,
 } from "@/shared/utils/payment-record";
+import { fetchAllRows } from "@/shared/utils/supabase-fetch";
 
 interface PaymentData {
   firstName: string;
@@ -27,24 +28,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const session = searchParams.get("session");
 
-    let query = supabaseAdmin
-      .from("payments")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const payments = await fetchAllRows(
+      supabaseAdmin,
+      "payments",
+      "*",
+      "created_at",
+      session && session !== "all"
+        ? (query) => query.eq("session_label", session)
+        : undefined
+    );
 
-    if (session && session !== "all") {
-      query = query.eq("session_label", session);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ success: true, payments: data || [] });
+    return NextResponse.json({ success: true, payments });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Unauthorized" },

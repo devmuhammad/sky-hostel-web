@@ -32,7 +32,8 @@ export function ReportsHeader({
           Reports & Analytics
         </h1>
         <p className="text-sm text-gray-600 mt-1">
-          Comprehensive insights into your hostel operations
+          Session totals for enrolled students, cash received, and beds
+          currently occupied. Charts below can be narrowed by date.
         </p>
       </div>
       <div className="flex gap-2">

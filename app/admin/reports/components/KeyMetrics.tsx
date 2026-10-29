@@ -7,6 +7,9 @@ interface KeyMetricsProps {
   totalRevenue: number;
   occupancyRate: number;
   completedPayments: number;
+  occupiedBeds?: number;
+  totalBeds?: number;
+  sessionLabel?: string;
 }
 
 export function KeyMetrics({
@@ -14,10 +17,19 @@ export function KeyMetrics({
   totalRevenue,
   occupancyRate,
   completedPayments,
+  occupiedBeds,
+  totalBeds,
+  sessionLabel,
 }: KeyMetricsProps) {
+  const sessionSuffix = sessionLabel ? ` (${sessionLabel})` : "";
+  const occupancyTitle =
+    occupiedBeds != null && totalBeds != null
+      ? `Occupancy (${occupiedBeds}/${totalBeds} beds)`
+      : "Occupancy Rate";
+
   const metrics = [
     {
-      title: "Total Students",
+      title: `Students${sessionSuffix}`,
       value: totalStudents.toLocaleString(),
       accent: "bg-blue-100 text-blue-600",
       icon: (
@@ -27,8 +39,8 @@ export function KeyMetrics({
       ),
     },
     {
-      title: "Total Revenue",
-      value: `₦${totalRevenue.toLocaleString()}`,
+      title: `Revenue${sessionSuffix}`,
+      value: `₦${Math.round(totalRevenue).toLocaleString()}`,
       accent: "bg-green-100 text-green-600",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -37,7 +49,7 @@ export function KeyMetrics({
       ),
     },
     {
-      title: "Occupancy Rate",
+      title: occupancyTitle,
       value: `${occupancyRate}%`,
       accent: "bg-amber-100 text-amber-600",
       icon: (
@@ -47,7 +59,7 @@ export function KeyMetrics({
       ),
     },
     {
-      title: "Completed Payments",
+      title: `Completed Payments${sessionSuffix}`,
       value: completedPayments.toLocaleString(),
       accent: "bg-indigo-100 text-indigo-600",
       icon: (

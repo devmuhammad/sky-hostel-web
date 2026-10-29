@@ -5,7 +5,9 @@ import { CardContainer } from "@/shared/components/ui/card-container";
 interface DateRangeFilterProps {
   dateRange: { from: string; to: string };
   onDateRangeChange: (dateRange: { from: string; to: string }) => void;
-  onPresetRangeChange: (preset: "last_30_days" | "last_12_months" | "all_time") => void;
+  onPresetRangeChange: (
+    preset: "this_session" | "last_30_days" | "last_12_months" | "all_time"
+  ) => void;
 }
 
 export function DateRangeFilter({
@@ -47,6 +49,13 @@ export function DateRangeFilter({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
+            onClick={() => onPresetRangeChange("this_session")}
+            className="rounded-full border border-blue-200 bg-blue-50 px-3.5 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+          >
+            This session
+          </button>
+          <button
+            type="button"
             onClick={() => onPresetRangeChange("last_30_days")}
             className="rounded-full border border-gray-200 bg-white px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
           >
@@ -62,7 +71,7 @@ export function DateRangeFilter({
           <button
             type="button"
             onClick={() => onPresetRangeChange("all_time")}
-            className="rounded-full border border-blue-200 bg-blue-50 px-3.5 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+            className="rounded-full border border-gray-200 bg-white px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
           >
             All Time
           </button>

@@ -98,7 +98,10 @@ export default function ReportsAnalytics() {
         totalStudents={reportData.totalStudents}
         totalRevenue={reportData.totalRevenue}
         occupancyRate={reportData.occupancyRate}
-        completedPayments={reportData.paymentsByStatus.completed || 0}
+        completedPayments={reportData.completedPayments}
+        occupiedBeds={reportData.occupiedBeds}
+        totalBeds={reportData.totalBeds}
+        sessionLabel={reportData.sessionLabel}
       />
 
       {hasDataInRange ? (
@@ -114,6 +117,9 @@ export default function ReportsAnalytics() {
             description="Try a wider period to see student and payment analytics."
             action={
               <div className="flex flex-wrap justify-center gap-2">
+                <Button variant="outline" onClick={() => setPresetRange("this_session")}>
+                  This session
+                </Button>
                 <Button variant="outline" onClick={() => setPresetRange("last_30_days")}>
                   Last 30 Days
                 </Button>

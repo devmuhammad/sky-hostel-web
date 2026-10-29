@@ -5,55 +5,34 @@ import { useAppStore } from "@/shared/store/appStore";
 import { createClientSupabaseClient } from "@/shared/config/auth";
 import { useToast } from "./useToast";
 import React, { useEffect } from "react"; // Added missing import for React
+import { fetchAllRows } from "@/shared/utils/supabase-fetch";
 
 // API Functions
 const fetchStudents = async () => {
   const supabase = createClientSupabaseClient();
-  const { data, error } = await supabase
-    .from("students")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-  return data || [];
+  return fetchAllRows(supabase, "students");
 };
 
 const fetchPayments = async () => {
   const supabase = createClientSupabaseClient();
-  const { data, error } = await supabase
-    .from("payments")
-    .select(
-      `
+  return fetchAllRows(
+    supabase,
+    "payments",
+    `
       *,
       student:students(*)
     `
-    )
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-  return data || [];
+  );
 };
 
 const fetchRooms = async () => {
   const supabase = createClientSupabaseClient();
-  const { data, error } = await supabase
-    .from("rooms")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-  return data || [];
+  return fetchAllRows(supabase, "rooms");
 };
 
 const fetchAdminUsers = async () => {
   const supabase = createClientSupabaseClient();
-  const { data, error } = await supabase
-    .from("admin_users")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-  return data || [];
+  return fetchAllRows(supabase, "admin_users");
 };
 
 // React Query Hooks
