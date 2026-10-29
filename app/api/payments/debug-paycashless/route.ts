@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireRole } from "@/shared/config/auth";
 import { getAllPaycashlessInvoices } from "@/shared/utils/paycashless";
 
 export async function POST(request: NextRequest) {
   try {
+    await requireRole(["super_admin"]);
     const { email } = await request.json();
 
     if (!email) {

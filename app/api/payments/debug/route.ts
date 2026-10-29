@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireRole } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
 
 export async function GET(request: NextRequest) {
   try {
+    await requireRole(["super_admin", "admin"]);
     const { searchParams } = new URL(request.url);
     const email = searchParams.get("email");
     const invoice_id = searchParams.get("invoice_id");

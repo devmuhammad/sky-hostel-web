@@ -73,7 +73,11 @@ export function useManualPaymentCheck() {
 
       const hasPaycashlessOnly = paycashlessResult.hasPaycashlessOnly || false;
 
-      const localPayments = payments.filter((p) => p.email === manualEmail);
+      const localPayments = payments.filter(
+        (p) =>
+          (p.email || "").toLowerCase() ===
+          manualEmail.trim().toLowerCase()
+      );
 
       const hasLocalPartialPayment = localPayments.some(
         (p) => p.status === "partially_paid"
@@ -224,20 +228,23 @@ export function useManualPaymentCheck() {
         },
         body: JSON.stringify({
           email: email.trim(),
-          adminKey: "admin123",
         }),
       });
 
       const result = await response.json();
 
       if (result.success) {
-        if (result.data.oldStatus !== result.data.newStatus) {
+        if (result.data?.action === "created") {
+          toast.success("Payment record created from Paycashless", {
+            description: `Status: ${result.data.newStatus}`,
+          });
+        } else if (result.data?.oldStatus !== result.data?.newStatus) {
           toast.success("Payment status synced!", {
             description: `Updated from ${result.data.oldStatus} to ${result.data.newStatus}`,
           });
         } else {
           toast.success("Payment status checked", {
-            description: "Status is already correct",
+            description: result.message || "Status is already correct",
           });
         }
 

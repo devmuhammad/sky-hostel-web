@@ -126,8 +126,9 @@ export default function PaymentsPage() {
             Payments
           </h1>
           <p className="mt-2 text-gray-600 text-sm lg:text-base">
-            Session-scoped payment tracking. Use &quot;Re-date from
-            invoices&quot; once to fix historical Sync All imports (no deletes).
+            Session-scoped payment tracking. Sync All updates existing rows and
+            imports paid Paycashless invoices that are missing locally. Use
+            &quot;Re-date from invoices&quot; to fix historical invoice dates.
           </p>
         </div>
 

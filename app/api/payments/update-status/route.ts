@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireRole } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, phone, status, adminKey } = await request.json();
-
-    // Simple admin key check (you should use proper auth in production)
-    if (adminKey !== "admin123") {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    await requireRole(["super_admin"]);
+    const { email, phone, status } = await request.json();
 
     // Validate input
     if (!email && !phone) {

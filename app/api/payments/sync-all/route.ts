@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
 import { getAllPaycashlessInvoices } from "@/shared/utils/paycashless";
+import { upsertPaymentFromInvoice } from "@/shared/utils/payment-record";
 import {
   derivePaymentStatus,
   getAcademicSessionForDate,
@@ -12,10 +13,8 @@ import {
 } from "@/shared/config/academic-session";
 
 /**
- * Sync All — UPDATE ONLY.
- * Never creates local rows from historical Paycashless invoices.
- * Prefers matching current-session invoices; uses real invoice dates for
- * amount_to_pay / status / paid_at when updating.
+ * Sync All — update existing rows, and import current-session invoices that
+ * already have money on Paycashless but no local payment row.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -60,14 +59,16 @@ export async function POST(request: NextRequest) {
     }
 
     const results = {
-      mode: "update_only",
+      mode: "update_and_import_paid",
       session: currentSession,
       totalPaycashlessInvoices: paycashlessInvoices.length,
       matchingRecords: 0,
       updatedRecords: 0,
+      importedRecords: 0,
       skippedNoLocal: 0,
       skippedSponsored: 0,
       updatedPayments: [] as any[],
+      importedPayments: [] as any[],
       unmatchedEmails: [] as string[],
     };
 
@@ -112,9 +113,36 @@ export async function POST(request: NextRequest) {
       }
 
       if (!localPayment) {
-        results.skippedNoLocal++;
-        if (results.unmatchedEmails.length < 50) {
-          results.unmatchedEmails.push(email);
+        const paidAmount = Number(paycashlessInvoice.totalPaid) || 0;
+        if (paidAmount <= 0) {
+          results.skippedNoLocal++;
+          if (results.unmatchedEmails.length < 50) {
+            results.unmatchedEmails.push(email);
+          }
+          continue;
+        }
+
+        try {
+          const imported = await upsertPaymentFromInvoice(paycashlessInvoice, {
+            fallbackEmail: email,
+          });
+          if (imported.action === "created" || imported.action === "updated") {
+            results.importedRecords++;
+            results.importedPayments.push({
+              email,
+              action: imported.action,
+              amountPaid: paidAmount,
+              status: imported.payment.status,
+            });
+          } else if (imported.action === "skipped_sponsored") {
+            results.skippedSponsored++;
+          }
+        } catch (importError) {
+          console.error("Sync import failed", email, importError);
+          results.skippedNoLocal++;
+          if (results.unmatchedEmails.length < 50) {
+            results.unmatchedEmails.push(email);
+          }
         }
         continue;
       }
@@ -198,6 +226,7 @@ export async function POST(request: NextRequest) {
         results: {
           ...results,
           updatedPayments: results.updatedPayments.slice(0, 20),
+          importedPayments: results.importedPayments.slice(0, 20),
           unmatchedEmails: results.unmatchedEmails.slice(0, 20),
         },
         sync_timestamp: new Date().toISOString(),
@@ -206,7 +235,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Sync completed (update-only, session ${currentSession}). ${results.skippedNoLocal} Paycashless invoice(s) had no local payment and were not imported.`,
+      message: `Sync completed for ${currentSession}. Updated ${results.updatedRecords}, imported ${results.importedRecords} paid invoice(s) that were missing locally.`,
       data: results,
     });
   } catch (error) {

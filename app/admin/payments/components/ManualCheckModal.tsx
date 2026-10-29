@@ -180,7 +180,11 @@ export function ManualCheckModal({
             disabled={isSyncing}
             className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
           >
-            {isSyncing ? "Syncing..." : "🔄 Sync with Paycashless"}
+            {isSyncing
+              ? "Syncing..."
+              : result.hasPaycashlessOnly
+                ? "Create local record from Paycashless"
+                : "Sync with Paycashless"}
           </Button>
         </div>
       </div>

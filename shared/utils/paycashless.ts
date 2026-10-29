@@ -10,6 +10,7 @@ import { supabaseAdmin } from "@/shared/config/supabase";
 import { paycashlessConfig } from "@/shared/config/env";
 import { PAYMENT_CONFIG } from "@/shared/config/constants";
 import { getActiveSessionConfig } from "@/shared/utils/active-session";
+import { upsertPaymentFromInvoice } from "@/shared/utils/payment-record";
 
 const PAYCASHLESS_API_URL = paycashlessConfig.apiUrl;
 const PAYCASHLESS_API_KEY = paycashlessConfig.apiKey;
@@ -177,6 +178,7 @@ export async function getPaycashlessPaymentStatus(
       status: string;
       paidAt?: string;
     }>;
+    bestInvoice?: MappedPaycashlessInvoice;
   };
   error?: string;
 }> {
@@ -204,18 +206,7 @@ export async function getPaycashlessPaymentStatus(
 
     const invoices = listResult.data.invoices || [];
 
-    // Filter for invoices related to this email
-    const relevantInvoices = invoices.filter((invoice: any) => {
-      const metadataEmail = invoice.metadata?.email;
-      const customerEmail = invoice.customer?.email;
-      const returnUrlEmail = extractEmailFromReturnUrl(invoice.returnUrl);
-
-      return (
-        metadataEmail === email ||
-        customerEmail === email ||
-        returnUrlEmail === email
-      );
-    });
+    const relevantInvoices = findInvoicesForEmail(invoices, email, phone);
 
     if (relevantInvoices.length === 0) {
       return {
@@ -241,13 +232,13 @@ export async function getPaycashlessPaymentStatus(
       paidAt?: string;
     }> = [];
 
-    relevantInvoices.forEach((invoice: any) => {
+    relevantInvoices.forEach((invoice: MappedPaycashlessInvoice) => {
       const isActuallyPaid =
         invoice.status === "paid" ||
         invoice.status === "completed" ||
         invoice.status === "succeeded" ||
         ((invoice.totalPaid || 0) > 0 &&
-          (invoice.totalPaid || 0) >= invoice.amountDue);
+          (invoice.totalPaid || 0) >= (invoice.amount || 0));
 
       const rawAmount = invoice.totalPaid || 0;
       const amountPaid = isActuallyPaid ? rawAmount : 0; // Data is already in Naira
@@ -264,19 +255,28 @@ export async function getPaycashlessPaymentStatus(
           reference: invoice.reference,
           amount: amountPaid,
           status: invoice.status,
-          paidAt: invoice.paidAt,
+          paidAt: invoice.paidAt || undefined,
         });
       }
     });
 
     const remainingAmount = Math.max(0, dueAmount - totalPaid);
     const isFullyPaid = totalPaid >= dueAmount;
+    const bestInvoice = pickBestInvoice(relevantInvoices);
 
     // If not fully paid, return error
     if (!isFullyPaid && totalPaid > 0) {
       return {
         success: false,
         error: `Payment incomplete. You have paid ₦${totalPaid.toLocaleString()} out of ₦${dueAmount.toLocaleString()}. Please complete your payment before registering.`,
+        data: {
+          totalPaid,
+          remainingAmount,
+          isFullyPaid,
+          payment_id,
+          payments,
+          bestInvoice,
+        },
       };
     }
 
@@ -288,6 +288,7 @@ export async function getPaycashlessPaymentStatus(
         isFullyPaid,
         payment_id,
         payments,
+        bestInvoice,
       },
     };
   } catch (error) {
@@ -425,7 +426,26 @@ export async function verifyPaycashlessPayment(
       return paycashlessResult;
     }
 
-    // Look up local payment record for this session
+    const invoiceToImport = paycashlessResult.data.bestInvoice;
+    if (invoiceToImport && (invoiceToImport.totalPaid || 0) > 0) {
+      try {
+        const imported = await upsertPaymentFromInvoice(invoiceToImport, {
+          fallbackEmail: email,
+          fallbackPhone: phone,
+        });
+        return {
+          success: true,
+          data: {
+            ...paycashlessResult.data,
+            payment_id: imported.payment.id as string,
+            payment_source: "paycashless",
+          },
+        };
+      } catch (importError) {
+        console.error("Failed to import paid Paycashless invoice:", importError);
+      }
+    }
+
     const { data: localPayment, error: localPaymentError } = await supabaseAdmin
       .from("payments")
       .select("id, email, amount_paid, status, invoice_id, session_label")
@@ -483,25 +503,7 @@ export async function getAllPaycashlessInvoices(params?: {
   data?: {
     hasMore: boolean;
     cursor: string | null;
-    invoices: Array<{
-      id: string;
-      reference: string;
-      number: string;
-      status: string;
-      currency: string;
-      amount: number;
-      totalPaid: number;
-      remainingAmount: number;
-      customer: {
-        email?: string;
-        phoneNumber?: string;
-        name?: string;
-      };
-      createdAt: string;
-      paidAt?: string | null;
-      dueDate: string;
-      acceptPartialPayments: boolean;
-    }>;
+    invoices: MappedPaycashlessInvoice[];
   };
   error?: string;
 }> {
@@ -586,35 +588,7 @@ export async function getAllPaycashlessInvoices(params?: {
 
       const data = await response.json();
 
-      // Add invoices from this page
-      const pageInvoices = data.data.map((invoice: PaycashlessInvoice) => {
-        // Extract email from returnUrl properly
-        const returnUrlEmail = extractEmailFromReturnUrl(invoice.returnUrl);
-
-        return {
-          id: invoice.id,
-          reference: invoice.reference,
-          number: invoice.number,
-          status: invoice.status,
-          currency: invoice.currency,
-          amount: (invoice.amountDue || invoice.amount || 0) / 100,
-          totalPaid: (invoice.amountPaid || invoice.totalPaid || 0) / 100,
-          remainingAmount:
-            (invoice.amountRemaining || invoice.remainingAmount || 0) / 100,
-          customer: {
-            email: returnUrlEmail || invoice.customer?.email,
-            phoneNumber:
-              invoice.metadata?.phone || invoice.customer?.phoneNumber,
-            name: extractNameFromMetadata(invoice.metadata),
-          },
-          createdAt: invoice.createdAt,
-          paidAt: invoice.paidAt || null,
-          dueDate: invoice.dueDate,
-          acceptPartialPayments: invoice.acceptPartialPayments,
-        };
-      });
-
-      allInvoices.push(...pageInvoices);
+      allInvoices.push(...(data.data || []).map(mapPaycashlessInvoice));
 
       // Check if there are more pages
       hasMore = data.hasMore || false;
@@ -657,6 +631,7 @@ export async function getPaycashlessPaymentStatusForManualCheck(
       status: string;
       paidAt?: string;
     }>;
+    bestInvoice?: MappedPaycashlessInvoice;
   };
   error?: string;
 }> {
@@ -679,58 +654,7 @@ export async function getPaycashlessPaymentStatusForManualCheck(
 
     const invoices = listResult.data.invoices || [];
 
-    const relevantInvoices = invoices.filter((invoice: any) => {
-      const metadataEmail = invoice.metadata?.email;
-      const customerEmail = invoice.customer?.email;
-      const returnUrlEmail = extractEmailFromReturnUrl(invoice.returnUrl);
-      const metadataPhone = invoice.metadata?.phone;
-
-      const normalizedSearchEmail = email.toLowerCase().trim();
-      const normalizedMetadataEmail = metadataEmail?.toLowerCase().trim();
-      const normalizedCustomerEmail = customerEmail?.toLowerCase().trim();
-      const normalizedReturnUrlEmail = returnUrlEmail?.toLowerCase().trim();
-
-      if (normalizedMetadataEmail === normalizedSearchEmail) {
-        return true;
-      }
-
-      if (normalizedCustomerEmail === normalizedSearchEmail) {
-        return true;
-      }
-
-      if (normalizedReturnUrlEmail === normalizedSearchEmail) {
-        return true;
-      }
-
-      if (phone && metadataPhone) {
-        const normalizedSearchPhone = phone.replace(/\D/g, "");
-        const normalizedMetadataPhone = metadataPhone.replace(/\D/g, "");
-
-        if (
-          normalizedSearchPhone === normalizedMetadataPhone ||
-          normalizedSearchPhone.includes(normalizedMetadataPhone) ||
-          normalizedMetadataPhone.includes(normalizedSearchPhone)
-        ) {
-          return true;
-        }
-      }
-
-      if (
-        normalizedMetadataEmail &&
-        normalizedMetadataEmail.includes(normalizedSearchEmail.split("@")[0])
-      ) {
-        return true;
-      }
-
-      if (
-        normalizedReturnUrlEmail &&
-        normalizedReturnUrlEmail.includes(normalizedSearchEmail.split("@")[0])
-      ) {
-        return true;
-      }
-
-      return false;
-    });
+    const relevantInvoices = findInvoicesForEmail(invoices, email, phone);
 
     if (relevantInvoices.length === 0) {
       return {
@@ -755,7 +679,7 @@ export async function getPaycashlessPaymentStatusForManualCheck(
       paidAt?: string;
     }> = [];
 
-    relevantInvoices.forEach((invoice: any) => {
+    relevantInvoices.forEach((invoice: MappedPaycashlessInvoice) => {
       const isActuallyPaid =
         invoice.status === "paid" ||
         invoice.status === "completed" ||
@@ -777,7 +701,7 @@ export async function getPaycashlessPaymentStatusForManualCheck(
           reference: invoice.reference,
           amount: amountPaid,
           status: invoice.status,
-          paidAt: invoice.paidAt,
+          paidAt: invoice.paidAt || undefined,
         });
       }
     });
@@ -785,7 +709,7 @@ export async function getPaycashlessPaymentStatusForManualCheck(
     const remainingAmount = Math.max(0, PAYMENT_CONFIG.amount - totalPaid);
     const isFullyPaid = totalPaid >= PAYMENT_CONFIG.amount;
 
-    const result = {
+    return {
       success: true,
       data: {
         totalPaid,
@@ -793,16 +717,154 @@ export async function getPaycashlessPaymentStatusForManualCheck(
         isFullyPaid,
         payment_id,
         payments,
+        bestInvoice: pickBestInvoice(relevantInvoices),
       },
     };
-
-    return result;
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
     };
   }
+}
+
+export type MappedPaycashlessInvoice = ReturnType<typeof mapPaycashlessInvoice>;
+
+/**
+ * Normalizes a raw Paycashless invoice (amounts in kobo) into Naira amounts.
+ * Accepts list items, single-invoice responses, and INVOICE_PAID webhook data.
+ */
+export function mapPaycashlessInvoice(invoice: PaycashlessInvoice) {
+  const returnUrlEmail = extractEmailFromReturnUrl(invoice.returnUrl);
+
+  return {
+    id: invoice.id,
+    reference: invoice.reference,
+    number: invoice.number,
+    status: invoice.status,
+    currency: invoice.currency,
+    amount: (invoice.amountDue || invoice.amount || 0) / 100,
+    totalPaid: (invoice.amountPaid || invoice.totalPaid || 0) / 100,
+    remainingAmount:
+      (invoice.amountRemaining || invoice.remainingAmount || 0) / 100,
+    customer: {
+      email:
+        returnUrlEmail || invoice.customer?.email || invoice.metadata?.email,
+      phoneNumber: invoice.metadata?.phone || invoice.customer?.phoneNumber,
+      name: extractNameFromMetadata(invoice.metadata) || invoice.customer?.name,
+    },
+    metadata: invoice.metadata,
+    returnUrl: invoice.returnUrl,
+    hostedInvoiceUrl: invoice.hostedInvoiceUrl,
+    createdAt: invoice.createdAt,
+    paidAt: invoice.paidAt || null,
+    dueDate: invoice.dueDate,
+    acceptPartialPayments: invoice.acceptPartialPayments,
+  };
+}
+
+export function findInvoicesForEmail(
+  invoices: MappedPaycashlessInvoice[],
+  email: string,
+  phone?: string
+): MappedPaycashlessInvoice[] {
+  const targetEmail = email.toLowerCase().trim();
+  const targetPhone = phone ? phone.replace(/\D/g, "") : "";
+
+  return invoices.filter((invoice) => {
+    const emails = [
+      invoice.customer?.email,
+      invoice.metadata?.email,
+    ].filter((value): value is string => Boolean(value));
+
+    if (emails.some((value) => value.toLowerCase().trim() === targetEmail)) {
+      return true;
+    }
+
+    if (!targetPhone) return false;
+
+    const invoicePhone = (
+      invoice.customer?.phoneNumber ||
+      invoice.metadata?.phone ||
+      ""
+    ).replace(/\D/g, "");
+
+    return Boolean(
+      invoicePhone &&
+        (invoicePhone === targetPhone ||
+          invoicePhone.endsWith(targetPhone) ||
+          targetPhone.endsWith(invoicePhone))
+    );
+  });
+}
+
+export function pickBestInvoice(
+  invoices: MappedPaycashlessInvoice[]
+): MappedPaycashlessInvoice | undefined {
+  if (invoices.length === 0) return undefined;
+  return [...invoices].sort((a, b) => {
+    const paidDiff = (b.totalPaid || 0) - (a.totalPaid || 0);
+    if (paidDiff !== 0) return paidDiff;
+    return (
+      new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+  })[0];
+}
+
+export async function getPaycashlessInvoiceById(invoiceId: string): Promise<{
+  success: boolean;
+  data?: MappedPaycashlessInvoice;
+  error?: string;
+}> {
+  if (!PAYCASHLESS_API_KEY || !PAYCASHLESS_API_SECRET) {
+    return {
+      success: false,
+      error: "Paycashless API credentials are not configured",
+    };
+  }
+
+  try {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const requestPath = `/v1/invoices/${encodeURIComponent(invoiceId)}`;
+    const signature = generateRequestSignature(requestPath, {}, timestamp);
+
+    const response = await fetch(`${PAYCASHLESS_API_URL}${requestPath}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${PAYCASHLESS_API_KEY}`,
+        "Request-Signature": signature,
+        "Request-Timestamp": timestamp.toString(),
+      },
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      const raw = (result?.data?.id ? result.data : result) as PaycashlessInvoice;
+      if (raw?.id) {
+        return { success: true, data: mapPaycashlessInvoice(raw) };
+      }
+    }
+  } catch (error) {
+    console.error("Paycashless invoice lookup error:", error);
+  }
+
+  // Fall back to the list endpoint, which is known to work with our signing.
+  const since = Math.floor(Date.now() / 1000) - 120 * 24 * 60 * 60;
+  const listResult = await getAllPaycashlessInvoices({
+    limit: 100,
+    createdAtGte: since,
+  });
+  if (!listResult.success || !listResult.data) {
+    return { success: false, error: listResult.error || "Invoice lookup failed" };
+  }
+
+  const match = (listResult.data.invoices as MappedPaycashlessInvoice[]).find(
+    (invoice) => invoice.id === invoiceId
+  );
+  return match
+    ? { success: true, data: match }
+    : { success: false, error: `Invoice ${invoiceId} not found on Paycashless` };
 }
 
 function extractEmailFromReturnUrl(returnUrl?: string): string | undefined {

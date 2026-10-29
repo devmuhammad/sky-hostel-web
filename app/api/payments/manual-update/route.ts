@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireRole } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
 import { PAYMENT_CONFIG } from "@/shared/config/constants";
 
@@ -17,6 +18,7 @@ interface ManualUpdateRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    await requireRole(["super_admin", "admin"]);
     const { email, paycashlessData, localPayments }: ManualUpdateRequest =
       await request.json();
 

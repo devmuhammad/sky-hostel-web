@@ -23,9 +23,9 @@ export function ManualPaymentChecker({
           Manual Payment Status Checker
         </h3>
         <p className="text-sm text-gray-600 mb-4">
-          Check and update payment status for a specific email address. This
-          tool helps verify Paycashless payments including partial payments from
-          INVOICE_PAYMENT_SUCCEEDED events.
+          Check a student email against Paycashless and this system. If they
+          paid on Paycashless but have no local record, you can create it from
+          the result.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 items-end">
           <div className="flex-1">

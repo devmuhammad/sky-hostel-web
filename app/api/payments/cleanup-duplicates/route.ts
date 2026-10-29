@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireRole } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
 import { verifyPaycashlessPayment } from "@/shared/utils/paycashless";
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, adminKey } = await request.json();
-
-    // Simple admin key check
-    if (adminKey !== "admin123") {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    await requireRole(["super_admin"]);
+    const { email } = await request.json();
 
     if (!email) {
       return NextResponse.json(

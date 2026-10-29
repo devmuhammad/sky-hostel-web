@@ -64,7 +64,7 @@ export function PaymentActions({
           disabled={isSyncingAll}
           className="bg-blue-600 hover:bg-blue-700"
         >
-          {isSyncingAll ? "Syncing..." : "Sync All (update only)"}
+          {isSyncingAll ? "Syncing..." : "Sync All"}
         </Button>
       </div>
     </div>

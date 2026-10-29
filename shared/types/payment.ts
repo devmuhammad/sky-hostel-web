@@ -47,6 +47,7 @@ export interface PaycashlessInvoice {
     orderType?: string;
   };
   returnUrl?: string;
+  hostedInvoiceUrl?: string;
   createdAt: string;
   dueDate: string;
   acceptPartialPayments: boolean;

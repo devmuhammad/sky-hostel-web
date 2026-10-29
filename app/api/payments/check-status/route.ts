@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/shared/config/supabase";
-import {
-  verifyPaycashlessPayment,
-  getPaycashlessPaymentStatusForManualCheck,
-} from "@/shared/utils/paycashless";
+import { getPaycashlessPaymentStatusForManualCheck } from "@/shared/utils/paycashless";
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +16,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const normalizedEmail =
+      typeof email === "string" ? email.trim().toLowerCase() : "";
+    const rawReference = typeof reference === "string" ? reference.trim() : "";
+
     let query = supabaseAdmin
       .from("payments")
       .select(
@@ -29,6 +31,7 @@ export async function POST(request: NextRequest) {
         amount_paid,
         amount_to_pay,
         invoice_id,
+        paycashless_invoice_id,
         status,
         created_at,
         paid_at
@@ -36,12 +39,12 @@ export async function POST(request: NextRequest) {
       )
       .order("created_at", { ascending: false });
 
-    if (reference) {
-      query = query.eq("invoice_id", reference);
-    } else if (email && phone) {
-      query = query.or(`email.eq.${email},phone.eq.${phone}`);
-    } else if (email) {
-      query = query.eq("email", email);
+    if (rawReference) {
+      query = query.or(
+        `invoice_id.eq."${rawReference}",paycashless_invoice_id.eq."${rawReference}"`
+      );
+    } else if (normalizedEmail) {
+      query = query.ilike("email", normalizedEmail);
     } else if (phone) {
       query = query.eq("phone", phone);
     }
@@ -59,15 +62,19 @@ export async function POST(request: NextRequest) {
     }
 
     const paycashlessResult = await getPaycashlessPaymentStatusForManualCheck(
-      email || "",
+      normalizedEmail || email || "",
       phone
     );
 
-    if (
-      (!payments || payments.length === 0) &&
+    const foundOnPaycashless =
       paycashlessResult.success &&
-      paycashlessResult.data
-    ) {
+      Boolean(
+        paycashlessResult.data?.bestInvoice ||
+          (paycashlessResult.data?.totalPaid || 0) > 0 ||
+          (paycashlessResult.data?.payments || []).length > 0
+      );
+
+    if ((!payments || payments.length === 0) && foundOnPaycashless) {
       return NextResponse.json({
         success: true,
         payment: null,

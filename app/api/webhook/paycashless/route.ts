@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyWebhookSignature } from "@/shared/utils/paycashless";
+import {
+  getPaycashlessInvoiceById,
+  mapPaycashlessInvoice,
+  verifyWebhookSignature,
+} from "@/shared/utils/paycashless";
+import { upsertPaymentFromInvoice } from "@/shared/utils/payment-record";
 import { supabaseAdmin } from "@/shared/config/supabase";
 import {
   PaycashlessWebhookPayload,
   PaycashlessPaymentSucceededData,
   PaycashlessInvoicePaidData,
+  PaycashlessInvoice,
 } from "@/shared/types/payment";
-import { PAYMENT_CONFIG } from "@/shared/config/constants";
 
 export async function GET() {
   return NextResponse.json({
@@ -19,7 +24,6 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text();
-    const headers = Object.fromEntries(request.headers.entries());
     const payload = JSON.parse(rawBody) as PaycashlessWebhookPayload;
 
     const signature = request.headers.get("Request-Signature");
@@ -78,8 +82,6 @@ async function handleInvoicePaymentSucceeded(
   webhookData: PaycashlessPaymentSucceededData
 ) {
   const invoiceId = webhookData.invoiceId;
-  const rawPaymentAmount = webhookData.amountPaid;
-  const paymentAmount = rawPaymentAmount / 100; // Convert kobo to Naira
 
   if (!invoiceId) {
     return NextResponse.json(
@@ -88,168 +90,59 @@ async function handleInvoicePaymentSucceeded(
     );
   }
 
-  const existingPayment = await findPaymentByInvoiceId(invoiceId);
-
-  if (!existingPayment) {
-    return NextResponse.json({ error: "Payment not found" }, { status: 404 });
-  }
-
-  const currentAmountPaid = existingPayment.amount_paid || 0;
-  const newAmountPaid = currentAmountPaid + paymentAmount;
-  const totalAmount = existingPayment.amount_to_pay || PAYMENT_CONFIG.amount;
-
-  let newStatus = "pending";
-  if (newAmountPaid >= totalAmount) {
-    newStatus = "completed";
-  } else if (newAmountPaid > 0) {
-    newStatus = "partially_paid";
-  }
-
-  const updateData = {
-    amount_paid: newAmountPaid,
-    status: newStatus,
-    paid_at:
-      newStatus === "completed"
-        ? new Date().toISOString()
-        : existingPayment.paid_at,
-    last_webhook_update: new Date().toISOString(),
-  };
-
-  const { data: updatedPayment, error: updateError } = await supabaseAdmin
-    .from("payments")
-    .update(updateData)
-    .eq("id", existingPayment.id)
-    .select()
-    .single();
-
-  if (updateError) {
+  const fetched = await getPaycashlessInvoiceById(invoiceId);
+  if (!fetched.success || !fetched.data) {
+    // Ask Paycashless to retry until we can read the invoice and create the row.
     return NextResponse.json(
-      { error: "Failed to update payment" },
+      { error: fetched.error || "Invoice not found" },
       { status: 500 }
     );
   }
 
-  await supabaseAdmin.from("activity_logs").insert({
-    action: "partial_payment_received",
-    resource_type: "payment",
-    resource_id: existingPayment.id,
-    metadata: {
-      old_amount_paid: currentAmountPaid,
-      new_amount_paid: newAmountPaid,
-      payment_amount: paymentAmount,
-      old_status: existingPayment.status,
-      new_status: newStatus,
-      webhook_data: webhookData,
-      event_type: "INVOICE_PAYMENT_SUCCEEDED",
-      invoice_id: invoiceId,
-    },
-  });
-
-  return NextResponse.json({
-    success: true,
-    payment_id: existingPayment.id,
-    old_amount_paid: currentAmountPaid,
-    new_amount_paid: newAmountPaid,
-    payment_amount: paymentAmount,
-    old_status: existingPayment.status,
-    new_status: newStatus,
-    updated_at: updatedPayment.updated_at,
-    event_type: "INVOICE_PAYMENT_SUCCEEDED",
-    invoice_id: invoiceId,
-  });
+  return syncInvoiceFromWebhook(fetched.data, "INVOICE_PAYMENT_SUCCEEDED");
 }
 
 async function handleInvoicePaid(webhookData: PaycashlessInvoicePaidData) {
-  const reference = webhookData.reference;
+  const mapped = mapPaycashlessInvoice(
+    webhookData as unknown as PaycashlessInvoice
+  );
+  return syncInvoiceFromWebhook(mapped, "INVOICE_PAID");
+}
 
-  if (!reference) {
-    return NextResponse.json(
-      { error: "No reference provided" },
-      { status: 400 }
-    );
-  }
-
-  const existingPayment = await findPaymentByReference(reference);
-
-  if (!existingPayment) {
-    return NextResponse.json({ error: "Payment not found" }, { status: 404 });
-  }
-
-  const totalAmount = existingPayment.amount_to_pay || PAYMENT_CONFIG.amount;
-
-  const updateData = {
-    amount_paid: totalAmount,
-    status: "completed",
-    paid_at: new Date().toISOString(),
-    last_webhook_update: new Date().toISOString(),
-  };
-
-  const { data: updatedPayment, error: updateError } = await supabaseAdmin
-    .from("payments")
-    .update(updateData)
-    .eq("id", existingPayment.id)
-    .select()
-    .single();
-
-  if (updateError) {
-    return NextResponse.json(
-      { error: "Failed to update payment" },
-      { status: 500 }
-    );
-  }
+async function syncInvoiceFromWebhook(
+  invoice: Parameters<typeof upsertPaymentFromInvoice>[0],
+  eventType: string
+) {
+  const result = await upsertPaymentFromInvoice(invoice, {
+    touchWebhook: true,
+  });
 
   await supabaseAdmin.from("activity_logs").insert({
-    action: "invoice_fully_paid",
+    action:
+      result.action === "created"
+        ? "payment_recovered_from_webhook"
+        : eventType === "INVOICE_PAID"
+          ? "invoice_fully_paid"
+          : "partial_payment_received",
     resource_type: "payment",
-    resource_id: existingPayment.id,
+    resource_id: result.payment.id,
     metadata: {
-      old_amount_paid: existingPayment.amount_paid,
-      new_amount_paid: totalAmount,
-      old_status: existingPayment.status,
-      new_status: "completed",
-      webhook_data: webhookData,
-      event_type: "INVOICE_PAID",
-      reference: reference,
+      event_type: eventType,
+      action: result.action,
+      invoice_id: invoice.id,
+      reference: invoice.reference,
+      amount_paid: invoice.totalPaid,
+      status: result.payment.status,
     },
   });
 
   return NextResponse.json({
     success: true,
-    payment_id: existingPayment.id,
-    old_amount_paid: existingPayment.amount_paid,
-    new_amount_paid: totalAmount,
-    old_status: existingPayment.status,
-    new_status: "completed",
-    updated_at: updatedPayment.updated_at,
-    event_type: "INVOICE_PAID",
-    reference: reference,
+    payment_id: result.payment.id,
+    action: result.action,
+    new_amount_paid: result.payment.amount_paid,
+    new_status: result.payment.status,
+    event_type: eventType,
+    invoice_id: invoice.id,
   });
-}
-
-async function findPaymentByReference(reference: string) {
-  const { data: payment, error } = await supabaseAdmin
-    .from("payments")
-    .select("*")
-    .eq("invoice_id", reference)
-    .single();
-
-  if (payment && !error) {
-    return payment;
-  }
-
-  return null;
-}
-
-async function findPaymentByInvoiceId(invoiceId: string) {
-  const { data: payment, error } = await supabaseAdmin
-    .from("payments")
-    .select("*")
-    .eq("paycashless_invoice_id", invoiceId)
-    .single();
-
-  if (payment && !error) {
-    return payment;
-  }
-
-  return null;
 }

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireRole } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
 
 export async function POST(request: NextRequest) {
   try {
+    await requireRole(["super_admin"]);
     const { paymentIds, keepPaymentId, updateData } = await request.json();
 
     if (!paymentIds || !Array.isArray(paymentIds) || paymentIds.length === 0) {
