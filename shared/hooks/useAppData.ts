@@ -1,7 +1,13 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAppStore } from "@/shared/store/appStore";
+import {
+  AdminUser,
+  Payment,
+  Room,
+  Student,
+  useAppStore,
+} from "@/shared/store/appStore";
 import { createClientSupabaseClient } from "@/shared/config/auth";
 import { useToast } from "./useToast";
 import React, { useEffect } from "react"; // Added missing import for React
@@ -10,12 +16,12 @@ import { fetchAllRows } from "@/shared/utils/supabase-fetch";
 // API Functions
 const fetchStudents = async () => {
   const supabase = createClientSupabaseClient();
-  return fetchAllRows(supabase, "students");
+  return fetchAllRows<Student>(supabase, "students");
 };
 
 const fetchPayments = async () => {
   const supabase = createClientSupabaseClient();
-  return fetchAllRows(
+  return fetchAllRows<Payment>(
     supabase,
     "payments",
     `
@@ -27,12 +33,12 @@ const fetchPayments = async () => {
 
 const fetchRooms = async () => {
   const supabase = createClientSupabaseClient();
-  return fetchAllRows(supabase, "rooms");
+  return fetchAllRows<Room>(supabase, "rooms");
 };
 
 const fetchAdminUsers = async () => {
   const supabase = createClientSupabaseClient();
-  return fetchAllRows(supabase, "admin_users");
+  return fetchAllRows<AdminUser>(supabase, "admin_users");
 };
 
 // React Query Hooks
