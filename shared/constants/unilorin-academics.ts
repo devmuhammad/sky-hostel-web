@@ -208,7 +208,11 @@ const FACULTY_ALIASES: Record<string, string> = {
   "faculty of environmental sciences": "Environmental Sciences",
   env: "Environmental Sciences",
   law: "Law",
+  laws: "Law",
   "faculty of law": "Law",
+  "faculty of laws": "Law",
+  "law faculty": "Law",
+  "faculty law": "Law",
   "life sciences": "Life Sciences",
   "faculty of life sciences": "Life Sciences",
   "life science": "Life Sciences",
@@ -430,8 +434,11 @@ export type NormalizedAcademics = {
 function collapseKey(value: string): string {
   return value
     .toLowerCase()
+    .replace(/\u00a0/g, " ")
     .replace(/&/g, " and ")
-    .replace(/\b(faculty|dept|department|school|college)\s+of\b/g, " ")
+    .replace(/\b(the)\b/g, " ")
+    .replace(/\b(faculty|fac\.?|dept\.?|department|school|college)\s+of\b/g, " ")
+    .replace(/\b(faculty|fac\.?|dept\.?|department|school|college)\b/g, " ")
     .replace(/\b(b\.?\s*sc|b\.?\s*a|b\.?\s*eng|b\.?\s*tech|b\.?\s*ed|ll\.?\s*b|m\.?\s*b\.?\s*b\.?\s*s|b\.?\s*pharm|b\.?\s*nsc)\b/g, " ")
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
@@ -444,20 +451,30 @@ function findCanonicalFaculty(value: string | null | undefined): string | null {
   if (!trimmed) return null;
   if (UNILORIN_FACULTY_DEPARTMENTS[trimmed]) return trimmed;
 
+  const caseMatch = UNILORIN_FACULTIES.find(
+    (faculty) => faculty.toLowerCase() === trimmed.toLowerCase()
+  );
+  if (caseMatch) return caseMatch;
+
   const key = collapseKey(trimmed);
   if (!key) return null;
   if (FACULTY_ALIASES[key]) return FACULTY_ALIASES[key];
 
-  for (const faculty of UNILORIN_FACULTIES) {
-    if (collapseKey(faculty) === key) return faculty;
-  }
+  const exactCollapsed = UNILORIN_FACULTIES.find(
+    (faculty) => collapseKey(faculty) === key
+  );
+  if (exactCollapsed) return exactCollapsed;
 
-  for (const faculty of UNILORIN_FACULTIES) {
+  const unique = UNILORIN_FACULTIES.filter((faculty) => {
     const facultyKey = collapseKey(faculty);
-    if (facultyKey && (key.includes(facultyKey) || facultyKey.includes(key))) {
-      return faculty;
-    }
-  }
+    if (!facultyKey || facultyKey === collapseKey(OTHER_OPTION)) return false;
+    return (
+      key === facultyKey ||
+      new RegExp(`\\b${facultyKey}\\b`).test(key) ||
+      new RegExp(`\\b${key}\\b`).test(facultyKey)
+    );
+  });
+  if (unique.length === 1) return unique[0];
 
   return null;
 }
@@ -599,6 +616,14 @@ export function departmentSelectOptions(
       label: department,
     })),
   ];
+}
+
+export function canonicalFacultyName(
+  faculty?: string | null,
+  department?: string | null,
+  course?: string | null
+): string {
+  return normalizeStudentAcademics(faculty, department, course).faculty;
 }
 
 export function normalizeStudentAcademics(

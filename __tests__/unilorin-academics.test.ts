@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canonicalFacultyName,
   isCanonicalDepartment,
   isCanonicalFaculty,
   normalizeStudentAcademics,
@@ -50,6 +51,32 @@ describe("normalizeStudentAcademics", () => {
       department: "Other",
       changed: true,
     });
+  });
+
+  it("collapses faculty of / casing variants into one faculty", () => {
+    const variants = [
+      "Law",
+      "law",
+      "Faculty of Law",
+      "FACULTY OF LAW",
+      "Faculty Of Law",
+      "Law Faculty",
+      "faculty of laws",
+    ];
+    for (const faculty of variants) {
+      expect(canonicalFacultyName(faculty)).toBe("Law");
+    }
+
+    expect(canonicalFacultyName("Faculty of Engineering")).toBe(
+      "Engineering and Technology"
+    );
+    expect(canonicalFacultyName("CIS")).toBe(
+      "Communication and Information Sciences"
+    );
+    expect(canonicalFacultyName("Faculty of CIS")).toBe(
+      "Communication and Information Sciences"
+    );
+    expect(canonicalFacultyName("FMS")).toBe("Management Sciences");
   });
 
   it("accepts Other as a valid selection", () => {

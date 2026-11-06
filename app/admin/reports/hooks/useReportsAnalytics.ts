@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useStudents, usePayments, useRooms } from "@/shared/hooks/useAppData";
 import {
   getCurrentAcademicSession,
@@ -13,6 +14,7 @@ import {
   studentInSession,
   type HostelStats,
 } from "@/shared/utils/hostel-stats";
+import { canonicalFacultyName } from "@/shared/constants/unilorin-academics";
 
 interface ReportData {
   totalStudents: number;
@@ -48,6 +50,7 @@ function rangeForSession(sessionLabel: string) {
 }
 
 export function useReportsAnalytics() {
+  const queryClient = useQueryClient();
   const [sessionLabel, setSessionLabel] = useState(getCurrentAcademicSession);
   const [headline, setHeadline] = useState<HostelStats | null>(null);
   const [dateRange, setDateRange] = useState(() =>
@@ -111,6 +114,25 @@ export function useReportsAnalytics() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch("/api/admin/students/repair-academics", {
+          method: "POST",
+        });
+        const result = await response.json();
+        if (cancelled || !result.success || !result.data?.updated) return;
+        await queryClient.invalidateQueries({ queryKey: ["students"] });
+      } catch (error) {
+        console.error("Academic repair failed:", error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [queryClient]);
+
   const isLoading = studentsLoading || paymentsLoading || roomsLoading;
   const isError = Boolean(studentsError || paymentsError || roomsError);
 
@@ -149,7 +171,12 @@ export function useReportsAnalytics() {
 
     const studentsByFaculty = chartStudents.reduce(
       (acc, student) => {
-        acc[student.faculty] = (acc[student.faculty] || 0) + 1;
+        const faculty = canonicalFacultyName(
+          student.faculty,
+          student.department,
+          student.course
+        );
+        acc[faculty] = (acc[faculty] || 0) + 1;
         return acc;
       },
       {} as Record<string, number>

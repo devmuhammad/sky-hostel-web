@@ -1,3 +1,5 @@
+import { canonicalFacultyName } from "@/shared/constants/unilorin-academics";
+
 export function exportToCSV(
   type: "students" | "payments",
   studentsData: any[],
@@ -21,7 +23,7 @@ export function exportToCSV(
     );
 
     filteredStudents.forEach((student: any) => {
-      csvContent += `"${student.first_name} ${student.last_name}","${student.email}","${student.phone}","${student.matric_number}","${student.faculty}","${student.level}","${student.state_of_origin}","${student.block}${student.room}","${student.bedspace_label}"\n`;
+      csvContent += `"${student.first_name} ${student.last_name}","${student.email}","${student.phone}","${student.matric_number}","${canonicalFacultyName(student.faculty, student.department, student.course)}","${student.level}","${student.state_of_origin}","${student.block}${student.room}","${student.bedspace_label}"\n`;
     });
   } else {
     filename = `payments_${dateRange.from}_to_${dateRange.to}.csv`;
