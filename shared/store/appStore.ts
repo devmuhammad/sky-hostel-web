@@ -61,6 +61,12 @@ export interface Payment {
   invoice_paid_at?: string | null;
 }
 
+export interface BedReservation {
+  bedspace_label: string;
+  reserved_for_name: string;
+  created_at?: string;
+}
+
 export interface Room {
   id: string;
   name: string;
@@ -69,6 +75,7 @@ export interface Room {
   bed_type: "4_bed" | "6_bed";
   available_beds: string[];
   room_availability_status?: "open" | "reserved" | "locked";
+  bed_reservations?: BedReservation[];
   created_at: string;
   updated_at: string;
 }

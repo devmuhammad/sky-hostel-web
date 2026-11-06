@@ -24,6 +24,7 @@ export const getStudentDetailSections = (student: {
   marital_status?: string;
   religion?: string;
   faculty?: string;
+  department?: string;
   level?: string;
   course?: string;
   block?: string | null;
@@ -63,6 +64,7 @@ export const getStudentDetailSections = (student: {
     title: "Academic Information",
     items: [
       { label: "Faculty", value: student.faculty || "Not provided" },
+      { label: "Department", value: student.department || "Not provided" },
       { label: "Level", value: student.level || "Not provided" },
       { label: "Course", value: student.course || "Not provided" },
     ],

@@ -8,6 +8,7 @@ import { Modal } from "@/shared/components/ui/modal";
 import { RoomSelectionWizard } from "@/shared/components/ui/room-selection-wizard";
 import { Student, useAppStore } from "@/shared/store/appStore";
 import { useToast } from "@/shared/hooks/useToast";
+import { FacultyDepartmentFields } from "@/shared/components/ui/faculty-department-fields";
 
 interface EditStudentForm {
   first_name: string;
@@ -17,13 +18,18 @@ interface EditStudentForm {
   matric_number: string;
   address: string;
   state_of_origin: string;
+  faculty: string;
+  department: string;
   [key: string]: string;
 }
 
 interface EditStudentModalProps {
   student: Student | null;
   editForm: EditStudentForm;
-  onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onInputChange: (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => void;
+  onAcademicChange: (name: "faculty" | "department", value: string) => void;
   onSave: () => void;
   onClose: () => void;
   isPending: boolean;
@@ -33,6 +39,7 @@ export function EditStudentModal({
   student,
   editForm,
   onInputChange,
+  onAcademicChange,
   onSave,
   onClose,
   isPending,
@@ -215,6 +222,16 @@ export function EditStudentModal({
               name="state_of_origin"
               value={editForm.state_of_origin}
               onChange={onInputChange}
+            />
+          </div>
+          <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FacultyDepartmentFields
+              faculty={editForm.faculty || ""}
+              department={editForm.department || ""}
+              onFacultyChange={(value) => onAcademicChange("faculty", value)}
+              onDepartmentChange={(value) =>
+                onAcademicChange("department", value)
+              }
             />
           </div>
 

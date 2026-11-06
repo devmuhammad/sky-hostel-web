@@ -6,13 +6,17 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { CardLoadingSkeleton } from "@/shared/components/ui/loading-skeleton";
 import { EmptyState } from "@/shared/components/ui/empty-state";
-import { useAppStore } from "@/shared/store/appStore";
+import { Input } from "@/shared/components/ui/input";
+import { Label } from "@/shared/components/ui/label";
+import { Modal } from "@/shared/components/ui/modal";
 import { useRooms, useStudents } from "@/shared/hooks/useAppData";
+import { Room } from "@/shared/store/appStore";
 import { useRoomsManagement } from "./hooks/useRoomsManagement";
 import { RoomsStats } from "./components/RoomsStats";
 import { RoomCard } from "./components/RoomCard";
 import { AddRoomModal } from "./components/AddRoomModal";
 import { RoomDetailsModal } from "./components/RoomDetailsModal";
+import { roomHasReservations } from "./utils/roomUtils";
 import { toast } from "sonner";
 
 function RoomsManagement() {
@@ -21,8 +25,16 @@ function RoomsManagement() {
   );
   const [statusUpdating, setStatusUpdating] = useState<{
     roomId: string | null;
-    status: "open" | "reserved" | "locked" | null;
+    status: "open" | "locked" | null;
   }>({ roomId: null, status: null });
+  const [reservationTarget, setReservationTarget] = useState<{
+    room: Room;
+    bedspaceLabel: string;
+  } | null>(null);
+  const [reservationName, setReservationName] = useState("");
+  const [reservationBusyLabel, setReservationBusyLabel] = useState<
+    string | null
+  >(null);
 
   const {
     data: roomsData,
@@ -37,11 +49,28 @@ function RoomsManagement() {
     refetch: refetchStudents,
   } = useStudents();
 
-  // Use fresh data from hooks instead of store
   const rooms = useMemo(() => roomsData || [], [roomsData]);
   const students = useMemo(() => studentsData || [], [studentsData]);
 
-  // Auto-refresh rooms data every 30 seconds
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch("/api/admin/rooms/reconcile-availability", {
+          method: "POST",
+        });
+        if (!cancelled && response.ok) {
+          await refetchRooms();
+        }
+      } catch (error) {
+        console.error("Room availability reconcile failed:", error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refetchRooms]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       refetchRooms();
@@ -64,10 +93,7 @@ function RoomsManagement() {
   const isLoading = roomsLoading || studentsLoading;
   const isError = roomsError || studentsError;
   const reservedRooms = useMemo(
-    () =>
-      rooms.filter(
-        (room) => (room.room_availability_status || "open") === "reserved"
-      ),
+    () => rooms.filter((room) => roomHasReservations(room)),
     [rooms]
   );
   const lockedRooms = useMemo(
@@ -84,8 +110,8 @@ function RoomsManagement() {
   }, [activeTab, lockedRooms, reservedRooms, rooms]);
 
   const setRoomAvailabilityStatus = async (
-    room: (typeof rooms)[number],
-    status: "open" | "reserved" | "locked"
+    room: Room,
+    status: "open" | "locked"
   ) => {
     try {
       setStatusUpdating({ roomId: room.id, status });
@@ -101,15 +127,74 @@ function RoomsManagement() {
       }
 
       toast.success(
-        `${room.block}-${room.name} set to ${
-          status === "open" ? "Open" : status === "reserved" ? "Reserved" : "Locked"
-        }`
+        `${room.block}-${room.name} set to ${status === "open" ? "Open" : "Locked"}`
       );
       await refetchRooms();
     } catch (error: any) {
       toast.error(error.message || "Failed to update room availability");
     } finally {
       setStatusUpdating({ roomId: null, status: null });
+    }
+  };
+
+  const saveReservation = async () => {
+    if (!reservationTarget) return;
+    const name = reservationName.trim();
+    if (!name) {
+      toast.error("Enter the name of the person this bedspace is reserved for");
+      return;
+    }
+
+    const busyKey = `${reservationTarget.room.id}:${reservationTarget.bedspaceLabel}`;
+    setReservationBusyLabel(busyKey);
+    try {
+      const response = await fetch(
+        `/api/admin/rooms/${reservationTarget.room.id}/reservations`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            bedspace_label: reservationTarget.bedspaceLabel,
+            reserved_for_name: name,
+          }),
+        }
+      );
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || "Failed to reserve bedspace");
+      }
+      toast.success(
+        `${reservationTarget.bedspaceLabel} reserved for ${name}`
+      );
+      setReservationTarget(null);
+      setReservationName("");
+      await refetchRooms();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to reserve bedspace");
+    } finally {
+      setReservationBusyLabel(null);
+    }
+  };
+
+  const cancelReservation = async (room: Room, bedspaceLabel: string) => {
+    const busyKey = `${room.id}:${bedspaceLabel}`;
+    setReservationBusyLabel(busyKey);
+    try {
+      const response = await fetch(`/api/admin/rooms/${room.id}/reservations`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bedspace_label: bedspaceLabel }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || "Failed to cancel reservation");
+      }
+      toast.success(`${bedspaceLabel} is available again`);
+      await refetchRooms();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to cancel reservation");
+    } finally {
+      setReservationBusyLabel(null);
     }
   };
 
@@ -187,8 +272,10 @@ function RoomsManagement() {
 
       {activeTab === "all" && (
         <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
-          Showing all rooms. Student booking still only uses rooms marked{" "}
-          <span className="font-semibold">Open</span>.
+          Full rooms lock automatically. Rooms with free bedspaces stay{" "}
+          <span className="font-semibold">Open</span>. Reserve a specific
+          bedspace with the person&apos;s name so remaining spaces stay
+          selectable.
         </div>
       )}
 
@@ -201,10 +288,16 @@ function RoomsManagement() {
               students={students}
               onViewDetails={setSelectedRoom}
               onSetAvailabilityStatus={setRoomAvailabilityStatus}
+              onReserveBed={(targetRoom, bedspaceLabel) => {
+                setReservationName("");
+                setReservationTarget({ room: targetRoom, bedspaceLabel });
+              }}
+              onCancelReservation={cancelReservation}
               isStatusUpdating={statusUpdating.roomId === room.id}
               statusUpdatingTo={
                 statusUpdating.roomId === room.id ? statusUpdating.status : null
               }
+              reservationBusyLabel={reservationBusyLabel}
             />
           ))}
         </div>
@@ -214,7 +307,9 @@ function RoomsManagement() {
           description={
             activeTab === "all"
               ? "No rooms available yet. Add a new room to get started."
-              : `There are no ${activeTab} rooms right now.`
+              : activeTab === "reserved"
+                ? "No bedspaces are reserved right now."
+                : "There are no locked rooms right now."
           }
           action={
             <Button onClick={() => setShowAddModal(true)}>Add Room</Button>
@@ -235,6 +330,55 @@ function RoomsManagement() {
         students={students}
         onClose={() => setSelectedRoom(null)}
       />
+
+      <Modal
+        isOpen={!!reservationTarget}
+        onClose={() => {
+          if (reservationBusyLabel) return;
+          setReservationTarget(null);
+          setReservationName("");
+        }}
+        title="Reserve bedspace"
+        hideDefaultFooter
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            {reservationTarget
+              ? `${reservationTarget.room.block} - ${reservationTarget.room.name} · ${reservationTarget.bedspaceLabel}`
+              : ""}
+          </p>
+          <div>
+            <Label htmlFor="reserved_for_name">Reserved for</Label>
+            <Input
+              id="reserved_for_name"
+              value={reservationName}
+              onChange={(event) => setReservationName(event.target.value)}
+              placeholder="Full name"
+              autoFocus
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setReservationTarget(null);
+                setReservationName("");
+              }}
+              disabled={Boolean(reservationBusyLabel)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={saveReservation}
+              disabled={Boolean(reservationBusyLabel)}
+            >
+              {reservationBusyLabel ? "Saving..." : "Reserve bedspace"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

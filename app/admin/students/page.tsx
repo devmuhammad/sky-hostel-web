@@ -2,7 +2,9 @@
 
 export const dynamic = "force-dynamic";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { TableLoadingSkeleton } from "@/shared/components/ui/loading-skeleton";
 import { useStudentsManagement } from "./hooks/useStudentsManagement";
 import { StudentsTable } from "./components/StudentsTable";
@@ -28,8 +30,34 @@ function StudentsManagement() {
     handleEditStudent,
     handleSaveEdit,
     handleInputChange,
+    handleAcademicChange,
     handleResendEmail,
   } = useStudentsManagement();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch("/api/admin/students/repair-academics", {
+          method: "POST",
+        });
+        const result = await response.json();
+        if (cancelled || !result.success) return;
+        if (result.data?.updated > 0) {
+          await queryClient.invalidateQueries({ queryKey: ["students"] });
+          toast.success(
+            `Aligned ${result.data.updated} faculty/department records to Unilorin options`
+          );
+        }
+      } catch (error) {
+        console.error("Academic repair failed:", error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [queryClient]);
 
   const [reportingStudent, setReportingStudent] = useState<Student | null>(null);
 
@@ -54,6 +82,7 @@ function StudentsManagement() {
         student={editingStudent}
         editForm={editForm}
         onInputChange={handleInputChange}
+        onAcademicChange={handleAcademicChange}
         onSave={handleSaveEdit}
         onClose={() => setEditingStudent(null)}
         isPending={updateStudentMutation.isPending}

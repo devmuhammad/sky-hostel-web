@@ -1,4 +1,10 @@
 import { Room, Student } from "@/shared/store/appStore";
+import {
+  expectedBedLabels,
+  parseBedReservations,
+  reservationForBed,
+  type BedReservation,
+} from "@/shared/utils/room-availability";
 
 export interface OccupancyStats {
   totalRooms: number;
@@ -14,6 +20,8 @@ export interface BedStatus {
   downBedLabel: string;
   isTopAvailable: boolean;
   isDownAvailable: boolean;
+  reservedTop?: BedReservation;
+  reservedDown?: BedReservation;
   studentInTop: Student | undefined;
   studentInDown: Student | undefined;
 }
@@ -56,6 +64,29 @@ export function getStudentInBed(
   );
 }
 
+export function getSelectableBedCount(room: Room, students: Student[]): number {
+  const occupied = new Set(
+    students
+      .filter(
+        (student) =>
+          student.block === room.block &&
+          student.room === room.name &&
+          student.bedspace_label
+      )
+      .map((student) => student.bedspace_label as string)
+  );
+  const reserved = new Set(
+    parseBedReservations(room.bed_reservations).map((item) => item.bedspace_label)
+  );
+  return expectedBedLabels(room.total_beds).filter(
+    (label) => !occupied.has(label) && !reserved.has(label)
+  ).length;
+}
+
+export function roomHasReservations(room: Room): boolean {
+  return parseBedReservations(room.bed_reservations).length > 0;
+}
+
 export function getBedStatus(
   room: Room,
   bedIndex: number,
@@ -66,7 +97,6 @@ export function getBedStatus(
   const topBedLabel = `Bed ${bedNumber} (Top)`;
   const downBedLabel = `Bed ${bedNumber} (Down)`;
 
-  // Check if students are assigned to these beds
   const studentInTop = getStudentInBed(
     students,
     room.block,
@@ -79,14 +109,15 @@ export function getBedStatus(
     room.name,
     downBedLabel
   );
+  const reservedTop = studentInTop
+    ? undefined
+    : reservationForBed(room.bed_reservations, topBedLabel);
+  const reservedDown = studentInDown
+    ? undefined
+    : reservationForBed(room.bed_reservations, downBedLabel);
 
-  // A bed is available ONLY if:
-  // 1. It's in the available_beds array AND
-  // 2. No student is assigned to it
-  const isTopAvailable =
-    room.available_beds.includes(topBedLabel) && !studentInTop;
-  const isDownAvailable =
-    room.available_beds.includes(downBedLabel) && !studentInDown;
+  const isTopAvailable = !studentInTop && !reservedTop;
+  const isDownAvailable = !studentInDown && !reservedDown;
 
   return {
     bedNumber,
@@ -94,6 +125,8 @@ export function getBedStatus(
     downBedLabel,
     isTopAvailable,
     isDownAvailable,
+    reservedTop,
+    reservedDown,
     studentInTop,
     studentInDown,
   };

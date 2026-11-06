@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { ValidationPatterns } from "./validation-patterns";
+import {
+  isCanonicalDepartment,
+  isCanonicalFaculty,
+} from "@/shared/constants/unilorin-academics";
 
 // Re-export validation patterns for convenience
 export { ValidationPatterns };
@@ -34,7 +38,15 @@ export const RegistrationSchema = z.object({
   nextOfKinPhoneNumber: ValidationPatterns.nextOfKin.nextOfKinPhoneNumber,
   nextOfKinEmail: ValidationPatterns.nextOfKin.nextOfKinEmail,
   nextOfKinRelationship: ValidationPatterns.nextOfKin.nextOfKinRelationship,
-});
+})
+  .refine((data) => isCanonicalFaculty(data.faculty), {
+    path: ["faculty"],
+    message: "Select a University of Ilorin faculty",
+  })
+  .refine((data) => isCanonicalDepartment(data.faculty, data.department), {
+    path: ["department"],
+    message: "Select a department offered in that faculty",
+  });
 
 // Payment form schema
 export const PaymentSchema = z.object({

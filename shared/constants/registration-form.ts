@@ -70,8 +70,8 @@ export const FIELD_CONFIG: Record<keyof RegistrationFormData, FieldConfig> = {
   // Academic Information
   matricNumber: { type: "text", required: true, section: "academic" },
   course: { type: "text", required: true, section: "academic" },
-  faculty: { type: "text", required: true, section: "academic" },
-  department: { type: "text", required: true, section: "academic" },
+  faculty: { type: "select", required: true, section: "academic" },
+  department: { type: "select", required: true, section: "academic" },
   level: {
     type: "select",
     required: true,

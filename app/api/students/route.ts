@@ -4,6 +4,11 @@ import { withRateLimit, rateLimiters } from "@/shared/utils/rate-limit";
 import { ensureStudentResumptionVerification } from "@/shared/utils/resumption-verification";
 import { getActiveSessionConfig } from "@/shared/utils/active-session";
 import { restoreBedspaceById } from "@/shared/utils/room-beds";
+import {
+  syncRoomAvailability,
+  syncRoomStatusFromAvailableBeds,
+} from "@/shared/utils/room-availability";
+import { normalizeStudentAcademics } from "@/shared/constants/unilorin-academics";
 
 interface StudentRegistrationData {
   // Personal Information
@@ -67,6 +72,8 @@ async function handlePOST(request: NextRequest) {
       "room",
       "bedspace_label",
       "room_id",
+      "faculty",
+      "department",
     ];
 
     for (const field of requiredFields) {
@@ -353,6 +360,13 @@ async function handlePOST(request: NextRequest) {
         throw new Error("Failed to update room availability");
       }
       bedClaimed = true;
+      await syncRoomStatusFromAvailableBeds(supabaseAdmin, data.room_id);
+
+      const academics = normalizeStudentAcademics(
+        data.faculty,
+        data.department,
+        data.course
+      );
 
       const studentPayload = {
         first_name: data.first_name,
@@ -369,8 +383,8 @@ async function handlePOST(request: NextRequest) {
         matric_number: data.matric_number,
         course: data.course,
         level: data.level,
-        faculty: data.faculty,
-        department: data.department,
+        faculty: academics.faculty,
+        department: academics.department,
         next_of_kin_name: data.next_of_kin_name,
         next_of_kin_phone: data.next_of_kin_phone,
         next_of_kin_email: data.next_of_kin_email,
@@ -484,6 +498,7 @@ async function handlePOST(request: NextRequest) {
         });
       }
       studentSaved = true;
+      await syncRoomAvailability(supabaseAdmin, data.room_id);
 
       await ensureStudentResumptionVerification(
         supabaseAdmin,

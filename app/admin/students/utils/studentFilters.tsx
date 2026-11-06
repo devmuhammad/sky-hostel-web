@@ -2,6 +2,7 @@
 
 import { Filter } from "@/shared/components/ui/data-table";
 import { Student } from "@/shared/store/appStore";
+import { UNILORIN_FACULTIES } from "@/shared/constants/unilorin-academics";
 
 export function getStudentFilters(
   students: Student[],
@@ -10,9 +11,12 @@ export function getStudentFilters(
   filterLevel: string,
   setFilterLevel: (value: string) => void
 ): Filter[] {
-  const faculties = [...new Set(students.map((s) => s.faculty))].filter(
-    (faculty): faculty is string => Boolean(faculty)
-  );
+  const faculties = [
+    ...new Set([
+      ...UNILORIN_FACULTIES,
+      ...students.map((s) => s.faculty).filter((faculty): faculty is string => Boolean(faculty)),
+    ]),
+  ];
   const levels = [...new Set(students.map((s) => s.level))].filter(
     (level): level is string => Boolean(level)
   );

@@ -2,12 +2,24 @@
 
 import { Modal } from "@/shared/components/ui/modal";
 import { Room, Student } from "@/shared/store/appStore";
-import { getBedStatus } from "../utils/roomUtils";
+import { getBedStatus, getSelectableBedCount } from "../utils/roomUtils";
 
 interface RoomDetailsModalProps {
   room: Room | null;
   students: Student[];
   onClose: () => void;
+}
+
+function slotBadge(available: boolean, reserved: boolean) {
+  if (available) return "bg-green-100 text-green-800";
+  if (reserved) return "bg-amber-100 text-amber-800";
+  return "bg-red-100 text-red-800";
+}
+
+function slotLabel(available: boolean, reserved: boolean) {
+  if (available) return "Available";
+  if (reserved) return "Reserved";
+  return "Occupied";
 }
 
 export function RoomDetailsModal({
@@ -16,6 +28,10 @@ export function RoomDetailsModal({
   onClose,
 }: RoomDetailsModalProps) {
   if (!room) return null;
+
+  const selectableCount = getSelectableBedCount(room, students);
+  const displayStatus =
+    selectableCount === 0 ? "locked" : room.room_availability_status || "open";
 
   return (
     <Modal
@@ -51,34 +67,14 @@ export function RoomDetailsModal({
               Available Bedspaces
             </label>
             <p className="text-sm text-gray-900">
-              {(() => {
-                // Count beds that are actually available (not occupied)
-                const assignedStudents = students.filter(
-                  (student) =>
-                    student.block === room.block &&
-                    student.room === room.name &&
-                    student.bedspace_label
-                );
-                // Count available bedspaces by checking which ones are truly free
-                const availableBedspaces = room.available_beds.filter(
-                  (bedLabel) => {
-                    const isOccupied = assignedStudents.some(
-                      (student) => student.bedspace_label === bedLabel
-                    );
-                    return !isOccupied;
-                  }
-                );
-                return `${availableBedspaces.length} bedspaces available`;
-              })()}
+              {selectableCount} bedspaces available
             </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">
               Availability Status
             </label>
-            <p className="text-sm text-gray-900 capitalize">
-              {room.room_availability_status || "open"}
-            </p>
+            <p className="text-sm text-gray-900 capitalize">{displayStatus}</p>
           </div>
         </div>
 
@@ -98,7 +94,9 @@ export function RoomDetailsModal({
                     className={`p-3 rounded-lg border ${
                       bedStatus.isTopAvailable || bedStatus.isDownAvailable
                         ? "bg-green-50 border-green-200"
-                        : "bg-red-50 border-red-200"
+                        : bedStatus.reservedTop || bedStatus.reservedDown
+                          ? "bg-amber-50 border-amber-200"
+                          : "bg-red-50 border-red-200"
                     }`}
                   >
                     <div className="flex justify-between items-center">
@@ -106,13 +104,15 @@ export function RoomDetailsModal({
                         {bedStatus.topBedLabel}
                       </span>
                       <span
-                        className={`text-xs px-2 py-1 rounded ${
-                          bedStatus.isTopAvailable
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
+                        className={`text-xs px-2 py-1 rounded ${slotBadge(
+                          bedStatus.isTopAvailable,
+                          Boolean(bedStatus.reservedTop)
+                        )}`}
                       >
-                        {bedStatus.isTopAvailable ? "Available" : "Occupied"}
+                        {slotLabel(
+                          bedStatus.isTopAvailable,
+                          Boolean(bedStatus.reservedTop)
+                        )}
                       </span>
                     </div>
                     {bedStatus.isTopAvailable && (
@@ -120,7 +120,13 @@ export function RoomDetailsModal({
                         Top available
                       </div>
                     )}
-                    {!bedStatus.isTopAvailable && bedStatus.studentInTop && (
+                    {bedStatus.reservedTop && (
+                      <div className="mt-2 text-sm">
+                        <strong>Reserved for:</strong>{" "}
+                        {bedStatus.reservedTop.reserved_for_name}
+                      </div>
+                    )}
+                    {bedStatus.studentInTop && (
                       <div className="mt-2 text-sm">
                         <div>
                           <strong>Student:</strong>{" "}
@@ -144,13 +150,15 @@ export function RoomDetailsModal({
                         {bedStatus.downBedLabel}
                       </span>
                       <span
-                        className={`text-xs px-2 py-1 rounded ${
-                          bedStatus.isDownAvailable
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
+                        className={`text-xs px-2 py-1 rounded ${slotBadge(
+                          bedStatus.isDownAvailable,
+                          Boolean(bedStatus.reservedDown)
+                        )}`}
                       >
-                        {bedStatus.isDownAvailable ? "Available" : "Occupied"}
+                        {slotLabel(
+                          bedStatus.isDownAvailable,
+                          Boolean(bedStatus.reservedDown)
+                        )}
                       </span>
                     </div>
                     {bedStatus.isDownAvailable && (
@@ -158,7 +166,13 @@ export function RoomDetailsModal({
                         Down available
                       </div>
                     )}
-                    {!bedStatus.isDownAvailable && bedStatus.studentInDown && (
+                    {bedStatus.reservedDown && (
+                      <div className="mt-2 text-sm">
+                        <strong>Reserved for:</strong>{" "}
+                        {bedStatus.reservedDown.reserved_for_name}
+                      </div>
+                    )}
+                    {bedStatus.studentInDown && (
                       <div className="mt-2 text-sm">
                         <div>
                           <strong>Student:</strong>{" "}

@@ -51,7 +51,9 @@ export function getTableColumns({
           <div className="font-medium text-xs sm:text-sm lg:text-base truncate">
             {student.faculty}
           </div>
-          <div className="text-xs text-gray-500 truncate">{student.level}</div>
+          <div className="text-xs text-gray-500 truncate">
+            {student.department || student.level}
+          </div>
         </div>
       ),
     },

@@ -18,6 +18,8 @@ import { Label } from "@/shared/components/ui/label";
 import RoomSelection from "./RoomSelection";
 import { HostelRulesConsent } from "@/shared/components/ui/hostel-rules-consent";
 import { FIELD_CONFIG, SECTION_CONFIG } from "@/shared/constants";
+import { FacultyDepartmentFields } from "@/shared/components/ui/faculty-department-fields";
+import { isCanonicalDepartment } from "@/shared/constants/unilorin-academics";
 import { toast } from "sonner";
 interface RegistrationFormProps {
   paymentData: any;
@@ -252,6 +254,35 @@ export default function RegistrationForm({
 
     const error = form.formState.errors[fieldName];
     const isError = !!error;
+
+    if (fieldName === "department") return null;
+
+    if (fieldName === "faculty") {
+      const faculty = form.watch("faculty");
+      const department = form.watch("department");
+      return (
+        <div
+          key="faculty-department"
+          className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4"
+        >
+          <FacultyDepartmentFields
+            faculty={faculty}
+            department={department}
+            facultyError={form.formState.errors.faculty?.message}
+            departmentError={form.formState.errors.department?.message}
+            onFacultyChange={(value) => {
+              form.setValue("faculty", value, { shouldValidate: true });
+              if (department && !isCanonicalDepartment(value, department)) {
+                form.setValue("department", "", { shouldValidate: true });
+              }
+            }}
+            onDepartmentChange={(value) =>
+              form.setValue("department", value, { shouldValidate: true })
+            }
+          />
+        </div>
+      );
+    }
 
     return (
       <div key={fieldName} className={config.fullWidth ? "md:col-span-2" : ""}>

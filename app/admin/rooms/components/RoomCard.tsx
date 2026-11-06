@@ -3,19 +3,86 @@
 import { Button } from "@/shared/components/ui/button";
 import { CardContainer } from "@/shared/components/ui/card-container";
 import { Room, Student } from "@/shared/store/appStore";
-import { getBedStatus } from "../utils/roomUtils";
+import { getBedStatus, getSelectableBedCount } from "../utils/roomUtils";
 import Link from "next/link";
 
 interface RoomCardProps {
   room: Room;
   students: Student[];
   onViewDetails: (room: Room) => void;
-  onSetAvailabilityStatus: (
-    room: Room,
-    status: "open" | "reserved" | "locked"
-  ) => void;
+  onSetAvailabilityStatus: (room: Room, status: "open" | "locked") => void;
+  onReserveBed: (room: Room, bedspaceLabel: string) => void;
+  onCancelReservation: (room: Room, bedspaceLabel: string) => void;
   isStatusUpdating?: boolean;
-  statusUpdatingTo?: "open" | "reserved" | "locked" | null;
+  statusUpdatingTo?: "open" | "locked" | null;
+  reservationBusyLabel?: string | null;
+}
+
+function BedSlot({
+  label,
+  reservedFor,
+  student,
+  position,
+  onReserve,
+  onCancel,
+  busy,
+}: {
+  label: string;
+  reservedFor?: string;
+  student?: Student;
+  position: string;
+  onReserve: () => void;
+  onCancel: () => void;
+  busy: boolean;
+}) {
+  return (
+    <div className="mt-1 first:mt-0">
+      <div className="text-sm font-medium">{label}</div>
+      <div className="text-xs text-gray-600">
+        {student ? (
+          <div>
+            <div className="font-medium">
+              {student.first_name} {student.last_name}
+            </div>
+            <div className="text-gray-500">{student.matric_number}</div>
+            <div className="text-xs text-gray-400">{position}</div>
+          </div>
+        ) : reservedFor ? (
+          <div>
+            <div className="font-medium text-amber-700">
+              Reserved for {reservedFor}
+            </div>
+            <div className="text-gray-500">{position}</div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-1 h-7 px-2 text-xs"
+              onClick={onCancel}
+              disabled={busy}
+            >
+              {busy ? "Updating..." : "Cancel reserve"}
+            </Button>
+          </div>
+        ) : (
+          <div>
+            <div className="font-medium text-green-600">Available</div>
+            <div className="text-gray-500">{position}</div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-1 h-7 px-2 text-xs"
+              onClick={onReserve}
+              disabled={busy}
+            >
+              {busy ? "Updating..." : "Reserve"}
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function RoomCard({
@@ -23,10 +90,15 @@ export function RoomCard({
   students,
   onViewDetails,
   onSetAvailabilityStatus,
+  onReserveBed,
+  onCancelReservation,
   isStatusUpdating = false,
   statusUpdatingTo = null,
+  reservationBusyLabel = null,
 }: RoomCardProps) {
   const roomStatus = room.room_availability_status || "open";
+  const selectableCount = getSelectableBedCount(room, students);
+  const displayStatus = selectableCount === 0 ? "locked" : roomStatus;
 
   return (
     <CardContainer title={`${room.block} - ${room.name}`}>
@@ -36,25 +108,7 @@ export function RoomCard({
             {Math.floor(room.total_beds / 2)} beds ({room.total_beds} bedspaces)
           </span>
           <span className="text-sm text-gray-600">
-            {(() => {
-              // Count beds that are actually available (not occupied)
-              const assignedStudents = students.filter(
-                (student) =>
-                  student.block === room.block &&
-                  student.room === room.name &&
-                  student.bedspace_label
-              );
-              // Count available bedspaces by checking which ones are truly free
-              const availableBedspaces = room.available_beds.filter(
-                (bedLabel) => {
-                  const isOccupied = assignedStudents.some(
-                    (student) => student.bedspace_label === bedLabel
-                  );
-                  return !isOccupied;
-                }
-              );
-              return `${availableBedspaces.length} bedspaces available`;
-            })()}
+            {selectableCount} bedspaces available
           </span>
         </div>
 
@@ -62,18 +116,12 @@ export function RoomCard({
           <span className="text-xs text-gray-500">Availability</span>
           <span
             className={`text-xs px-2 py-1 rounded-full ${
-              roomStatus === "open"
+              displayStatus === "open"
                 ? "bg-emerald-100 text-emerald-700"
-                : roomStatus === "reserved"
-                  ? "bg-amber-100 text-amber-700"
-                  : "bg-rose-100 text-rose-700"
+                : "bg-rose-100 text-rose-700"
             }`}
           >
-            {roomStatus === "open"
-              ? "Open"
-              : roomStatus === "reserved"
-                ? "Reserved"
-                : "Locked"}
+            {displayStatus === "open" ? "Open" : "Locked"}
           </span>
         </div>
 
@@ -82,93 +130,69 @@ export function RoomCard({
             { length: Math.ceil(room.total_beds / 2) },
             (_, index) => {
               const bedStatus = getBedStatus(room, index, students);
+              const hasAvailable =
+                bedStatus.isTopAvailable || bedStatus.isDownAvailable;
+              const hasReserved =
+                Boolean(bedStatus.reservedTop) || Boolean(bedStatus.reservedDown);
 
               return (
                 <div
                   key={index}
                   className={`p-3 rounded-lg border ${
-                    bedStatus.isTopAvailable || bedStatus.isDownAvailable
+                    hasAvailable
                       ? "bg-green-50 border-green-200"
-                      : "bg-red-50 border-red-200"
+                      : hasReserved
+                        ? "bg-amber-50 border-amber-200"
+                        : "bg-red-50 border-red-200"
                   }`}
                 >
-                  <div className="text-sm font-medium">
-                    {bedStatus.topBedLabel}
-                  </div>
-                  <div className="text-xs text-gray-600">
-                    {bedStatus.isTopAvailable ? (
-                      <div>
-                        <div className="font-medium text-green-600">
-                          Available
-                        </div>
-                        <div className="text-gray-500">Top available</div>
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="font-medium">
-                          {bedStatus.studentInTop?.first_name}{" "}
-                          {bedStatus.studentInTop?.last_name}
-                        </div>
-                        <div className="text-gray-500">
-                          {bedStatus.studentInTop?.matric_number}
-                        </div>
-                        <div className="text-xs text-gray-400">Top bunk</div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-sm font-medium mt-1">
-                    {bedStatus.downBedLabel}
-                  </div>
-                  <div className="text-xs text-gray-600">
-                    {bedStatus.isDownAvailable ? (
-                      <div>
-                        <div className="font-medium text-green-600">
-                          Available
-                        </div>
-                        <div className="text-gray-500">Down available</div>
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="font-medium">
-                          {bedStatus.studentInDown?.first_name}{" "}
-                          {bedStatus.studentInDown?.last_name}
-                        </div>
-                        <div className="text-gray-500">
-                          {bedStatus.studentInDown?.matric_number}
-                        </div>
-                        <div className="text-xs text-gray-400">Down bunk</div>
-                      </div>
-                    )}
-                  </div>
+                  <BedSlot
+                    label={bedStatus.topBedLabel}
+                    reservedFor={bedStatus.reservedTop?.reserved_for_name}
+                    student={bedStatus.studentInTop}
+                    position="Top bunk"
+                    onReserve={() => onReserveBed(room, bedStatus.topBedLabel)}
+                    onCancel={() =>
+                      onCancelReservation(room, bedStatus.topBedLabel)
+                    }
+                    busy={
+                      reservationBusyLabel ===
+                      `${room.id}:${bedStatus.topBedLabel}`
+                    }
+                  />
+                  <BedSlot
+                    label={bedStatus.downBedLabel}
+                    reservedFor={bedStatus.reservedDown?.reserved_for_name}
+                    student={bedStatus.studentInDown}
+                    position="Down bunk"
+                    onReserve={() => onReserveBed(room, bedStatus.downBedLabel)}
+                    onCancel={() =>
+                      onCancelReservation(room, bedStatus.downBedLabel)
+                    }
+                    busy={
+                      reservationBusyLabel ===
+                      `${room.id}:${bedStatus.downBedLabel}`
+                    }
+                  />
                 </div>
               );
             }
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Button
-            variant={roomStatus === "open" ? "default" : "outline"}
+            variant={displayStatus === "open" ? "default" : "outline"}
             size="sm"
             onClick={() => onSetAvailabilityStatus(room, "open")}
-            disabled={isStatusUpdating}
+            disabled={isStatusUpdating || selectableCount === 0}
           >
             {isStatusUpdating && statusUpdatingTo === "open"
               ? "Updating..."
               : "Open"}
           </Button>
           <Button
-            variant={roomStatus === "reserved" ? "default" : "outline"}
-            size="sm"
-            onClick={() => onSetAvailabilityStatus(room, "reserved")}
-            disabled={isStatusUpdating}
-          >
-            {isStatusUpdating && statusUpdatingTo === "reserved"
-              ? "Updating..."
-              : "Reserve"}
-          </Button>
-          <Button
-            variant={roomStatus === "locked" ? "default" : "outline"}
+            variant={displayStatus === "locked" ? "default" : "outline"}
             size="sm"
             onClick={() => onSetAvailabilityStatus(room, "locked")}
             disabled={isStatusUpdating}

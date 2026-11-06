@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
+import { syncRoomAvailability } from "@/shared/utils/room-availability";
 
 const ALLOWED_ROLES = ["super_admin", "admin", "hostel_manager", "porter", "other"];
-const ALLOWED_STATUS = ["open", "reserved", "locked"] as const;
+const ALLOWED_STATUS = ["open", "locked"] as const;
 
 type RoomAvailabilityStatus = (typeof ALLOWED_STATUS)[number];
 
@@ -18,6 +19,17 @@ export async function PATCH(
     const body = await request.json();
     const status = String(body.status || "") as RoomAvailabilityStatus;
 
+    if (String(body.status || "") === "reserved") {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Reserve a specific bedspace and the person's name instead of marking the whole room reserved",
+        },
+        { status: 400 }
+      );
+    }
+
     if (!ALLOWED_STATUS.includes(status)) {
       return NextResponse.json(
         { success: false, error: "Invalid room status" },
@@ -29,7 +41,7 @@ export async function PATCH(
       .from("rooms")
       .update({ room_availability_status: status })
       .eq("id", id)
-      .select("id, name, block, room_availability_status")
+      .select("id, name, block, available_beds, room_availability_status")
       .single();
 
     if (error) {
@@ -40,7 +52,19 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json({ success: true, data: room });
+    const synced = await syncRoomAvailability(supabaseAdmin, id, {
+      openIfFreed: status === "open",
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...room,
+        room_availability_status:
+          synced?.status || room.room_availability_status,
+        available_beds: synced?.available_beds || room.available_beds,
+      },
+    });
   } catch (error) {
     console.error("Room status PATCH error:", error);
     return NextResponse.json(

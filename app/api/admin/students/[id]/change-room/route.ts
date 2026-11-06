@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
 import { claimBedspace, releaseBedspace } from "@/shared/utils/room-beds";
+import { syncRoomAvailability } from "@/shared/utils/room-availability";
 
 /**
  * Super admin: change a student's room / bunk assignment.
@@ -145,6 +146,7 @@ export async function POST(
     const claim = await claimBedspace(supabaseAdmin, {
       roomId: room_id,
       bedspace_label,
+      allowReservedOrLocked: true,
     });
 
     if (!claim.claimed) {
@@ -160,6 +162,7 @@ export async function POST(
           await claimBedspace(supabaseAdmin, {
             roomId: prevRoom.id,
             bedspace_label: previous.bedspace_label,
+            allowReservedOrLocked: true,
           });
         }
       }
@@ -227,6 +230,7 @@ export async function POST(
           await claimBedspace(supabaseAdmin, {
             roomId: prevRoom.id,
             bedspace_label: previous.bedspace_label,
+            allowReservedOrLocked: true,
           });
         }
       }
@@ -238,6 +242,21 @@ export async function POST(
         },
         { status: 500 }
       );
+    }
+
+    await syncRoomAvailability(supabaseAdmin, room_id);
+    if (released && previous.block && previous.room) {
+      const { data: prevRoom } = await supabaseAdmin
+        .from("rooms")
+        .select("id")
+        .eq("block", previous.block)
+        .eq("name", previous.room)
+        .maybeSingle();
+      if (prevRoom?.id && prevRoom.id !== room_id) {
+        await syncRoomAvailability(supabaseAdmin, prevRoom.id, {
+          openIfFreed: true,
+        });
+      }
     }
 
     await supabaseAdmin.from("activity_logs").insert({

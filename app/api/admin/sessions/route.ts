@@ -164,10 +164,29 @@ export async function POST(request: NextRequest) {
 
       for (const room of rooms || []) {
         const beds = fullBedsForRoomType(room.bed_type);
-        const { error: roomUpdateError } = await supabaseAdmin
+        let { error: roomUpdateError } = await supabaseAdmin
           .from("rooms")
-          .update({ available_beds: beds })
+          .update({
+            available_beds: beds,
+            room_availability_status: "open",
+            bed_reservations: [],
+          })
           .eq("id", room.id);
+        if (
+          roomUpdateError &&
+          (roomUpdateError.code === "42703" ||
+            roomUpdateError.code === "PGRST204" ||
+            roomUpdateError.message?.includes("bed_reservations"))
+        ) {
+          const fallback = await supabaseAdmin
+            .from("rooms")
+            .update({
+              available_beds: beds,
+              room_availability_status: "open",
+            })
+            .eq("id", room.id);
+          roomUpdateError = fallback.error;
+        }
         if (roomUpdateError) {
           console.error("Room reset failed", room.id, roomUpdateError);
           continue;
