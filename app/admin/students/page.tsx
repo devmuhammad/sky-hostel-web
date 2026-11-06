@@ -13,6 +13,7 @@ import { EditStudentModal } from "./components/EditStudentModal";
 import { ReportForm } from "@/features/student-reports/components/ReportForm";
 import { Modal } from "@/shared/components/ui/modal";
 import { Student } from "@/shared/store/appStore";
+import { useStudents } from "@/shared/hooks/useAppData";
 
 function StudentsManagement() {
   const {
@@ -34,8 +35,10 @@ function StudentsManagement() {
     handleResendEmail,
   } = useStudentsManagement();
   const queryClient = useQueryClient();
+  const { isSuccess: studentsLoaded } = useStudents();
 
   useEffect(() => {
+    if (!studentsLoaded) return;
     let cancelled = false;
     (async () => {
       try {
@@ -57,7 +60,7 @@ function StudentsManagement() {
     return () => {
       cancelled = true;
     };
-  }, [queryClient]);
+  }, [studentsLoaded, queryClient]);
 
   const [reportingStudent, setReportingStudent] = useState<Student | null>(null);
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useStudents, usePayments, useRooms } from "@/shared/hooks/useAppData";
 import {
   getCurrentAcademicSession,
@@ -50,7 +49,6 @@ function rangeForSession(sessionLabel: string) {
 }
 
 export function useReportsAnalytics() {
-  const queryClient = useQueryClient();
   const [sessionLabel, setSessionLabel] = useState(getCurrentAcademicSession);
   const [headline, setHeadline] = useState<HostelStats | null>(null);
   const [dateRange, setDateRange] = useState(() =>
@@ -113,25 +111,6 @@ export function useReportsAnalytics() {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const response = await fetch("/api/admin/students/repair-academics", {
-          method: "POST",
-        });
-        const result = await response.json();
-        if (cancelled || !result.success || !result.data?.updated) return;
-        await queryClient.invalidateQueries({ queryKey: ["students"] });
-      } catch (error) {
-        console.error("Academic repair failed:", error);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [queryClient]);
 
   const isLoading = studentsLoading || paymentsLoading || roomsLoading;
   const isError = Boolean(studentsError || paymentsError || roomsError);
