@@ -24,25 +24,29 @@ export function expectedBedLabels(totalBeds: number): string[] {
 
 export function parseBedReservations(value: unknown): BedReservation[] {
   if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const row = item as Record<string, unknown>;
-      const bedspace_label =
-        typeof row.bedspace_label === "string" ? row.bedspace_label.trim() : "";
-      const reserved_for_name =
-        typeof row.reserved_for_name === "string"
-          ? row.reserved_for_name.trim()
-          : "";
-      if (!bedspace_label || !reserved_for_name) return null;
-      return {
-        bedspace_label,
-        reserved_for_name,
-        created_at:
-          typeof row.created_at === "string" ? row.created_at : undefined,
-      } satisfies BedReservation;
-    })
-    .filter((item): item is BedReservation => Boolean(item));
+
+  const reservations: BedReservation[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const bedspace_label =
+      typeof row.bedspace_label === "string" ? row.bedspace_label.trim() : "";
+    const reserved_for_name =
+      typeof row.reserved_for_name === "string"
+        ? row.reserved_for_name.trim()
+        : "";
+    if (!bedspace_label || !reserved_for_name) continue;
+
+    const reservation: BedReservation = {
+      bedspace_label,
+      reserved_for_name,
+    };
+    if (typeof row.created_at === "string") {
+      reservation.created_at = row.created_at;
+    }
+    reservations.push(reservation);
+  }
+  return reservations;
 }
 
 export function reservationForBed(
