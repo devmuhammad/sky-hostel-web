@@ -235,7 +235,7 @@ export function StudentDetailModal({
                   </Button>
                   <p className="mt-2 text-xs text-slate-500">
                     Refunds their payment, frees their bed, and blocks
-                    payment and registration for this session.
+                    payment and registration for this session. Super admin only.
                   </p>
                 </div>
               )}

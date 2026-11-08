@@ -1,8 +1,4 @@
-export const REFUND_ADMIN_ROLES = [
-  "super_admin",
-  "admin",
-  "hostel_manager",
-] as const;
+export const REFUND_ADMIN_ROLES = ["super_admin"] as const;
 
 export function isStudentBlocked(student: {
   is_active?: boolean | null;
