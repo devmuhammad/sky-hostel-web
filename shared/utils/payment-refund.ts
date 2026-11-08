@@ -102,17 +102,15 @@ async function cancelInvoiceIfPossible(
   return { cancelled: false, error: result.error || "Invoice cancel failed" };
 }
 
-async function findStudentForPayment(payment: {
-  id: string;
-  email?: string | null;
-  session_label?: string | null;
-}) {
-  const { data: byPaymentId } = await supabaseAdmin
-    .from("students")
-    .select("*")
-    .eq("payment_id", payment.id)
-    .maybeSingle();
-  if (byPaymentId) return byPaymentId;
+async function findStudentForPayment(payment: Record<string, any>) {
+  if (payment.id) {
+    const { data: byPaymentId } = await supabaseAdmin
+      .from("students")
+      .select("*")
+      .eq("payment_id", payment.id)
+      .maybeSingle();
+    if (byPaymentId) return byPaymentId;
+  }
 
   if (!payment.email) return null;
 
