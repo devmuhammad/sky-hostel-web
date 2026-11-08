@@ -56,6 +56,16 @@ export async function POST(request: NextRequest) {
 
     const payment = payments[0];
 
+    if (payment.status === "refunded") {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Refunded payments cannot be changed.",
+        },
+        { status: 400 }
+      );
+    }
+
     // Update payment status
     const { error: updateError } = await supabaseAdmin
       .from("payments")

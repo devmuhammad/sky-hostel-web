@@ -10,8 +10,11 @@ import { SponsorPaymentForm } from "./components/SponsorPaymentForm";
 import { DataTable } from "@/shared/components/ui/data-table";
 import { TableLoadingSkeleton } from "@/shared/components/ui/loading-skeleton";
 import { useAppStore } from "@/shared/store/appStore";
-import { columns } from "./utils/tableColumns";
+import { getPaymentColumns } from "./utils/tableColumns";
 import { useToast } from "@/shared/hooks/useToast";
+import { RefundReasonModal } from "@/shared/components/ui/refund-reason-modal";
+import { Payment } from "@/shared/store/appStore";
+import { REFUND_ADMIN_ROLES } from "@/shared/utils/student-eligibility";
 import {
   getAcademicSessionForDate,
   getCurrentAcademicSession,
@@ -28,6 +31,9 @@ export default function PaymentsPage() {
     getCurrentAcademicSession()
   );
   const [isReconciling, setIsReconciling] = useState(false);
+  const [refundTarget, setRefundTarget] = useState<Payment | null>(null);
+  const [refundReason, setRefundReason] = useState("");
+  const [isRefunding, setIsRefunding] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +89,56 @@ export default function PaymentsPage() {
     });
   }, [payments, sessionLabel]);
 
+  const canRefund = Boolean(
+    role && (REFUND_ADMIN_ROLES as readonly string[]).includes(role)
+  );
+
+  const paymentColumns = useMemo(
+    () =>
+      getPaymentColumns({
+        onRefund: canRefund ? setRefundTarget : undefined,
+      }),
+    [canRefund]
+  );
+
+  const handleRefund = async () => {
+    if (!refundTarget) return;
+    if (refundReason.trim().length < 5) {
+      toast.error("Enter a reason (at least 5 characters)");
+      return;
+    }
+
+    setIsRefunding(true);
+    try {
+      const res = await fetch(
+        `/api/admin/payments/${refundTarget.id}/refund`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: refundReason.trim() }),
+        }
+      );
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to refund payment");
+      }
+
+      if (json.data?.payment) {
+        useAppStore.getState().updatePayment(refundTarget.id, json.data.payment);
+      }
+      if (json.data?.student?.id) {
+        useAppStore.getState().updateStudent(json.data.student.id, json.data.student);
+      }
+      toast.success(json.data?.message || "Payment refunded");
+      setRefundTarget(null);
+      setRefundReason("");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to refund payment");
+    } finally {
+      setIsRefunding(false);
+    }
+  };
+
   const handleReconcile = async () => {
     setIsReconciling(true);
     try {
@@ -129,6 +185,8 @@ export default function PaymentsPage() {
             Session-scoped payment tracking. Sync All updates existing rows and
             imports paid Paycashless invoices that are missing locally. Use
             &quot;Re-date from invoices&quot; to fix historical invoice dates.
+            Refund stops the student at any stage and frees their bed if they
+            already registered.
           </p>
         </div>
 
@@ -155,7 +213,7 @@ export default function PaymentsPage() {
 
         <DataTable
           data={filteredPayments}
-          columns={columns}
+          columns={paymentColumns}
           searchFields={["email"]}
           searchPlaceholder="Search by email..."
         />
@@ -169,6 +227,23 @@ export default function PaymentsPage() {
         onSync={manualCheck.handleSyncPaycashless}
         isUpdating={manualCheck.isManualChecking}
         isSyncing={manualCheck.isManualChecking}
+      />
+
+      <RefundReasonModal
+        isOpen={!!refundTarget}
+        title={
+          refundTarget
+            ? `Refund ${refundTarget.email}`
+            : "Refund payment"
+        }
+        reason={refundReason}
+        onReasonChange={setRefundReason}
+        onClose={() => {
+          setRefundTarget(null);
+          setRefundReason("");
+        }}
+        onConfirm={handleRefund}
+        isSubmitting={isRefunding}
       />
     </div>
   );

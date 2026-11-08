@@ -9,8 +9,10 @@ export interface Database {
           amount_to_pay: number;
           amount_paid: number;
           invoice_id: string;
-          status: "pending" | "completed" | "failed" | "partially_paid";
+          status: "pending" | "completed" | "failed" | "partially_paid" | "refunded";
           paid_at: string | null;
+          refunded_at: string | null;
+          refund_reason: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -21,8 +23,10 @@ export interface Database {
           amount_to_pay: number;
           amount_paid?: number;
           invoice_id: string;
-          status?: "pending" | "completed" | "failed" | "partially_paid";
+          status?: "pending" | "completed" | "failed" | "partially_paid" | "refunded";
           paid_at?: string | null;
+          refunded_at?: string | null;
+          refund_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -33,8 +37,10 @@ export interface Database {
           amount_to_pay?: number;
           amount_paid?: number;
           invoice_id?: string;
-          status?: "pending" | "completed" | "failed" | "partially_paid";
+          status?: "pending" | "completed" | "failed" | "partially_paid" | "refunded";
           paid_at?: string | null;
+          refunded_at?: string | null;
+          refund_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };

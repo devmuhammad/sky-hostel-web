@@ -27,7 +27,7 @@ CREATE TABLE payments (
   amount_paid DECIMAL(10,2) DEFAULT 0,   -- Actual amount paid so far
   invoice_id VARCHAR(255) UNIQUE NOT NULL,  -- Our internal reference (SKY-xxx)
   paycashless_invoice_id VARCHAR(255),      -- Paycashless invoice ID (inv_xxx)
-  status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'partially_paid')),
+  status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'partially_paid', 'refunded')),
   paid_at TIMESTAMP,
   last_webhook_update TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW(),

@@ -14,6 +14,11 @@ import {
   upsertPaymentFromInvoice,
 } from "@/shared/utils/payment-record";
 import { fetchAllRows } from "@/shared/utils/supabase-fetch";
+import {
+  isStudentBlocked,
+  PAYMENT_REFUNDED_MESSAGE,
+  STUDENT_INELIGIBLE_MESSAGE,
+} from "@/shared/utils/student-eligibility";
 
 interface PaymentData {
   firstName: string;
@@ -120,17 +125,12 @@ async function handlePOST(request: NextRequest) {
       .ilike("email", normalizedEmail)
       .maybeSingle();
 
-    if (
-      existingStudent &&
-      (existingStudent.is_active === false ||
-        existingStudent.account_status === "blacklisted")
-    ) {
+    if (isStudentBlocked(existingStudent)) {
       return NextResponse.json(
         {
           success: false,
           error: {
-            message:
-              "This email is not eligible for hostel registration. Please contact the hostel office.",
+            message: STUDENT_INELIGIBLE_MESSAGE,
           },
         },
         { status: 403 }
@@ -166,6 +166,19 @@ async function handlePOST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: { message: "Payment initiation failed" } },
         { status: 500 }
+      );
+    }
+
+    const refundedPayment = existingPayments?.find(
+      (p) => p.status === "refunded"
+    );
+    if (refundedPayment) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { message: PAYMENT_REFUNDED_MESSAGE },
+        },
+        { status: 403 }
       );
     }
 
@@ -278,9 +291,20 @@ async function resumeExistingPayment(
     invoice_id: string;
     paycashless_invoice_id?: string | null;
     payment_source?: string | null;
+    status?: string | null;
   },
   context: InvoiceContext
 ) {
+  if (existingPayment.status === "refunded") {
+    return NextResponse.json(
+      {
+        success: false,
+        error: { message: PAYMENT_REFUNDED_MESSAGE },
+      },
+      { status: 403 }
+    );
+  }
+
   if (
     existingPayment.payment_source === "sponsored" ||
     existingPayment.payment_source === "waived"

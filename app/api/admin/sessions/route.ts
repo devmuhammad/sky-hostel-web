@@ -212,6 +212,7 @@ export async function POST(request: NextRequest) {
         for (const student of students || []) {
           if (
             student.account_status === "blacklisted" ||
+            student.account_status === "withdrawn" ||
             student.is_active === false
           ) {
             continue;

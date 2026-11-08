@@ -11,6 +11,8 @@ import { getStudentDetailSections } from "@/shared/constants/student-details";
 import { ReportTimeline } from "@/features/student-reports/components/ReportTimeline";
 import { useToast } from "@/shared/hooks/useToast";
 import { useAppStore } from "@/shared/store/appStore";
+import { RefundReasonModal } from "@/shared/components/ui/refund-reason-modal";
+import { REFUND_ADMIN_ROLES } from "@/shared/utils/student-eligibility";
 
 interface StudentDetailModalProps {
   student: Student | null;
@@ -30,6 +32,9 @@ export function StudentDetailModal({
   const [showBlacklist, setShowBlacklist] = useState(false);
   const [reason, setReason] = useState("");
   const [isBlacklisting, setIsBlacklisting] = useState(false);
+  const [showRefund, setShowRefund] = useState(false);
+  const [refundReason, setRefundReason] = useState("");
+  const [isRefunding, setIsRefunding] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,9 +60,12 @@ export function StudentDetailModal({
   if (!liveStudent) return null;
 
   const isSuperAdmin = role === "super_admin";
-  const isBlacklisted =
-    liveStudent.is_active === false ||
-    liveStudent.account_status === "blacklisted";
+  const canRefund = Boolean(
+    role && (REFUND_ADMIN_ROLES as readonly string[]).includes(role)
+  );
+  const isWithdrawn = liveStudent.account_status === "withdrawn";
+  const isBlacklisted = liveStudent.account_status === "blacklisted";
+  const isBlocked = isBlacklisted || isWithdrawn || liveStudent.is_active === false;
 
   const handleBlacklist = async () => {
     if (reason.trim().length < 5) {
@@ -97,6 +105,44 @@ export function StudentDetailModal({
     }
   };
 
+  const handleRefund = async () => {
+    if (refundReason.trim().length < 5) {
+      toast.error("Enter a reason (at least 5 characters)");
+      return;
+    }
+
+    setIsRefunding(true);
+    try {
+      const res = await fetch(`/api/admin/students/${liveStudent.id}/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: refundReason.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to refund student");
+      }
+
+      if (json.data?.student) {
+        updateStudent(liveStudent.id, json.data.student);
+      }
+      if (json.data?.payment?.id) {
+        useAppStore.getState().updatePayment(json.data.payment.id, json.data.payment);
+      }
+      toast.success(
+        json.data?.message ||
+          "Payment refunded. Student cannot continue and bed was released."
+      );
+      setShowRefund(false);
+      setRefundReason("");
+      onClose();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to refund student");
+    } finally {
+      setIsRefunding(false);
+    }
+  };
+
   return (
     <>
       <Modal
@@ -105,6 +151,7 @@ export function StudentDetailModal({
           onClose();
           setActiveTab("overview");
           setShowBlacklist(false);
+          setShowRefund(false);
         }}
         title={`Student Details - ${liveStudent.first_name} ${liveStudent.last_name}`}
         size="lg"
@@ -141,12 +188,14 @@ export function StudentDetailModal({
         </div>
 
         <div className="mt-4 space-y-4">
-          {(isBlacklisted || liveStudent.account_status) && (
+          {(isBlocked || liveStudent.account_status) && (
             <div
               className={`rounded-lg border px-3 py-2 text-sm ${
                 isBlacklisted
                   ? "border-red-200 bg-red-50 text-red-800"
-                  : "border-slate-200 bg-slate-50 text-slate-700"
+                  : isWithdrawn
+                    ? "border-amber-200 bg-amber-50 text-amber-900"
+                    : "border-slate-200 bg-slate-50 text-slate-700"
               }`}
             >
               Status:{" "}
@@ -174,18 +223,36 @@ export function StudentDetailModal({
             <ReportTimeline studentId={liveStudent.id} />
           )}
 
-          {isSuperAdmin && !isBlacklisted && (
-            <div className="border-t border-slate-200 pt-4">
-              <Button
-                onClick={() => setShowBlacklist(true)}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                Blacklist / Reject student
-              </Button>
-              <p className="mt-2 text-xs text-slate-500">
-                Frees their bed, marks them inactive, and blocks re-registration.
-                Super admin only.
-              </p>
+          {!isBlocked && (canRefund || isSuperAdmin) && (
+            <div className="border-t border-slate-200 pt-4 space-y-3">
+              {canRefund && (
+                <div>
+                  <Button
+                    onClick={() => setShowRefund(true)}
+                    className="bg-amber-600 hover:bg-amber-700"
+                  >
+                    Refund / withdraw student
+                  </Button>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Refunds their payment, frees their bed, and blocks
+                    payment and registration for this session.
+                  </p>
+                </div>
+              )}
+              {isSuperAdmin && (
+                <div>
+                  <Button
+                    onClick={() => setShowBlacklist(true)}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Blacklist / Reject student
+                  </Button>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Frees their bed, marks them inactive, and blocks
+                    re-registration. Super admin only.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -227,6 +294,20 @@ export function StudentDetailModal({
           </div>
         </div>
       </Modal>
+
+      <RefundReasonModal
+        isOpen={showRefund}
+        title={`Refund ${liveStudent.first_name} ${liveStudent.last_name}`}
+        description="This refunds their payment, withdraws them if they already registered, and frees their bed. They cannot continue at any stage."
+        reason={refundReason}
+        onReasonChange={setRefundReason}
+        onClose={() => {
+          setShowRefund(false);
+          setRefundReason("");
+        }}
+        onConfirm={handleRefund}
+        isSubmitting={isRefunding}
+      />
     </>
   );
 }

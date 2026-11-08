@@ -46,7 +46,7 @@ export interface Payment {
   amount_to_pay: number;
   amount_paid: number;
   invoice_id: string;
-  status: "pending" | "completed" | "failed" | "partially_paid";
+  status: "pending" | "completed" | "failed" | "partially_paid" | "refunded";
   paid_at?: string;
   created_at: string;
   updated_at: string;
@@ -59,6 +59,8 @@ export interface Payment {
   session_label?: string | null;
   invoice_created_at?: string | null;
   invoice_paid_at?: string | null;
+  refunded_at?: string | null;
+  refund_reason?: string | null;
 }
 
 export interface BedReservation {
@@ -254,6 +256,10 @@ export const useAppStore = create<AppState>()(
           payments: state.payments.map((payment) => {
             if (payment.invoice_id === invoiceId) {
               const { event, data } = webhookData;
+
+              if (payment.status === "refunded") {
+                return payment;
+              }
 
               if (event === "INVOICE_PAYMENT_SUCCEEDED") {
                 const newAmountPaid = (payment.amount_paid || 0) + data.amount;

@@ -3,6 +3,7 @@ import { requireRole } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
 import { claimBedspace, releaseBedspace } from "@/shared/utils/room-beds";
 import { syncRoomAvailability } from "@/shared/utils/room-availability";
+import { isStudentBlocked } from "@/shared/utils/student-eligibility";
 
 /**
  * Super admin: change a student's room / bunk assignment.
@@ -51,14 +52,11 @@ export async function POST(
       );
     }
 
-    if (
-      student.is_active === false ||
-      student.account_status === "blacklisted"
-    ) {
+    if (isStudentBlocked(student)) {
       return NextResponse.json(
         {
           success: false,
-          error: "Cannot change room for a blacklisted / inactive student",
+          error: "Cannot change room for a withdrawn or blacklisted student",
         },
         { status: 400 }
       );

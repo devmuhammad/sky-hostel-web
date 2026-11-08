@@ -9,6 +9,11 @@ import {
   syncRoomStatusFromAvailableBeds,
 } from "@/shared/utils/room-availability";
 import { normalizeStudentAcademics } from "@/shared/constants/unilorin-academics";
+import {
+  isStudentBlocked,
+  PAYMENT_REFUNDED_MESSAGE,
+  STUDENT_INELIGIBLE_MESSAGE,
+} from "@/shared/utils/student-eligibility";
 
 interface StudentRegistrationData {
   // Personal Information
@@ -165,6 +170,16 @@ async function handlePOST(request: NextRequest) {
           );
         }
 
+        if (sessionPayment.status === "refunded") {
+          return NextResponse.json(
+            {
+              success: false,
+              error: { message: PAYMENT_REFUNDED_MESSAGE },
+            },
+            { status: 403 }
+          );
+        }
+
         if (sessionPayment.status !== "completed") {
           return NextResponse.json(
             {
@@ -210,17 +225,12 @@ async function handlePOST(request: NextRequest) {
         .eq("email", data.email)
         .maybeSingle();
 
-      if (
-        existingByEmail &&
-        (existingByEmail.is_active === false ||
-          existingByEmail.account_status === "blacklisted")
-      ) {
+      if (isStudentBlocked(existingByEmail)) {
         return NextResponse.json(
           {
             success: false,
             error: {
-              message:
-                "This email is not eligible for hostel registration. Please contact the hostel office.",
+              message: STUDENT_INELIGIBLE_MESSAGE,
             },
           },
           { status: 400 }

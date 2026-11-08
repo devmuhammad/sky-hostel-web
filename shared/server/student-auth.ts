@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/shared/config/auth";
+import { isStudentBlocked } from "@/shared/utils/student-eligibility";
 
 export interface AuthenticatedStudent {
   userId: string;
@@ -28,7 +29,7 @@ export async function getAuthenticatedStudent(): Promise<AuthenticatedStudent | 
     return null;
   }
 
-  if (student.is_active === false || student.account_status === "blacklisted") {
+  if (isStudentBlocked(student)) {
     return null;
   }
 

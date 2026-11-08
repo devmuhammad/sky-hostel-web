@@ -77,6 +77,12 @@ describe("computeHostelStats", () => {
           amount_paid: 219000,
           payment_source: "paycashless",
         },
+        {
+          session_label: session,
+          status: "refunded",
+          amount_paid: 255700,
+          payment_source: "paycashless",
+        },
       ],
     });
 

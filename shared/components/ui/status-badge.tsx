@@ -77,6 +77,7 @@ export function StatusBadge({
           "bg-orange-100 text-orange-800 border-orange-200":
             status === "partially_paid",
           "bg-red-100 text-red-800 border-red-200": status === "failed",
+          "bg-slate-200 text-slate-800 border-slate-300": status === "refunded",
         },
         className
       )}

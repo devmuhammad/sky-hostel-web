@@ -3,6 +3,10 @@ import { requireRole } from "@/shared/config/auth";
 import { supabaseAdmin } from "@/shared/config/supabase";
 import { sanitizeEmail } from "@/shared/utils/sanitize";
 import { getActiveSessionConfig } from "@/shared/utils/active-session";
+import {
+  isStudentBlocked,
+  PAYMENT_REFUNDED_MESSAGE,
+} from "@/shared/utils/student-eligibility";
 
 /**
  * Super admin: waive payment for a sponsored student.
@@ -53,15 +57,12 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existingStudent) {
-      if (
-        existingStudent.is_active === false ||
-        existingStudent.account_status === "blacklisted"
-      ) {
+      if (isStudentBlocked(existingStudent)) {
         return NextResponse.json(
           {
             success: false,
             error:
-              "This email belongs to a blacklisted student and cannot be sponsored.",
+              "This email belongs to a blocked student and cannot be sponsored.",
           },
           { status: 400 }
         );
@@ -88,6 +89,19 @@ export async function POST(request: NextRequest) {
       .ilike("email", email)
       .eq("session_label", sessionLabel)
       .order("created_at", { ascending: false });
+
+    const refunded = (existingPayments || []).find(
+      (p) => p.status === "refunded"
+    );
+    if (refunded) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: PAYMENT_REFUNDED_MESSAGE,
+        },
+        { status: 400 }
+      );
+    }
 
     const completed = (existingPayments || []).find(
       (p) => p.status === "completed"

@@ -11,6 +11,11 @@ import { paycashlessConfig } from "@/shared/config/env";
 import { PAYMENT_CONFIG } from "@/shared/config/constants";
 import { getActiveSessionConfig } from "@/shared/utils/active-session";
 import { upsertPaymentFromInvoice } from "@/shared/utils/payment-record";
+import {
+  isStudentBlocked,
+  PAYMENT_REFUNDED_MESSAGE,
+  STUDENT_INELIGIBLE_MESSAGE,
+} from "@/shared/utils/student-eligibility";
 
 const PAYCASHLESS_API_URL = paycashlessConfig.apiUrl;
 const PAYCASHLESS_API_KEY = paycashlessConfig.apiKey;
@@ -342,14 +347,10 @@ export async function verifyPaycashlessPayment(
     }
 
     if (existingStudent) {
-      if (
-        existingStudent.is_active === false ||
-        existingStudent.account_status === "blacklisted"
-      ) {
+      if (isStudentBlocked(existingStudent)) {
         return {
           success: false,
-          error:
-            "This email is not eligible for hostel registration. Please contact the hostel office.",
+          error: STUDENT_INELIGIBLE_MESSAGE,
         };
       }
 
@@ -364,6 +365,23 @@ export async function verifyPaycashlessPayment(
         };
       }
       // Returning student without a current bed — allow verify with this session's payment
+    }
+
+    const { data: localRefunded } = await supabaseAdmin
+      .from("payments")
+      .select("id, status")
+      .ilike("email", email)
+      .eq("status", "refunded")
+      .eq("session_label", sessionLabel)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (localRefunded) {
+      return {
+        success: false,
+        error: PAYMENT_REFUNDED_MESSAGE,
+      };
     }
 
     // Sponsored / waived: trust a completed local payment for the active session
@@ -433,6 +451,15 @@ export async function verifyPaycashlessPayment(
           fallbackEmail: email,
           fallbackPhone: phone,
         });
+        if (
+          imported.action === "skipped_refunded" ||
+          imported.payment.status === "refunded"
+        ) {
+          return {
+            success: false,
+            error: PAYMENT_REFUNDED_MESSAGE,
+          };
+        }
         return {
           success: true,
           data: {

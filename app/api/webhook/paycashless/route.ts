@@ -117,6 +117,17 @@ async function syncInvoiceFromWebhook(
     touchWebhook: true,
   });
 
+  if (result.action === "skipped_refunded") {
+    return NextResponse.json({
+      success: true,
+      payment_id: result.payment.id,
+      action: result.action,
+      new_status: result.payment.status,
+      event_type: eventType,
+      invoice_id: invoice.id,
+    });
+  }
+
   await supabaseAdmin.from("activity_logs").insert({
     action:
       result.action === "created"

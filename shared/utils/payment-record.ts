@@ -25,7 +25,12 @@ export type SyncableInvoice = {
 
 export type UpsertPaymentResult = {
   payment: Record<string, unknown>;
-  action: "created" | "updated" | "unchanged" | "skipped_sponsored";
+  action:
+    | "created"
+    | "updated"
+    | "unchanged"
+    | "skipped_sponsored"
+    | "skipped_refunded";
 };
 
 export function normalizePaymentPhone(phone: string): {
@@ -155,6 +160,10 @@ export async function upsertPaymentFromInvoice(
     return { payment: existing, action: "skipped_sponsored" };
   }
 
+  if (existing?.status === "refunded") {
+    return { payment: existing, action: "skipped_refunded" };
+  }
+
   const nextRow = {
     email,
     phone: existing?.phone && existing.phone !== PLACEHOLDER_PHONE
@@ -221,6 +230,9 @@ export async function upsertPaymentFromInvoice(
         .eq("invoice_id", invoiceId)
         .maybeSingle();
       if (raced) {
+        if (raced.status === "refunded") {
+          return { payment: raced, action: "skipped_refunded" };
+        }
         const { data: updated, error: updateError } = await supabaseAdmin
           .from("payments")
           .update(nextRow)
